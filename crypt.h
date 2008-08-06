@@ -27,6 +27,15 @@
 
 #include <glib.h>
 
+void qq_encrypt(const guint8 *const instr, gint instrlen, 
+		const guint8 *const key, 
+		guint8 *outstr, gint *outstrlen_ptr);
+		
+gint qq_decrypt(const guint8 *const instr, gint instrlen, 
+		const guint8 *const key,
+		guint8 *outstr, gint *outstrlen_ptr);
+		
+/*
 #define DECRYPT 0x00
 #define ENCRYPT 0x01
 
@@ -34,5 +43,5 @@ gint qq_crypt(gint flag,
 	     const guint8 *const instr, gint instrlen, 
 	     const guint8 *const key, 
 	     guint8 *outstr, gint *outstrlen_ptr);
-
+*/
 #endif
