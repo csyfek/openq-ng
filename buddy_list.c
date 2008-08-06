@@ -234,12 +234,11 @@ void qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnec
 				"qq_process_get_buddies_online_reply: Dangerous error! maybe protocol changed, notify developers!\n");
 	}
 
-	if (position != QQ_FRIENDS_ONLINE_POSITION_END) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Received %d online buddies, nextposition=%u\n",
-								count, (guint) position);
-		if (position != QQ_FRIENDS_ONLINE_POSITION_START) {
-			purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more online buddies\n"); 
-		}
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Received %d online buddies, nextposition=%u\n",
+							count, (guint) position);
+	if (position != QQ_FRIENDS_ONLINE_POSITION_END
+		  && position != QQ_FRIENDS_ONLINE_POSITION_START) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more online buddies\n"); 
 		qq_send_packet_get_buddies_online(gc, position);
 	} else {
 		purple_debug(PURPLE_DEBUG_INFO, "QQ", "All online buddies received\n"); 
@@ -432,7 +431,9 @@ void qq_process_get_all_list_with_group_reply(guint8 *buf, gint buf_len, PurpleC
 
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Get all list done, %d buddies and %d Quns\n", i, j);
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Received %d buddies and %d groups, nextposition=%u\n", i, j, (guint) position);
-	if (position != QQ_FRIENDS_ALL_LIST_POSITION_START && position != QQ_FRIENDS_ALL_LIST_POSITION_START) {
+
+	if (position != QQ_FRIENDS_ALL_LIST_POSITION_START
+		&& position != QQ_FRIENDS_ALL_LIST_POSITION_END) {
 		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more buddies and groups\n");
 		qq_send_packet_get_all_list_with_group(gc, position);
 	} else {

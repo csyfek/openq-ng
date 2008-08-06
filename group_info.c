@@ -87,7 +87,7 @@ void qq_send_cmd_group_get_online_members(PurpleConnection *gc, qq_group *group)
 	/* only get online members when conversation window is on */
 	if (NULL == purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT,group->group_name_utf8, purple_connection_get_account(gc))) {
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
-				"Conv windows for \"%s\" is not on, do not get online members\n", group->group_name_utf8);
+				"Conversation for \"%s\" is not open, ignore to get online members\n", group->group_name_utf8);
 		return;
 	}
 
@@ -157,6 +157,8 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	guint32 unknown4;
 	guint8 unknown1;
 	gint bytes, num;
+	gchar **notice_list;
+	gchar *notice_noreturn;
 
 	g_return_if_fail(data != NULL && len > 0);
 	qd = (qq_data *) gc->proto_data;
@@ -186,15 +188,13 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	bytes += qq_get32(&(group->group_category), data + bytes);
 	bytes += qq_get16(&max_members, data + bytes);
 	bytes += qq_get8(&unknown1, data + bytes);
-	/* XXX
-	 * the following, while Eva:
+	/* the following, while Eva:
 	 * 4(unk), 4(verID), 1(nameLen), nameLen(qunNameContent), 1(0x00),
 	 * 2(qunNoticeLen), qunNoticeLen(qunNoticeContent, 1(qunDescLen),
 	 * qunDestLen(qunDestcontent)) */
 	bytes += qq_get8(&unknown1, data + bytes);
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "type=%u creatorid=%u category=%u\n",
-			group->group_type, group->creator_uid, group->group_category);
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "maxmembers=%u", max_members); 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "type=%u creatorid=%u category=%u maxmembers=%u\n",
+			group->group_type, group->creator_uid, group->group_category, max_members);
 	
 	/* strlen + <str content> */
 	bytes += convert_as_pascal_string(data + bytes, &(group->group_name_utf8), QQ_CHARSET_DEFAULT);
@@ -236,10 +236,17 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	if(NULL == purple_conv) {
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
 				"Conv windows for \"%s\" is not on, do not set topic\n", group->group_name_utf8);
+		return;
 	}
-	else {
-		purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL, group->notice_utf8);
-	}
+
+	/* filter \r\n in notice */
+	notice_list = g_strsplit(group->notice_utf8, "\r\n", -1);
+	notice_noreturn = g_strjoinv(" ", notice_list);
+
+	purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL, notice_noreturn);
+
+	g_free(notice_noreturn);
+	g_strfreev(notice_list);
 }
 
 void qq_process_group_cmd_get_online_members(guint8 *data, gint len, PurpleConnection *gc)
