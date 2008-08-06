@@ -57,6 +57,12 @@ qq_transaction *qq_trans_find_rcved(qq_data *qd, guint16 cmd, guint16 seq)
 				trans->scan_times = 0;
 			}
 			trans->rcved_times++;
+			if (qq_trans_is_server(trans) && qq_trans_is_dup(trans)) {
+				/* server may not get our confirm reply before, send reply again*/
+				if (trans->data != NULL && trans->data_len > 0) {
+					qq_send_data(qd, trans->cmd, trans->seq, FALSE, trans->data, trans->data_len);
+				}
+			}
 			return trans;
 		}
 	}
