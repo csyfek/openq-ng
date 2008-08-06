@@ -3,6 +3,8 @@
 	* Minor fix for debug information
 	* Filter \r\n and replace with SPCAE in group notive
 	* Fixed a memory leak
+	* Tickets:
+	* Fixes #4024.
 
 2008.06.29 - csyfek <csyfek(at)gmail.com>
 	* Minor bug fix

@@ -141,9 +141,6 @@ void qq_send_cmd_group_get_members_info(PurpleConnection *gc, qq_group *group)
 	qq_send_group_cmd(gc, group, raw_data, bytes);
 }
 
-/**
- * @brief 处理群信息.当前群信息的处理还不完善,由于版本的不同导致协议的解读有差异.
- */
 void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnection *gc)
 {
 	qq_group *group;
@@ -157,8 +154,7 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	guint32 unknown4;
 	guint8 unknown1;
 	gint bytes, num;
-	gchar **notice_list;
-	gchar *notice_noreturn;
+	gchar *notice;
 
 	g_return_if_fail(data != NULL && len > 0);
 	qd = (qq_data *) gc->proto_data;
@@ -200,8 +196,8 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	bytes += convert_as_pascal_string(data + bytes, &(group->group_name_utf8), QQ_CHARSET_DEFAULT);
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "group \"%s\"\n", group->group_name_utf8); 
 	bytes += qq_get16(&unknown, data + bytes);	/* 0x0000 */
-	bytes += convert_as_pascal_string(data + bytes, &(group->notice_utf8), QQ_CHARSET_DEFAULT);
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "notice \"%s\"\n", group->notice_utf8); 
+	bytes += convert_as_pascal_string(data + bytes, &notice, QQ_CHARSET_DEFAULT);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "notice \"%s\"\n", notice); 
 	bytes += convert_as_pascal_string(data + bytes, &(group->group_desc_utf8), QQ_CHARSET_DEFAULT);
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "group_desc \"%s\"\n", group->group_desc_utf8); 
 
@@ -239,20 +235,12 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 		return;
 	}
 
-	if (strchr(group->notice_utf8, '\n') == NULL) {
-		purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL,
-				group->notice_utf8);
-	} else {
-		/* filter \r\n in notice */
-		notice_list = g_strsplit(group->notice_utf8, "\r\n", -1);
-		notice_noreturn = g_strjoinv(" ", notice_list);
-
-		purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL,
-				notice_noreturn);
-
-		g_free(notice_noreturn);
-		g_strfreev(notice_list);
-	}
+	/* filter \r\n in notice */
+	qq_filter_str(notice);
+	group->notice_utf8 = strdup(notice);
+	g_free(notice);
+	
+	purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL, group->notice_utf8);
 }
 
 void qq_process_group_cmd_get_online_members(guint8 *data, gint len, PurpleConnection *gc)
@@ -310,7 +298,6 @@ void qq_process_group_cmd_get_members_info(guint8 *data, gint len, PurpleConnect
 	qq_group *group;
 	qq_buddy *member;
 	gchar *nick;
-	gchar **nick_list;
 
 	g_return_if_fail(data != NULL && len > 0);
 
@@ -338,14 +325,9 @@ void qq_process_group_cmd_get_members_info(guint8 *data, gint len, PurpleConnect
 		bytes += qq_get8(&(member->flag1), data + bytes);
 		bytes += qq_get8(&(member->comm_flag), data + bytes);
 
-		if (strchr(nick, '\n') == NULL) {
-			member->nickname = g_strdup(nick);
-		} else {
-			/* filter \r\n in nick */
-			nick_list = g_strsplit(nick, "\n", -1);
-			member->nickname = g_strjoinv("", nick_list);
-			g_strfreev(nick_list);
-		}
+		/* filter \r\n in nick */
+		qq_filter_str(nick);
+		member->nickname = g_strdup(nick);
 		g_free(nick);
 		
 		/*
