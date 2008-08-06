@@ -52,8 +52,9 @@
 
 #define QQ_CLIENT_1105 0x1105	/* QQ2007 beta4*/
 #define QQ_CLIENT_111D 0x111D	/* QQ2007 */
-#define QQ_CLIENT_1203 0x1203	   /* QQ2008 */
-#define QQ_CLIENT_1205 0x1205	   /* QQ2008 */
+#define QQ_CLIENT_115B 0x115B	/* QQ2008 */
+#define QQ_CLIENT_1203 0x1203	/* QQ2008 */
+#define QQ_CLIENT_1205 0x1205	/* QQ2008 */
 #define QQ_CLIENT_120B 0x120B	/* QQ2008 July 8.0.978.400 */
 #define QQ_CLIENT_1412 0x1412	/* QQMac 1.0 preview1 build 670 */
 #define QQ_CLIENT_1441 0x1441	/* QQ2009 preview2 */
@@ -161,6 +162,7 @@ const gchar *qq_get_ver_desc(gint source)
 		return "QQ2007 beta4";
 	case QQ_CLIENT_111D:
 		return "QQ2007";
+	case QQ_CLIENT_115B:
 	case QQ_CLIENT_1203:
 	case QQ_CLIENT_1205:
 	case QQ_CLIENT_120B:

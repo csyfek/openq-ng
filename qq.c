@@ -746,7 +746,7 @@ static PurplePluginProtocolInfo prpl_info	= {
 	qq_roomlist_cancel,					/* roomlist_cancel */
 	NULL,							/* roomlist_expand_category */
 	NULL,							/* can_receive_file */
-	qq_send_file,						/* send_file */
+	NULL,							/* qq_send_file send_file */
 	NULL,							/* new xfer */
 	NULL,							/* offline_message */
 	NULL,							/* PurpleWhiteboardPrplOps */
