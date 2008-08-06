@@ -169,8 +169,6 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 			break;
 		case QQ_CMD_GET_LEVEL:
 			qq_process_get_level_reply(data, data_len, gc);
-
-			qq_send_packet_get_buddies_online(gc, 0); 
 			break;
 		case QQ_CMD_GET_BUDDIES_LIST:
 			ret_16 = qq_process_get_buddies_list_reply(data, data_len, gc);
