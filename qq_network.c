@@ -89,37 +89,41 @@ static guint8 *encrypt_account_password(const gchar *pwd)
 }
 
 /* default process, decrypt and dump */
-static void packet_process_unknow(guint8 *buf, gint buf_len, guint16 cmd, guint16 seq, PurpleConnection *gc)
+static void packet_process_unknow(PurpleConnection *gc, guint8 *buf, gint buf_len, guint16 cmd, guint16 seq)
 {
 	qq_data *qd;
 	guint8 *data;
+	gint data_len;
 	gchar *msg_utf8 = NULL;
-	gint len;
 
 	g_return_if_fail(buf != NULL && buf_len != 0);
 
-	qd = (qq_data *) gc->proto_data;
-	len = buf_len;
-	data = g_newa(guint8, len);
+	qq_show_packet("Processing unknown packet", buf, buf_len);
 
-	qq_show_packet("Processing unknown packet", buf, len);
-	if (qq_decrypt(buf, buf_len, qd->session_key, data, &len)) {
-		qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
-				data, len,
-				">>> [%d] %s -> [default] decrypt and dump",
-				seq, qq_get_cmd_desc(cmd));
-		msg_utf8 = try_dump_as_gbk(data, len);
-		if (msg_utf8) {
-			g_free(msg_utf8);
-		}
-	} else {
+	qd = (qq_data *) gc->proto_data;
+
+	data_len = buf_len;
+	data = g_newa(guint8, data_len);
+	memset(data, 0, data_len);
+	if ( !qq_decrypt(buf, buf_len, qd->session_key, data, &data_len )) {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Fail decrypt packet with default process\n");
+		return;
+	}
+	
+	qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
+			data, data_len,
+			">>> [%d] %s -> [default] decrypt and dump",
+			seq, qq_get_cmd_desc(cmd));
+
+	msg_utf8 = try_dump_as_gbk(data, data_len);
+	if (msg_utf8) {
+		g_free(msg_utf8);
 	}
 }
 
 /* check whether one sequence number is duplicated or not
  * return TRUE if it is duplicated, otherwise FALSE */
-static gboolean check_packet_set_window(guint16 seq, PurpleConnection *gc)
+static gboolean is_duplicate_packet(guint16 seq, PurpleConnection *gc)
 {
 	qq_data *qd;
 	guint8 *byte, mask;
@@ -135,12 +139,11 @@ static gboolean check_packet_set_window(guint16 seq, PurpleConnection *gc)
 }
 
 /* process the incoming packet from qq_pending */
-static void packet_process(guint8 *buf, gint buf_len, PurpleConnection *gc)
+static void packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 {
 	qq_data *qd;
 	gpointer trans;
 	gint bytes_notread, bytes_expected, bytes;
-	guint16 buf_len_read;	/* two bytes in the begining of TCP packet */
 	packet_before_login *b4_packet;
 	struct {
 		guint8 header_tag;
@@ -152,7 +155,7 @@ static void packet_process(guint8 *buf, gint buf_len, PurpleConnection *gc)
 	g_return_if_fail(buf != NULL && buf_len > 0);
 
 	qd = (qq_data *) gc->proto_data;
-	bytes_expected = qd->use_tcp ? QQ_TCP_HEADER_LENGTH : QQ_UDP_HEADER_LENGTH;
+	bytes_expected = QQ_UDP_HEADER_LENGTH;
 
 	if (buf_len < bytes_expected) {
 		qq_hex_dump(PURPLE_DEBUG_ERROR, "QQ",
@@ -163,17 +166,6 @@ static void packet_process(guint8 *buf, gint buf_len, PurpleConnection *gc)
 
 	/* initialize */
 	bytes = 0;
-	/* QQ TCP packet returns first 2 bytes the length of this packet */
-	if (qd->use_tcp) {
-		bytes += qq_get16(&buf_len_read, buf + bytes);
-		if (buf_len_read != buf_len) {	/* wrong */
-			purple_debug
-				(PURPLE_DEBUG_ERROR,
-				 "QQ",
-				 "TCP read %d bytes, header says %d bytes, use header anyway\n", buf_len, buf_len_read);
-			buf_len = buf_len_read;	/* we believe header is more accurate */
-		}
-	}
 
 	/* now goes the normal QQ packet as UDP packet */
 	bytes += qq_get8(&header.header_tag, buf + bytes);
@@ -214,7 +206,7 @@ static void packet_process(guint8 *buf, gint buf_len, PurpleConnection *gc)
 			/* logged_in, but we have packets before login */
 			b4_packet = (packet_before_login *)
 			g_queue_pop_head(qd->before_login_packets);
-			packet_process(b4_packet->buf, b4_packet->len, gc);
+			packet_process(gc, b4_packet->buf, b4_packet->len);
 			/* in fact this is a recursive call,  
 			 * all packets before login will be processed before goes on */
 			g_free(b4_packet->buf);	/* the buf is duplicated, need to be freed */
@@ -233,7 +225,7 @@ static void packet_process(guint8 *buf, gint buf_len, PurpleConnection *gc)
 			/* server intiated packet, we need to send ack and check duplicaion 
 			 * this must be put after processing b4_packet
 			 * as these packets will be passed in twice */
-			if (check_packet_set_window(header.seq, gc)) {
+			if (is_duplicate_packet(header.seq, gc)) {
 				purple_debug(PURPLE_DEBUG_WARNING,
 						"QQ", "dup [%05d] %s, discard...\n", header.seq, qq_get_cmd_desc(header.cmd));
 				return;
@@ -312,23 +304,35 @@ static void packet_process(guint8 *buf, gint buf_len, PurpleConnection *gc)
 			qq_process_friend_change_status(buf + bytes, bytes_notread, gc);
 			break;
 		default:
-			packet_process_unknow(buf + bytes, bytes_notread, header.cmd, header.seq, gc);
+			packet_process_unknow(gc, buf + bytes, bytes_notread, header.cmd, header.seq);
 			break;
 	}
-}
 
-static void tcp_can_write(gpointer data, gint source, PurpleInputCondition cond)
-{
+	// check is redirect or not, and do it now
+	if (qd->is_redirect) {
+	 	// free resource except real_hostname and port
+		qq_disconnect(gc);
+		qq_connect(gc->account);
+	}
 }
 
 static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
-	guint8 *buf;
-	gint len;
+	guint8 buf[1024];		// set to 16 when test  tcp_rxqueue
+	gint buf_len;
+	gint bytes;
+	
+	guint8 *pkt;
+	guint16 pkt_len;
+	
+	gchar *error_msg;
+	guint8 *jump;
+	gint jump_len;
 
 	gc = (PurpleConnection *) data;
+	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 
 	if(cond != PURPLE_INPUT_READ) {
 		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
@@ -337,17 +341,110 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	}
 
 	qd = (qq_data *) gc->proto_data;
-	buf = g_newa(guint8, MAX_PACKET_SIZE);
+	
+	/* test code, not using tcp_rxqueue
+	memset(pkt,0, sizeof(pkt));
+	buf_len = read(qd->fd, pkt, sizeof(pkt));
+	if (buf_len > 2) {
+		packet_process(gc, pkt + 2, buf_len - 2);
+	}
+	return;
+	*/
+	
+	buf_len = read(qd->fd, buf, sizeof(buf));
+	if (buf_len < 0) {
+		if (errno == EAGAIN)
+			/* No worries */
+			return;
 
-	/* here we have UDP proxy suppport */
-	len = read(qd->fd, buf, MAX_PACKET_SIZE);
-	if (len <= 0) {
+		error_msg = g_strdup_printf(_("Lost connection with server:\n%d, %s"), errno, g_strerror(errno));
+		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
+		g_free(error_msg);
+		return;
+	} else if (buf_len == 0) {
 		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-				_("Unable to read from socket"));
+				_("Server closed the connection."));
 		return;
 	}
+
+	purple_debug(PURPLE_DEBUG_INFO, "TCP_PENDING",
+			   "Read %d bytes from socket, rxlen is %d\n", buf_len, qd->tcp_rxlen);
+	qd->tcp_rxqueue = g_realloc(qd->tcp_rxqueue, buf_len + qd->tcp_rxlen);
+	memcpy(qd->tcp_rxqueue + qd->tcp_rxlen, buf, buf_len);
+	qd->tcp_rxlen += buf_len;
 	
-	packet_process(buf, len, gc);
+	while (1) {
+		if (qd->tcp_rxlen < QQ_TCP_HEADER_LENGTH) {
+			break;
+		}
+		
+		bytes = 0;
+		bytes += qq_get16(&pkt_len, qd->tcp_rxqueue + bytes);
+		if (qd->tcp_rxlen < pkt_len) {
+			break;
+		}
+
+		purple_debug(PURPLE_DEBUG_INFO, "TCP_PENDING",
+				   "Packet len is %d bytes, rxlen is %d\n", pkt_len, qd->tcp_rxlen);
+
+		if ( pkt_len < QQ_TCP_HEADER_LENGTH
+		    || *(qd->tcp_rxqueue + bytes) != QQ_PACKET_TAG
+			|| *(qd->tcp_rxqueue + pkt_len - 1) != QQ_PACKET_TAIL) {
+			// HEY! This isn't even a QQ. What are you trying to pull?
+
+			purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING",
+				 "Packet error, failed to check header and tail tag\n");
+
+			jump = memchr(qd->tcp_rxqueue + 1, QQ_PACKET_TAIL, qd->tcp_rxlen - 1);
+			if ( !jump ) {
+				purple_debug(PURPLE_DEBUG_INFO, "TCP_PENDING",
+				 	"Failed to find next QQ_PACKET_TAIL, clear receive buffer\n");
+				g_free(qd->tcp_rxqueue);
+				qd->tcp_rxqueue = NULL;
+				qd->tcp_rxlen = 0;
+				return;
+			}
+
+			// jump and over QQ_PACKET_TAIL
+			jump_len = (jump - qd->tcp_rxqueue) + 1;
+			purple_debug(PURPLE_DEBUG_INFO, "TCP_PENDING",
+				"Find next QQ_PACKET_TAIL at %d, jump %d bytes\n", jump_len, jump_len + 1);
+			g_memmove(qd->tcp_rxqueue, jump, qd->tcp_rxlen - jump_len);
+			qd->tcp_rxlen -= jump_len;
+			continue;
+		}
+
+		pkt = g_new0(guint8, pkt_len);
+		if (pkt) {
+			memset(pkt,0, pkt_len);
+			g_memmove(pkt, qd->tcp_rxqueue + bytes, pkt_len - bytes);
+		} else {
+			purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING",
+			 	"can not alloc memory for packet, len %d\n", pkt_len);		
+		}
+		
+		// jump to next packet
+		qd->tcp_rxlen -= pkt_len;
+		if (qd->tcp_rxlen) {
+			purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING",
+			 	"shrink tcp_rxqueue to %d\n", qd->tcp_rxlen);		
+			jump = g_memdup(qd->tcp_rxqueue + pkt_len, qd->tcp_rxlen);
+			g_free(qd->tcp_rxqueue);
+			qd->tcp_rxqueue = jump;
+		} else {
+			purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING",
+			 	"free tcp_rxqueue\n");		
+			g_free(qd->tcp_rxqueue);
+			qd->tcp_rxqueue = NULL;
+		}
+
+		if (pkt == NULL) {
+			continue;
+		}
+		// do not call packet_process before jump
+		// packet_process may call disconnect and destory tcp_rxqueue
+		packet_process(gc, pkt, pkt_len - bytes);
+	}
 }
 
 static void udp_pending(gpointer data, gint source, PurpleInputCondition cond)
@@ -355,7 +452,7 @@ static void udp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	PurpleConnection *gc;
 	qq_data *qd;
 	guint8 *buf;
-	gint len;
+	gint buf_len;
 
 	gc = (PurpleConnection *) data;
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
@@ -372,14 +469,106 @@ static void udp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 
 	/* here we have UDP proxy suppport */
-	len = read(qd->fd, buf, MAX_PACKET_SIZE);
-	if (len <= 0) {
+	buf_len = read(qd->fd, buf, MAX_PACKET_SIZE);
+	if (buf_len <= 0) {
 		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 				_("Unable to read from socket"));
 		return;
 	}
 
-	packet_process(buf, len, gc);
+	packet_process(gc, buf, buf_len);
+}
+
+static gint udp_send_out(qq_data *qd, guint8 *data, gint data_len)
+{
+	gint ret;
+
+	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
+
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Send %d bytes to socket %d\n", data_len, qd->fd);
+
+	errno = 0;
+	ret = send(qd->fd, data, data_len, 0);
+	if (ret < 0 && errno == EAGAIN) {
+		return ret;
+	}
+	
+	if (ret < 0) {
+		/* TODO: what to do here - do we really have to disconnect? */
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Send failed: %d, %s\n", errno, g_strerror(errno));
+		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, g_strerror(errno));
+	}
+	return ret;
+}
+
+static void tcp_can_write(gpointer data, gint source, PurpleInputCondition cond)
+{
+	qq_data *qd = data;
+	int ret, writelen;
+
+	if(cond != PURPLE_INPUT_READ) {
+		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+				_("Socket error"));
+		return;
+	}
+
+	writelen = purple_circ_buffer_get_max_read(qd->tcp_txbuf);
+	if (writelen == 0) {
+		purple_input_remove(qd->tx_handler);
+		qd->tx_handler = 0;
+		return;
+	}
+
+	ret = write(qd->fd, qd->tcp_txbuf->outptr, writelen);
+	purple_debug(PURPLE_DEBUG_ERROR, "TCP_CAN_WRITE", "Send %d bytes in total %d\n", ret, writelen);
+
+	if (ret < 0 && errno == EAGAIN)
+		return;
+	else if (ret < 0) {
+		/* TODO: what to do here - do we really have to disconnect? */
+		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+		                               _("Write Error"));
+		return;
+	}
+
+	purple_circ_buffer_mark_read(qd->tcp_txbuf, ret);
+}
+
+static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
+{
+	gint ret;
+
+	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
+
+	purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
+
+	if (qd->tx_handler == 0) {
+		ret = write(qd->fd, data, data_len);
+		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Send %d bytes in total %d\n", ret, data_len);
+	} else {
+		ret = -1;
+		errno = EAGAIN;
+	}
+
+	if (ret < 0 && errno == EAGAIN) {
+		// socket is busy, send later
+		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Socket is busy and send later\n");
+		ret = 0;
+	} else if (ret <= 0) {
+		// TODO: what to do here - do we really have to disconnect?
+		purple_debug(PURPLE_DEBUG_ERROR, "TCP_SEND_OUT", "Send failed: %d, %s\n", errno, g_strerror(errno));
+		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, g_strerror(errno));
+		return ret;
+	}
+
+	if (ret < data_len) {
+		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Add %d bytes to buffer\n", data_len - ret);
+		if (qd->tx_handler == 0) {
+			qd->tx_handler = purple_input_add(qd->fd, PURPLE_INPUT_WRITE, tcp_can_write, qd);
+		}
+		purple_circ_buffer_append(qd->tcp_txbuf, data + ret, data_len - ret);
+	}
+	return ret;
 }
 
 static gboolean trans_timeout(gpointer data)
@@ -387,7 +576,7 @@ static gboolean trans_timeout(gpointer data)
 	PurpleConnection *gc;
 	qq_data *qd;
 	guint8 *buf;
-	gint len = 0;
+	gint buf_len = 0;
 	guint16 cmd;
 	gint retries = 0;
 	int index;
@@ -400,19 +589,27 @@ static gboolean trans_timeout(gpointer data)
 	index = 0;
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 
-	do {
+	while (1) {
+		if (index < 0) {
+			// next record is NULL
+			break;
+		}
 		// purple_debug(PURPLE_DEBUG_ERROR, "QQ", "scan begin %d\n", index);
 		memset(buf, 0, MAX_PACKET_SIZE);
-		len = qq_trans_scan(qd, &index, buf, MAX_PACKET_SIZE, &cmd, &retries);
-		if (len <= 0) {
-			// qq_trans_scan meet the end
+		buf_len = qq_trans_scan(qd, &index, buf, MAX_PACKET_SIZE, &cmd, &retries);
+		if (buf_len <= 0) {
+			// curr record is empty, whole trans  is NULL
 			break;
 		}
 		// index = -1, when get last record of transactions
 		
 		// purple_debug(PURPLE_DEBUG_ERROR, "QQ", "retries %d next index %d\n", retries, index);
 		if (retries > 0) {
-			qq_proxy_write(qd, buf, len);
+			if (qd->use_tcp) {
+				tcp_send_out(qd, buf, buf_len);
+			} else {
+				udp_send_out(qd, buf, buf_len);
+			}
 			continue;
 		}
 
@@ -438,7 +635,7 @@ static gboolean trans_timeout(gpointer data)
 			purple_debug(PURPLE_DEBUG_WARNING, "QQ", 
 				"%s packet lost.\n", qq_get_cmd_desc(cmd));
 		}
-	} while (index >= 0);
+	}
 
 	return TRUE;		/* if return FALSE, timeout callback stops */
 }
@@ -468,9 +665,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 
 	qd = (qq_data *) gc->proto_data;
 
-	/*
-	   _qq_show_socket("Got login socket", source);
-	   */
+	// _qq_show_socket("Got login socket", source);
 
 	/* QQ use random seq, to minimize duplicated packets */
 	srandom(time(NULL));
@@ -489,7 +684,10 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	/* call trans_timeout every 5 seconds */
 	qd->resend_timeout = purple_timeout_add(5000, trans_timeout, gc);
 	
-	gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, udp_pending, gc);
+	if (qd->use_tcp)
+		gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, tcp_pending, gc);
+	else
+		gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, udp_pending, gc);
 
 	/* Update the login progress status display */
 	buf = g_strdup_printf("Login as %d", qd->uid);
@@ -530,8 +728,8 @@ static void udp_can_write(gpointer data, gint source, PurpleInputCondition cond)
 	if (ret == 0 && error == EINPROGRESS)
 		return; /* we'll be called again later */
 		
-	purple_input_remove(qd->tx_handle);
-	qd->tx_handle = 0;
+	purple_input_remove(qd->tx_handler);
+	qd->tx_handler = 0;
 	if (ret < 0 || error != 0) {
 		if(ret != 0) 
 			error = errno;
@@ -623,7 +821,7 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 	 */
 	if ((errno == EINPROGRESS) || (errno == EINTR)) {
 			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Connect in asynchronous mode.\n");
-			qd->tx_handle = purple_input_add(fd, PURPLE_INPUT_WRITE, udp_can_write, gc);
+			qd->tx_handler = purple_input_add(fd, PURPLE_INPUT_WRITE, udp_can_write, gc);
 			return;
 		}
 
@@ -633,39 +831,46 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 
 /* establish a generic QQ connection 
  * TCP/UDP, and direct/redirected */
-void qq_connect(PurpleAccount *account, const gchar *hostname, guint16 port, 
-		gboolean use_tcp)
+void qq_connect(PurpleAccount *account)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
-
-	g_return_if_fail(hostname != NULL);
-	g_return_if_fail(port > 0);
 
 	gc = purple_account_get_connection(account);
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 
 	qd = (qq_data *) gc->proto_data;
 
+	if (qd->real_hostname == NULL || qd->real_port == 0) {
+		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+				_("hostname is NULL or port is 0"));
+		return;
+	}
+
+	if (qd->is_redirect) {
+   		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Redirect to %s:%d\n",
+   			qd->real_hostname, qd->real_port);
+   	}
+	qd->is_redirect = FALSE;
+
 	qd->fd = -1;
-	qd->tx_handle = 0;
+	qd->tx_handler = 0;
 	
 	qd->before_login_packets = g_queue_new();
 
-	g_return_if_fail(qd->real_hostname == NULL);
-	qd->real_hostname = g_strdup(hostname);
-	qd->real_port = port;
+	//g_return_if_fail(qd->real_hostname == NULL);
 
 	/* QQ connection via UDP/TCP. 
 	* Now use Purple proxy function to provide TCP proxy support,
 	* and qq_udp_proxy.c to add UDP proxy support (thanks henry) */
 	if(qd->use_tcp) {
-
-		/* TODO: is there a good default grow size? */
-		qd->tcp_txbuf = purple_circ_buffer_new(0);
-
    		purple_debug(PURPLE_DEBUG_INFO, "QQ", "TCP Connect to %s:%d\n",
    			qd->real_hostname, qd->real_port);
+
+		/* TODO: is there a good default grow size? */
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Create tcp_txbuf\n");
+		qd->tcp_txbuf = purple_circ_buffer_new(0);
+
 		if (purple_proxy_connect(NULL, account,
 				qd->real_hostname, qd->real_port, qq_connect_cb, gc) == NULL) {
 			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
@@ -696,6 +901,7 @@ void qq_disconnect(PurpleConnection *gc)
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 	qd = (qq_data *) gc->proto_data;
 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Disconnecting ...\n");
 	/* finish  all I/O */
 	if (qd->fd >= 0 && qd->logged_in) {
 		qq_send_packet_logout(gc);
@@ -715,51 +921,54 @@ void qq_disconnect(PurpleConnection *gc)
 		close(qd->fd);
 		qd->fd = -1;
 	}
+
 	if(qd->tcp_txbuf != NULL) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "destroy tcp_txbuf\n");
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "destroy tcp_txbuf\n");
 		purple_circ_buffer_destroy(qd->tcp_txbuf);
 	}
-	if (qd->tx_handle) {
-		purple_input_remove(qd->tx_handle);
-		qd->tx_handle = 0;
+	
+	if (qd->tx_handler) {
+		purple_input_remove(qd->tx_handler);
+		qd->tx_handler = 0;
 	}
-
+	if (qd->tcp_rxqueue != NULL) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "destroy tcp_rxqueue\n");
+		g_free(qd->tcp_rxqueue);
+		qd->tcp_rxqueue = NULL;
+		qd->tcp_rxlen = 0;
+	}
+	
 	if (qd->udp_query_data != NULL) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "destroy udp_query_data\n");
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "destroy udp_query_data\n");
 		purple_dnsquery_destroy(qd->udp_query_data);
 		qd->udp_query_data = NULL;
 	}
 
-	purple_debug(PURPLE_DEBUG_ERROR, "QQ", "destroy transactions\n");
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "destroy transactions\n");
 	qq_trans_remove_all(qd);
 	
-	if (qd->real_hostname) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "free real_hostname\n");
-		g_free(qd->real_hostname);
-		qd->real_hostname = NULL;
-	}
 	if (qd->inikey) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "free inikey\n");
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free inikey\n");
 		g_free(qd->inikey);
 		qd->inikey = NULL;
 	}
 	if (qd->pwkey) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "free pwkey\n");
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free pwkey\n");
 		g_free(qd->pwkey);
 		qd->pwkey = NULL;
 	}
 	if (qd->session_key) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "free session_key\n");
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free session_key\n");
 		g_free(qd->session_key);
 		qd->session_key = NULL;
 	}
 	if (qd->session_md5) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "free session_md5\n");
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free session_md5\n");
 		g_free(qd->session_md5);
 		qd->session_md5 = NULL;
 	}
 	if (qd->my_ip) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "free my_ip\n");
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free my_ip\n");
 		g_free(qd->my_ip);
 		qd->my_ip = NULL;
 	}
@@ -770,34 +979,6 @@ void qq_disconnect(PurpleConnection *gc)
 	qq_add_buddy_request_free(qd);
 	qq_info_query_free(qd);
 	qq_buddies_list_free(gc->account, qd);
-}
-
-/* send packet with proxy support */
-gint qq_proxy_write(qq_data *qd, guint8 *data, gint len)
-{
-	gint ret;
-
-	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && len > 0, -1);
-
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Send %d bytes to socket %d\n", len, qd->fd);
-	/* TCP sock5 may be processed twice
-	 * so we need to check qd->use_tcp as well */
-	if ((!qd->use_tcp)) {	/* UDP */
-		errno = 0;
-		ret = send(qd->fd, data, len, 0);
-	} else {
-		errno = 0;
-		ret = send(qd->fd, data, len, 0);
-	}
-
-	if (ret < 0 && errno == EAGAIN)
-		return ret;
-	else if (ret < 0) {
-		/* TODO: what to do here - do we really have to disconnect? */
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Send failed: %d, %s\n", errno, g_strerror(errno));
-		//purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, g_strerror(errno));
-	}
-	return ret;
 }
 
 /* clean up the packets before login */
@@ -815,26 +996,23 @@ void qq_b4_packets_free(qq_data *qd)
 	}
 }
 
-/* create qq packet header with given sequence
- * return the number of bytes in header if succeeds
- * return -1 if there is any error */
-gint _create_packet_head_seq(guint8 *buf, PurpleConnection *gc, 
-		guint16 cmd, gboolean is_auto_seq, guint16 *seq)
+static gint encap(qq_data *qd, guint8 *buf, gint maxlen, guint16 cmd, guint16 seq, 
+	guint8 *data, gint data_len)
 {
-	qq_data *qd;
-	gint bytes_expected, bytes;
-
-	g_return_val_if_fail(buf != NULL, -1);
-
-	qd = (qq_data *) gc->proto_data;
-	if (is_auto_seq)
-		*seq = ++(qd->send_seq);
-
-	bytes = 0;
-	bytes_expected = (qd->use_tcp) ? QQ_TCP_HEADER_LENGTH : QQ_UDP_HEADER_LENGTH;
+	gint bytes = 0;
+	g_return_val_if_fail(qd != NULL && buf != NULL && maxlen > 0, -1);
+	
+	if (data == NULL) {
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Fail encap packet, data is NULL\n");
+		return -1;
+	}
+	if (data_len <= 0) {
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Fail encap packet, data len <= 0\n");
+		return -1;
+	}
 
 	/* QQ TCP packet has two bytes in the begining defines packet length
-	 * so I leave room here for size */
+	 * so leave room here to store packet size */
 	if (qd->use_tcp) {
 		bytes += qq_put16(buf + bytes, 0x0000);
 	}
@@ -842,49 +1020,58 @@ gint _create_packet_head_seq(guint8 *buf, PurpleConnection *gc,
 	bytes += qq_put8(buf + bytes, QQ_PACKET_TAG);
 	bytes += qq_put16(buf + bytes, QQ_CLIENT);
 	bytes += qq_put16(buf + bytes, cmd);
-	bytes += qq_put16(buf + bytes, *seq);
+	
+	bytes += qq_put16(buf + bytes, seq);
 
-	if (bytes != bytes_expected) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-				"Fail create qq header, expect %d bytes, written %d bytes\n", bytes_expected, bytes);
-		bytes = -1;
+	bytes += qq_put32(buf + bytes, qd->uid);
+	bytes += qq_putdata(buf + bytes, data, data_len);
+	bytes += qq_put8(buf + bytes, QQ_PACKET_TAIL);
+
+	// set TCP packet length at begin of the packet
+	if (qd->use_tcp) {
+		qq_put16(buf, bytes);
 	}
+
 	return bytes;
 }
 
-/* for those need ack and resend no ack feed back from server
- * return number of bytes written to the socket,
- * return -1 if there is any error */
-gint qq_send_packet(PurpleConnection *gc, guint8 *buf, gint len, guint16 cmd)
+gint qq_send_data(PurpleConnection *gc, guint16 cmd, guint8 *data, gint data_len)
 {
 	qq_data *qd;
-	gint bytes_sent = 0;
+	guint8 *buf;
+	gint buf_len;
+	gint bytes_sent;
+	gint seq;
 
+	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, -1);
 	qd = (qq_data *) gc->proto_data;
-
-	if (qd->use_tcp) {
-		if (len > MAX_PACKET_SIZE) {
-			purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-					"xxx [%05d] %s, %d bytes is too large, do not send\n",
-					qq_get_cmd_desc(cmd), qd->send_seq, len);
-			return -1;
-		} else {	/* I update the len for TCP packet */
-			/* set TCP packet length
-			 * _create_packet_head_seq has reserved two byte for storing pkt length, ccpaging */
-			qq_put16(buf, len);
-		}
+	
+	buf = g_newa(guint8, MAX_PACKET_SIZE);
+	memset(buf, 0, MAX_PACKET_SIZE);
+	seq = ++(qd->send_seq);
+	buf_len = encap(qd, buf, MAX_PACKET_SIZE, cmd, seq, data, data_len);
+	if (buf_len <= 0) {
+		return -1;
+	}
+	if (QQ_DEBUG) {
+		qq_show_packet("QQ_SEND_CMD", buf, buf_len);
 	}
 
-	/* bytes actually returned */
-	bytes_sent = qq_proxy_write(qd, buf, len);
+	if (qd->use_tcp) {
+		bytes_sent = tcp_send_out(qd, buf, buf_len);
+	} else {
+		bytes_sent = udp_send_out(qd, buf, buf_len);
+	}
 
-	/* put to queue, for matching server reply usage */
-	qq_trans_append(qd, buf, len, cmd);
+	// always need ack
+	qq_trans_append(qd, buf, buf_len, cmd);
 
-	/* for debugging, s3e, 20070622 */
-	qq_show_packet("QQ_SEND_PACKET", buf, len);
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "%d bytes written to the socket.\n", bytes_sent);
-
+	if (QQ_DEBUG) {
+		qq_show_packet("QQ_SEND_DATA", buf, buf_len);
+		purple_debug(PURPLE_DEBUG_INFO, "QQ",
+				"<== [%05d], %s, total %d bytes is sent %d\n", 
+				seq, qq_get_cmd_desc(cmd), buf_len, bytes_sent);
+	}
 	return bytes_sent;
 }
 
@@ -892,52 +1079,53 @@ gint qq_send_packet(PurpleConnection *gc, guint8 *buf, gint len, guint16 cmd)
  * return the number of bytes sent to socket if succeeds
  * return -1 if there is any error */
 gint qq_send_cmd(PurpleConnection *gc, guint16 cmd,
-		gboolean is_auto_seq, guint16 seq, gboolean need_ack, guint8 *data, gint len)
+		gboolean is_auto_seq, guint16 seq, gboolean need_ack, guint8 *data, gint data_len)
 {
 	qq_data *qd;
-	guint8 *buf, *encrypted_data;
-	guint16 seq_ret;
-	gint encrypted_len, bytes, bytes_header, bytes_expected, bytes_sent;
+	guint8 *buf;
+	gint buf_len;
+	guint8 *encrypted_data;
+	gint encrypted_len;
+	gint real_seq;
+	gint bytes_sent;
 
 	qd = (qq_data *) gc->proto_data;
 	g_return_val_if_fail(qd->session_key != NULL, -1);
 
-	buf = g_newa(guint8, MAX_PACKET_SIZE);
-	encrypted_len = len + 16;	/* at most 16 bytes more */
+	encrypted_len = data_len + 16;	/* at most 16 bytes more */
 	encrypted_data = g_newa(guint8, encrypted_len);
 
-	qq_encrypt(data, len, qd->session_key, encrypted_data, &encrypted_len);
+	qq_encrypt(data, data_len, qd->session_key, encrypted_data, &encrypted_len);
 
-	seq_ret = seq;
+	real_seq = seq;
+	if (is_auto_seq) 	real_seq = ++(qd->send_seq);
 
-	bytes = 0;
-	bytes += _create_packet_head_seq(buf + bytes, gc, cmd, is_auto_seq, &seq_ret);
-	if (bytes <= 0) {
-		/* _create_packet_head_seq warned before */
+	buf = g_newa(guint8, MAX_PACKET_SIZE);
+	memset(buf, 0, MAX_PACKET_SIZE);
+	buf_len = encap(qd, buf, MAX_PACKET_SIZE, cmd, real_seq, encrypted_data, encrypted_len);
+	if (buf_len <= 0) {
 		return -1;
+	}
+
+	if (QQ_DEBUG) {
+		qq_show_packet("QQ_SEND_CMD", buf, buf_len);
+	}
+	if (qd->use_tcp) {
+		bytes_sent = tcp_send_out(qd, buf, buf_len);
+	} else {
+		bytes_sent = udp_send_out(qd, buf, buf_len);
 	}
 	
-	bytes_header = bytes;
-	bytes_expected = 4 + encrypted_len + 1;
-	bytes += qq_put32(buf + bytes, (guint32) qd->uid);
-	bytes += qq_putdata(buf + bytes, encrypted_data, encrypted_len);
-	bytes += qq_put8(buf + bytes, QQ_PACKET_TAIL);
-
-	if ((bytes - bytes_header) != bytes_expected) {	/* bad packet */
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-				"Fail creating packet, expect %d bytes, written %d bytes\n",
-				bytes_expected, bytes - bytes_header);
-		return -1;
+	/* if it does not need ACK, we send ACK manually several times */
+	if (need_ack)  {
+		qq_trans_append(qd, buf, buf_len, cmd);
 	}
 
-	/* if it does not need ACK, we send ACK manually several times */
-	if (need_ack)   /* my request, send it */
-		bytes_sent = qq_send_packet(gc, buf, bytes, cmd);
-	else		/* server's request, send ACK */
-		bytes_sent = qq_proxy_write(qd, buf, bytes);
-
-	if (QQ_DEBUG)
+	if (QQ_DEBUG) {
+		qq_show_packet("QQ_SEND_CMD", buf, buf_len);
 		purple_debug(PURPLE_DEBUG_INFO, "QQ",
-				"<== [%05d] %s, %d bytes\n", seq_ret, qq_get_cmd_desc(cmd), bytes_sent);
+				"<== [%05d], %s, total %d bytes is sent %d\n", 
+				real_seq, qq_get_cmd_desc(cmd), buf_len, bytes_sent);
+	}
 	return bytes_sent;
 }

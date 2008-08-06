@@ -129,7 +129,9 @@ static void srv_resolved(PurpleSrvResponse *resp, int results, gpointer account)
 	purple_debug(PURPLE_DEBUG_INFO, "QQ",
 		"using udp with server %s and port %d\n", hostname, port);
 
-	qq_connect(account, hostname, port, qd->use_tcp);
+	qd->real_hostname = g_strdup(hostname);
+	qd->real_port = port;
+	qq_connect(account);
 
 	g_free(hostname);
 }
@@ -195,10 +197,15 @@ static void qq_close(PurpleConnection *gc)
 	qq_data *qd;
 
 	g_return_if_fail(gc != NULL);
-	qq_disconnect(gc);
-
 	qd = gc->proto_data;
 
+	qq_disconnect(gc);
+
+	if (qd->real_hostname) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free real_hostname\n");
+		g_free(qd->real_hostname);
+		qd->real_hostname = NULL;
+	}
 	if (qd->srv_query_data != NULL)
 		purple_srv_cancel(qd->srv_query_data);
 	

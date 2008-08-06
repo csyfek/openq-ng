@@ -28,7 +28,7 @@
 #include <glib.h>
 #include "qq.h"
 
-void qq_trans_append(qq_data *qd, guint8 *buf, gint len, guint16 cmd);
+void qq_trans_append(qq_data *qd, guint8 *buf, gint bus_len, guint16 cmd);
 void qq_trans_remove(qq_data *qd, gpointer data);
 gpointer qq_trans_find(qq_data *qd, guint16 send_seq);
 void qq_trans_remove_all(qq_data *qd);

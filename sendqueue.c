@@ -38,15 +38,17 @@
 
 typedef struct _transaction {
 	gint fd;
-	gint len;
 	guint8 *buf;
+	gint buf_len;
+
 	guint16 cmd;
 	guint16 send_seq;
+
 	gint retries;
 	time_t sendtime;
 } transaction;
 
-void qq_trans_append(qq_data *qd, guint8 *buf, gint len, guint16 cmd)
+void qq_trans_append(qq_data *qd, guint8 *buf, gint buf_len, guint16 cmd)
 {
 	transaction *trans = NULL;
 	trans = g_new0(transaction, 1);
@@ -56,12 +58,12 @@ void qq_trans_append(qq_data *qd, guint8 *buf, gint len, guint16 cmd)
 	trans->send_seq = qd->send_seq;
 	trans->retries = QQ_RESEND_MAX;
 	trans->sendtime = time(NULL);
-	trans->buf = g_memdup(buf, len);	/* don't use g_strdup, may have 0x00 */
-	trans->len = len;
+	trans->buf = g_memdup(buf, buf_len);	/* don't use g_strdup, may have 0x00 */
+	trans->buf_len = buf_len;
 
 	purple_debug(PURPLE_DEBUG_ERROR, "QQ",
 			"Add to transaction, send_seq = %d, buf = %lu, len = %d\n",
-			trans->send_seq, trans->buf, trans->len);
+			trans->send_seq, trans->buf, trans->buf_len);
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
@@ -141,7 +143,7 @@ gint qq_trans_scan(qq_data *qd, gint *start,
 		*start = g_list_position(qd->transactions, next);
 		
 		trans = (transaction *) (curr->data);
-		if (trans->buf == NULL || trans->len <= 0) {
+		if (trans->buf == NULL || trans->buf_len <= 0) {
 			qq_trans_remove(qd, trans);
 			curr = next;
 			continue;
@@ -150,7 +152,7 @@ gint qq_trans_scan(qq_data *qd, gint *start,
 		if (trans->retries < 0) {
 			purple_debug(PURPLE_DEBUG_ERROR, "QQ",
 				"Remove transaction, seq %d, buf %lu, len %d, retries %d, next %d\n",
-				trans->send_seq, trans->buf, trans->len, trans->retries, *start);
+				trans->send_seq, trans->buf, trans->buf_len, trans->retries, *start);
 			qq_trans_remove(qd, trans);
 			curr = next;
 			continue;
@@ -158,8 +160,8 @@ gint qq_trans_scan(qq_data *qd, gint *start,
 
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
 				"Resend transaction, seq %d, buf %lu, len %d, retries %d, next %d\n",
-				trans->send_seq, trans->buf, trans->len, trans->retries, *start);
-		copylen = MIN(trans->len, maxlen);
+				trans->send_seq, trans->buf, trans->buf_len, trans->retries, *start);
+		copylen = MIN(trans->buf_len, maxlen);
 		g_memmove(buf, trans->buf, copylen);
 
 		*cmd = trans->cmd;

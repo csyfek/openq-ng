@@ -74,12 +74,13 @@ struct _qq_data {
 
 	// common network resource
 	PurpleSrvQueryData *srv_query_data;	// srv resolve
+	gboolean is_redirect;
 	gchar *real_hostname;	// from real connction
 	guint16 real_port;
 	gboolean use_tcp;		// network in tcp or udp
 	
 	gint fd;				// socket file handler
-	gint tx_handle; 	// socket can_write handle
+	gint tx_handler; 	// socket can_write handle, use in udp connecting and tcp send out
 
 	GList *transactions;	// check ack packet and resend
 	guint resend_timeout;
@@ -89,6 +90,8 @@ struct _qq_data {
 	
 	// tcp related
 	PurpleCircBuffer *tcp_txbuf;
+	guint8 *tcp_rxqueue;
+	int tcp_rxlen;
 	
 	// udp related
 	PurpleDnsQueryData *udp_query_data;

@@ -32,16 +32,13 @@
 
 #define QQ_CONNECT_STEPS    2	/* steps in connection */
 
-gint qq_proxy_write(qq_data *qd, guint8 *data, gint len);
-
-void qq_connect(PurpleAccount *account, const gchar *host, guint16 port, gboolean use_tcp);
+void qq_connect(PurpleAccount *account);
 void qq_disconnect(PurpleConnection *gc);
 
 void qq_b4_packets_free(qq_data *qd);
 
+gint qq_send_data(PurpleConnection *gc, guint16 cmd, guint8 *data, gint datalen);
 gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, gboolean is_auto_seq, guint16 seq, 
-		gboolean need_ack, guint8 *data, gint len);
-gint qq_send_packet(PurpleConnection *gc, guint8 *buf, gint len, guint16 cmd);
-gint _create_packet_head_seq(guint8 *buf, PurpleConnection *gc,
-		guint16 cmd, gboolean is_auto_seq, guint16 *seq);
+		gboolean need_ack, guint8 *data, gint datalen);
+
 #endif
