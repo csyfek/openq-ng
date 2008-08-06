@@ -48,6 +48,7 @@ gchar *face_to_icon_str(gint face);
 
 void try_dump_as_gbk(const guint8 *const data, gint len);
 
+void qq_show_packet(const gchar *desc, const guint8 *buf, gint len);
 void qq_hex_dump(PurpleDebugLevel level, const char *category,
 		const guint8 *pdata, gint bytes,	
 		const char *format, ...);

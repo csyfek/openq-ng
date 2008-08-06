@@ -1,5 +1,5 @@
 /**
- * @file udp_proxy_s5.h
+ * @file qq_network.h
  *
  * purple
  *
@@ -22,13 +22,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111-1301  USA
  */
 
-#ifndef _QQ_UDP_PROXY_S5_H_
-#define _QQ_UDP_PROXY_S5_H_
+#ifndef _QQ_PROXY_H
+#define _QQ_PROXY_H
 
-#include "internal.h"		/* for socket stuff */
+#include <glib.h>
+#include "connection.h"
 
-#include "qq_proxy.h"
+#include "qq.h"
 
-gint qq_proxy_socks5(struct PHB *phb, struct sockaddr *addr, socklen_t addrlen);
+#define QQ_CONNECT_STEPS    2	/* steps in connection */
 
+gint qq_proxy_read(qq_data *qd, guint8 *data, gint len);
+gint qq_proxy_write(qq_data *qd, guint8 *data, gint len);
+
+gint qq_connect(PurpleAccount *account, const gchar *host, guint16 port, gboolean use_tcp);
+void qq_disconnect(PurpleConnection *gc);
+
+void qq_b4_packets_free(qq_data *qd);
+void qq_input_pending(gpointer data, gint source, PurpleInputCondition cond);
+
+gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, gboolean is_auto_seq, guint16 seq, 
+		gboolean need_ack, guint8 *data, gint len);
+gint _qq_send_packet(PurpleConnection * gc, guint8 *buf, gint len, guint16 cmd);
+gint _create_packet_head_seq(guint8 *buf, PurpleConnection *gc,
+		guint16 cmd, gboolean is_auto_seq, guint16 *seq);
 #endif

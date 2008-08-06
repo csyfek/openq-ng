@@ -36,8 +36,7 @@
 #include "login_logout.h"
 #include "packet_parse.h"
 #include "qq.h"
-#include "qq_proxy.h"
-#include "send_core.h"
+#include "qq_network.h"
 #include "utils.h"
 
 #define QQ_LOGIN_DATA_LENGTH		    416
@@ -71,31 +70,34 @@ static const guint8 login_23_51[29] = {
 
 /* for QQ 2005? copy from lumaqq */
 // Fixme: change to guint8
-static const gint8 login_23_51[29] = {
-	0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, -122, 
-	-52, 76, 53, 44, -45, 115, 108, 20, -10, -10, 
-	-81, -61, -6, 51, -92, 1
+static const guint8 login_23_51[29] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x86, 0xcc, 0x4c, 0x35,
+	0x2c, 0xd3, 0x73, 0x6c, 0x14, 0xf6, 0xf6, 0xaf,
+	0xc3, 0xfa, 0x33, 0xa4, 0x01
 };
 
-static const gint8 login_53_68[16] = {
-	-115, -117, -6, -20, -43, 82, 23, 74, -122, -7, 
-	-89, 117, -26, 50, -47, 109
+static const guint8 login_53_68[16] = {
+ 	0x8D, 0x8B, 0xFA, 0xEC, 0xD5, 0x52, 0x17, 0x4A,
+ 	0x86, 0xF9, 0xA7, 0x75, 0xE6, 0x32, 0xD1, 0x6D
 };
 
-static const gint8 login_100_bytes[100] = {
-	64, 
-	11, 4, 2, 0, 1, 0, 0, 0, 0, 0, 
-	3, 9, 0, 0, 0, 0, 0, 0, 0, 1, 
-	-23, 3, 1, 0, 0, 0, 0, 0, 1, -13, 
-	3, 0, 0, 0, 0, 0, 0, 1, -19, 3, 
-	0, 0, 0, 0, 0, 0, 1, -20, 3, 0, 
-	0, 0, 0, 0, 0, 3, 5, 0, 0, 0, 
-	0, 0, 0, 0, 3, 7, 0, 0, 0, 0, 
-	0, 0, 0, 1, -18, 3, 0, 0, 0, 0, 
-	0, 0, 1, -17, 3, 0, 0, 0, 0, 0, 
-	0, 1, -21, 3, 0, 0, 0, 0, 0
+static const guint8 login_100_bytes[100] = {
+	0x40, 0x0B, 0x04, 0x02, 0x00, 0x01, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x03, 0x09, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x01, 0xE9, 0x03, 0x01,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xF3, 0x03,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xED,
+	0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+	0xEC, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x03, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x03, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x01, 0xEE, 0x03, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x01, 0xEF, 0x03, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x01, 0xEB, 0x03, 0x00,
+	0x00, 0x00, 0x00, 0x00
 };
+
 
 /* fixed value, not affected by version, or mac address */
 /*
@@ -269,7 +271,10 @@ static gint _qq_process_login_redirect(PurpleConnection *gc, guint8 *data, gint 
 		new_server_str = gen_ip_str(lrrp.new_server_ip);
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
 			   "Redirected to new server: %s:%d\n", new_server_str, lrrp.new_server_port);
-		qq_connect(gc->account, new_server_str, lrrp.new_server_port, qd->use_tcp, TRUE);
+
+		qq_disconnect(gc);
+
+		qq_connect(gc->account, new_server_str, lrrp.new_server_port, qd->use_tcp);
 		g_free(new_server_str);
 		ret = QQ_LOGIN_REPLY_REDIRECT;
 	}
@@ -357,7 +362,6 @@ static void qq_send_packet_login(PurpleConnection *gc, guint8 token_length, guin
 	bytes += qq_put8(raw_data + bytes, qd->login_mode);
 	/* 053-068, fixed value, maybe related to per machine */
 	bytes += qq_putdata(raw_data + bytes, login_53_68, 16);
-
 	/* 069, login token length */
 	bytes += qq_put8(raw_data + bytes, token_length);
 	/* 070-093, login token, normally 24 bytes */

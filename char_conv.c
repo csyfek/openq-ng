@@ -39,9 +39,6 @@
 #define QQ_NULL_MSG           "(NULL)"	/* return this if conversion fails */
 #define QQ_NULL_SMILEY        "(SM)"	/* return this if smiley conversion fails */
 
-/* a debug function */
-void _qq_show_packet(const gchar *desc, const guint8 *buf, gint len);
-
 const gchar qq_smiley_map[QQ_SMILEY_AMOUNT] = {
 	0x41, 0x43, 0x42, 0x44, 0x45, 0x46, 0x47, 0x48,
 	0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x73,
@@ -150,8 +147,8 @@ gchar *qq_encode_to_purple(guint8 *data, gint len, const gchar *msg)
 	gchar *font_name, *color_code, *msg_utf8, *tmp, *ret;
 	gint bytes = 0;
 
-	/* checked _qq_show_packet OK */
-	_qq_show_packet("QQ_MESG recv for font style", data, len);
+	/* checked qq_show_packet OK */
+	qq_show_packet("QQ_MESG recv for font style", data, len);
 
 	bytes += qq_get8(&font_attr, data + bytes);
 	bytes += qq_getdata(color, 3, data + bytes);	/* red,green,blue */

@@ -356,6 +356,26 @@ void qq_hex_dump(PurpleDebugLevel level, const char *category,
 	g_free(phex);
 }
 
+void qq_show_packet(const gchar *desc, const guint8 *buf, gint len)
+{
+	/*
+	   char buf1[8*len+2], buf2[10];
+	   int i;
+	   buf1[0] = 0;
+	   for (i = 0; i < len; i++) {
+	   sprintf(buf2, " %02x(%d)", buf[i] & 0xff, buf[i] & 0xff);
+	   strcat(buf1, buf2);
+	   }
+	   strcat(buf1, "\n");
+	   purple_debug(PURPLE_DEBUG_INFO, desc, "%s", buf1);
+	   */
+
+	/* modified by s3e, 20080424 */
+	qq_hex_dump(PURPLE_DEBUG_INFO, desc,
+		buf, len,
+		"");
+}
+
 /* convert face num from packet (0-299) to local face (1-100) */
 gchar *face_to_icon_str(gint face)
 {

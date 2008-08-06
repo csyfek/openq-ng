@@ -1,5 +1,5 @@
 /**
- * @file send_core.h
+ * @file udp_proxy_s5.h
  *
  * purple
  *
@@ -22,16 +22,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111-1301  USA
  */
 
-#ifndef _QQ_SEND_CORE_H_
-#define _QQ_SEND_CORE_H_
+#ifndef _QQ_UDP_PROXY_S5_H_
+#define _QQ_UDP_PROXY_S5_H_
 
-#include <glib.h>
-#include "connection.h"
+#include "internal.h"		/* for socket stuff */
 
-gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, gboolean is_auto_seq, guint16 seq, 
-		gboolean need_ack, guint8 *data, gint len);
-gint _qq_send_packet(PurpleConnection * gc, guint8 *buf, gint len, guint16 cmd);
-gint _create_packet_head_seq(guint8 *buf, PurpleConnection *gc,
-		guint16 cmd, gboolean is_auto_seq, guint16 *seq);
+gint qq_connect_by_udp(PurpleAccount *account,
+		const gchar *server, guint16 port, 
+		void callback(gpointer, gint, const gchar *error_message), 
+		PurpleConnection *gc);
 
 #endif

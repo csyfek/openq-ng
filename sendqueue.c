@@ -31,7 +31,7 @@
 #include "request.h"
 
 #include "header_info.h"
-#include "qq_proxy.h"
+#include "qq_network.h"
 #include "sendqueue.h"
 
 #define QQ_RESEND_MAX               8	/* max resend per packet */

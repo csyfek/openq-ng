@@ -401,7 +401,7 @@ gint create_packet_data(guint8 *buf, guint8 **cursor, guint8 *data, gint datalen
 	}
 }
 */
-gint qq_putdata(guint8 *buf, guint8 *data, const int datalen)
+gint qq_putdata(guint8 *buf, const guint8 *data, const int datalen)
 {
     memcpy(buf, data, datalen);
 	purple_debug(PURPLE_DEBUG_ERROR, "QQ", "[DBG][putdata] buf %lu\n", (void *)buf);
