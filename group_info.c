@@ -141,6 +141,9 @@ void qq_send_cmd_group_get_members_info(PurpleConnection *gc, qq_group *group)
 	qq_send_group_cmd(gc, group, raw_data, bytes);
 }
 
+/**
+ * @brief 处理群信息.当前群信息的处理还不完善,由于版本的不同导致协议的解读有差异.
+ */
 void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnection *gc)
 {
 	qq_group *group;
@@ -163,7 +166,7 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	g_return_if_fail(internal_group_id > 0);
 
 	bytes += qq_get32(&(external_group_id), data + bytes);
-	g_return_if_fail(internal_group_id > 0);
+	g_return_if_fail(external_group_id > 0);
 
 	pending_id = qq_get_pending_id(qd->adding_groups_from_server, internal_group_id);
 	if (pending_id != NULL) {
@@ -183,9 +186,14 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	bytes += qq_get32(&(group->group_category), data + bytes);
 	bytes += qq_get16(&max_members, data + bytes);
 	bytes += qq_get8(&unknown1, data + bytes);
+	/* XXX
+	 * the following, while Eva:
+	 * 4(unk), 4(verID), 1(nameLen), nameLen(qunNameContent), 1(0x00),
+	 * 2(qunNoticeLen), qunNoticeLen(qunNoticeContent, 1(qunDescLen),
+	 * qunDestLen(qunDestcontent)) */
 	bytes += qq_get8(&unknown1, data + bytes);
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "type=%u ctorid=%u cate=%u\n",
-							group->group_type, group->creator_uid, group->group_category);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "type=%u creatorid=%u category=%u\n",
+			group->group_type, group->creator_uid, group->group_category);
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "maxmembers=%u", max_members); 
 	
 	/* strlen + <str content> */
