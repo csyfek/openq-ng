@@ -317,8 +317,8 @@ void qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConnecti
 
 		if (QQ_DEBUG) {
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
-					"buddy [%09d]: flag1=0x%02x, comm_flag=0x%02x\n",
-					q_bud->uid, q_bud->flag1, q_bud->comm_flag);
+					"buddy [%09d]: flag1=0x%02x, comm_flag=0x%02x, nick=%s\n",
+					q_bud->uid, q_bud->flag1, q_bud->comm_flag, q_bud->nickname);
 		}
 
 		name = uid_to_purple_name(q_bud->uid);

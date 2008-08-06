@@ -235,7 +235,7 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 			group->group_name_utf8, purple_connection_get_account(gc));
 	if(NULL == purple_conv) {
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
-				"Conv windows for \"%s\" is not on, do not set topic\n", group->group_name_utf8);
+				"Conversation for \"%s\" is not open, do not set topic\n", group->group_name_utf8);
 		return;
 	}
 
@@ -303,6 +303,8 @@ void qq_process_group_cmd_get_members_info(guint8 *data, gint len, PurpleConnect
 	guint16 unknown;
 	qq_group *group;
 	qq_buddy *member;
+	gchar *nick;
+	gchar **nick_list;
 
 	g_return_if_fail(data != NULL && len > 0);
 
@@ -325,10 +327,24 @@ void qq_process_group_cmd_get_members_info(guint8 *data, gint len, PurpleConnect
 		bytes += qq_get16(&(member->face), data + bytes);
 		bytes += qq_get8(&(member->age), data + bytes);
 		bytes += qq_get8(&(member->gender), data + bytes);
-		bytes += convert_as_pascal_string(data + bytes, &(member->nickname), QQ_CHARSET_DEFAULT);
+		bytes += convert_as_pascal_string(data + bytes, &nick, QQ_CHARSET_DEFAULT);
 		bytes += qq_get16(&unknown, data + bytes);
 		bytes += qq_get8(&(member->flag1), data + bytes);
 		bytes += qq_get8(&(member->comm_flag), data + bytes);
+
+		/* filter \r\n in nick */
+		nick_list = g_strsplit(nick, "\n", -1);
+		member->nickname = g_strjoinv("", nick_list);
+		g_free(nick);
+		g_strfreev(nick_list);
+		
+		/*
+		if (QQ_DEBUG) {
+			purple_debug(PURPLE_DEBUG_INFO, "QQ",
+					"member [%09d]: flag1=0x%02x, comm_flag=0x%02x, nick=%s\n",
+					member_uid, member->flag1, member->comm_flag, member->nickname);
+		}
+		*/
 
 		member->last_refresh = time(NULL);
 	}
