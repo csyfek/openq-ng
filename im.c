@@ -362,9 +362,9 @@ static void _qq_process_recv_normal_im(guint8 *data, gint len, PurpleConnection 
 	switch (common->normal_im_type) {
 		case QQ_NORMAL_IM_TEXT:
 			purple_debug (PURPLE_DEBUG_INFO, "QQ",
-					"Normal IM, text type:\n [%d] => [%d], src: %s\n",
+					"Normal IM, text type:\n [%d] => [%d], src: %s (%04X)\n",
 					common->sender_uid, common->receiver_uid,
-					qq_get_ver_desc (common->sender_ver));
+					qq_get_ver_desc (common->sender_ver), common->sender_ver);
 			if (bytes >= len - 1) {
 				purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Received normal IM text is empty\n");
 				return;

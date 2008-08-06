@@ -37,6 +37,7 @@
 #include "crypt.h"
 #include "header_info.h"
 #include "qq_base.h"
+#include "buddy_list.h"
 #include "packet_parse.h"
 #include "qq_network.h"
 #include "qq_trans.h"
@@ -526,16 +527,7 @@ static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 	return ret;
 }
 
-static gboolean keep_alive_timeout(gpointer data) {
-	PurpleConnection *gc = (PurpleConnection *) data;
-	g_return_val_if_fail(gc != NULL, TRUE);
-
-	qq_send_packet_keep_alive(gc);
-
-	return TRUE;		/* if return FALSE, timeout callback stops */
-}
-
-static gboolean trans_timeout(gpointer data)
+static gboolean network_timeout(gpointer data)
 {
 	PurpleConnection *gc = (PurpleConnection *) data;
 	qq_data *qd;
@@ -543,11 +535,34 @@ static gboolean trans_timeout(gpointer data)
 
 	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, TRUE);
 	qd = (qq_data *) gc->proto_data;
-	
+
 	is_lost_conn = qq_trans_scan(qd);
 	if (is_lost_conn) {
 		purple_connection_error_reason(gc,
-		PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Connection lost"));
+			PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Connection lost"));
+		return TRUE;
+	}
+
+	if ( !qd->logged_in ) {
+		return TRUE;
+	}
+	
+	qd->itv_count.keep_alive--;
+	if (qd->itv_count.keep_alive <= 0) {
+		qd->itv_count.keep_alive = qd->itv_config.keep_alive;
+		qq_send_packet_keep_alive(gc);
+		return TRUE;
+	}
+
+	if (qd->itv_config.update <= 0) {
+		return TRUE;
+	}
+
+	qd->itv_count.update--;
+	if (qd->itv_count.update <= 0) {
+		qd->itv_count.update = qd->itv_config.update;
+		qq_send_packet_get_buddies_online(gc, 0);
+		return TRUE;
 	}
 
 	return TRUE;		/* if return FALSE, timeout callback stops */
@@ -561,6 +576,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	PurpleConnection *gc;
 	gchar *conn_msg;
 	const gchar *passwd;
+	PurpleAccount *account ;
 
 	gc = (PurpleConnection *) data;
 
@@ -573,6 +589,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 
 	qd = (qq_data *) gc->proto_data;
+	account = purple_connection_get_account(gc);
 
 	/* Connect is now complete; clear the PurpleProxyConnectData */
 	qd->connect_data = NULL;
@@ -599,15 +616,28 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	g_return_if_fail(qd->pwkey == NULL);
 	qd->pwkey = encrypt_account_password(passwd);
 
-	g_return_if_fail(qd->trans_timeout == 0);
-	/* call trans_timeout every 10 seconds */
-	qd->trans_timeout = purple_timeout_add(QQ_TRANS_INTERVAL, trans_timeout, gc);
-	
-	g_return_if_fail(qd->keep_alive_timeout == 0);
-	/* call keep_alive_timeout every 60 seconds */
-	qd->keep_alive_timeout = purple_timeout_add(QQ_KEEP_ALIVE_INTERVAL,
-			keep_alive_timeout, gc);
+	g_return_if_fail(qd->network_timeout == 0);
+	qd->itv_config.resend = purple_account_get_int(account, "resend_interval", 10);
+	if (qd->itv_config.resend <= 0) qd->itv_config.resend = 10;
 
+	qd->itv_config.keep_alive = purple_account_get_int(account, "keep_alive_interval", 60);
+	if (qd->itv_config.keep_alive < 30) qd->itv_config.keep_alive = 30;
+	qd->itv_config.keep_alive /= qd->itv_config.resend;
+	qd->itv_count.keep_alive = qd->itv_config.keep_alive;
+
+	qd->itv_config.update = purple_account_get_int(account, "update_interval", 300);
+	if (qd->itv_config.update > 0) {
+		if (qd->itv_config.update < qd->itv_config.keep_alive) {
+			qd->itv_config.update = qd->itv_config.keep_alive;
+		}
+		qd->itv_config.update /= qd->itv_config.resend;
+		qd->itv_count.update = qd->itv_config.update;
+	} else {
+		qd->itv_config.update = 0;
+	}
+
+	qd->network_timeout = purple_timeout_add(qd->itv_config.resend *1000, network_timeout, gc);
+	
 	if (qd->use_tcp)
 		gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, tcp_pending, gc);
 	else
@@ -850,14 +880,9 @@ void qq_disconnect(PurpleConnection *gc)
 
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Disconnecting ...\n");
 
-	if (qd->keep_alive_timeout > 0) {
-		purple_timeout_remove(qd->keep_alive_timeout);
-		qd->keep_alive_timeout = 0;
-	}
-
-	if (qd->trans_timeout > 0) {
-		purple_timeout_remove(qd->trans_timeout);
-		qd->trans_timeout = 0;
+	if (qd->network_timeout > 0) {
+		purple_timeout_remove(qd->network_timeout);
+		qd->network_timeout = 0;
 	}
 
 	/* finish  all I/O */

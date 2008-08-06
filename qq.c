@@ -810,6 +810,15 @@ static void init_plugin(PurplePlugin *plugin)
 	option = purple_account_option_bool_new(_("Connect using TCP"), "use_tcp", TRUE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
+	option = purple_account_option_int_new(_("resend interval(s)"), "resend_interval", 10);
+	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
+	option = purple_account_option_int_new(_("Keep alive interval(s)"), "keep_alive_interval", 60);
+	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
+	option = purple_account_option_int_new(_("Update interval(s)"), "update_interval", 300);
+	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
 	my_protocol = plugin;
 
 	purple_prefs_add_none("/plugins/prpl/qq");

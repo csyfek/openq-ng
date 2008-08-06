@@ -45,6 +45,13 @@ const char *qq_win32_buddy_icon_dir(void);
 
 typedef struct _qq_data qq_data;
 typedef struct _qq_buddy qq_buddy;
+typedef struct _qq_interval qq_interval;
+
+struct _qq_interval {
+	gint resend;
+	gint keep_alive;
+	gint update; 
+};
 
 struct _qq_buddy {
 	guint32 uid;
@@ -88,10 +95,11 @@ struct _qq_data {
 	gint fd;				/* socket file handler */
 	gint tx_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
 
-	guint keep_alive_timeout;
-
+	qq_interval itv_config;
+	qq_interval itv_count;
+	guint network_timeout;
+	
 	GList *transactions;	/* check ack packet and resend */
-	guint trans_timeout;
 
 	/* tcp related */
 	PurpleCircBuffer *tcp_txbuf;

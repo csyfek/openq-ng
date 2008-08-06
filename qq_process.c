@@ -153,10 +153,7 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 			qq_process_send_im_reply(data, data_len, gc);
 			break;
 		case QQ_CMD_KEEP_ALIVE:
-			ret_bool = qq_process_keep_alive(data, data_len, gc);
-			if (ret_bool) {
-				qq_send_packet_get_buddies_online(gc, 0);
-			}
+			qq_process_keep_alive(data, data_len, gc);
 			break;
 		case QQ_CMD_GET_BUDDIES_ONLINE:
 			ret_8 = qq_process_get_buddies_online_reply(data, data_len, gc);
