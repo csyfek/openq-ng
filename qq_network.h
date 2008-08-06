@@ -36,8 +36,9 @@ void qq_connect(PurpleAccount *account);
 void qq_disconnect(PurpleConnection *gc);
 void qq_connect_later(PurpleConnection *gc);
 
-gint qq_send_data(qq_data *qd, guint16 cmd, guint8 *data, gint datalen);
 gint qq_send_cmd(qq_data *qd, guint16 cmd, guint8 *data, gint datalen);
+gint qq_send_data(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack,
+	guint8 *data, gint data_len);
 gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack,
 	guint8 *data, gint data_len);
 

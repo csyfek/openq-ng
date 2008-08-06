@@ -936,11 +936,8 @@ void qq_disconnect(PurpleConnection *gc)
 		g_free(qd->session_md5);
 		qd->session_md5 = NULL;
 	}
-	if (qd->my_ip) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free my_ip\n");
-		g_free(qd->my_ip);
-		qd->my_ip = NULL;
-	}
+
+	qd->my_ip.s_addr = 0;
 
 	qq_group_packets_free(qd);
 	qq_group_free_all(qd);
@@ -988,19 +985,19 @@ static gint encap(qq_data *qd, guint8 *buf, gint maxlen, guint16 cmd, guint16 se
 	return bytes;
 }
 
-gint qq_send_data(qq_data *qd, guint16 cmd, guint8 *data, gint data_len)
+/* data has been encrypted before */
+gint qq_send_data(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack,
+	guint8 *data, gint data_len)
 {
 	guint8 *buf;
 	gint buf_len;
 	gint bytes_sent;
-	gint seq;
 
 	g_return_val_if_fail(qd != NULL, -1);
 	g_return_val_if_fail(data != NULL && data_len > 0, -1);
 
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 	memset(buf, 0, MAX_PACKET_SIZE);
-	seq = ++(qd->send_seq);
 	buf_len = encap(qd, buf, MAX_PACKET_SIZE, cmd, seq, data, data_len);
 	if (buf_len <= 0) {
 		return -1;
@@ -1012,9 +1009,10 @@ gint qq_send_data(qq_data *qd, guint16 cmd, guint8 *data, gint data_len)
 		bytes_sent = udp_send_out(qd, buf, buf_len);
 	}
 
-	/* always need ack */
-	qq_trans_add_client_cmd(qd, cmd, seq, data, data_len);
-
+	if (need_ack)  {
+		qq_trans_add_client_cmd(qd, cmd, seq, data, data_len);
+	}
+	
 	if (QQ_DEBUG) {
 		/* qq_show_packet("QQ_SEND_DATA", buf, buf_len); */
 		purple_debug(PURPLE_DEBUG_INFO, "QQ",
@@ -1024,17 +1022,12 @@ gint qq_send_data(qq_data *qd, guint16 cmd, guint8 *data, gint data_len)
 	return bytes_sent;
 }
 
-/* send the packet generated with the given cmd and data
- * return the number of bytes sent to socket if succeeds
- * return -1 if there is any error */
+/* Encrypt data with session_key, then call qq_send_data */
 gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack,
 	guint8 *data, gint data_len)
 {
-	guint8 *buf;
-	gint buf_len;
 	guint8 *encrypted_data;
 	gint encrypted_len;
-	gint bytes_sent;
 
 	g_return_val_if_fail(qd != NULL && qd->session_key != NULL, -1);
 	g_return_val_if_fail(data != NULL && data_len > 0, -1);
@@ -1044,34 +1037,10 @@ gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack
 
 	qq_encrypt(data, data_len, qd->session_key, encrypted_data, &encrypted_len);
 
-	buf = g_newa(guint8, MAX_PACKET_SIZE);
-	memset(buf, 0, MAX_PACKET_SIZE);
-	buf_len = encap(qd, buf, MAX_PACKET_SIZE, cmd, seq, encrypted_data, encrypted_len);
-	if (buf_len <= 0) {
-		return -1;
-	}
-
-	/*	qq_show_packet("QQ_SEND_CMD", buf, buf_len); */
-
-	if (qd->use_tcp) {
-		bytes_sent = tcp_send_out(qd, buf, buf_len);
-	} else {
-		bytes_sent = udp_send_out(qd, buf, buf_len);
-	}
-	
-	/* if it does not need ACK, we send ACK manually several times */
-	if (need_ack)  {
-		qq_trans_add_client_cmd(qd, cmd, seq, data, data_len);
-	}
-
-	if (QQ_DEBUG) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ",
-				"<== [%05d], %s, total %d bytes is sent %d\n", 
-				seq, qq_get_cmd_desc(cmd), buf_len, bytes_sent);
-	}
-	return bytes_sent;
+	return qq_send_data(qd, cmd, seq, need_ack, encrypted_data, encrypted_len);
 }
 
+/* set seq and need_ack, then call qq_send_cmd_detail */
 gint qq_send_cmd(qq_data *qd, guint16 cmd, guint8 *data, gint data_len)
 {
 	g_return_val_if_fail(qd != NULL, -1);

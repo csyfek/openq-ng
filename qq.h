@@ -120,7 +120,7 @@ struct _qq_data {
 	time_t last_login_time;
 	gchar *last_login_ip;
 	/* get from keep_alive packet */
-	gchar *my_ip;			/* my ip address detected by server */
+	struct in_addr my_ip;			/* my ip address detected by server */
 	guint16 my_port;		/* my port detected by server */
 	guint16 my_icon;		/* my icon index */
 	guint16 my_level;		/* my level */

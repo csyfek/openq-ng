@@ -109,7 +109,7 @@ struct _qq_recv_im_header {
 	guint32 sender_uid;
 	guint32 receiver_uid;
 	guint32 server_im_seq;
-	guint8 sender_ip[4];
+	struct in_addr sender_ip;
 	guint16 sender_port;
 	guint16 im_type;
 };
@@ -612,7 +612,7 @@ void qq_process_recv_im(guint8 *buf, gint buf_len, guint16 seq, PurpleConnection
 	bytes += qq_get32(&(im_header->receiver_uid), data + bytes);
 	bytes += qq_get32(&(im_header->server_im_seq), data + bytes);
 	/* if the message is delivered via server, it is server IP/port */
-	bytes += qq_getdata((guint8 *) & (im_header->sender_ip), 4, data + bytes);
+	bytes += qq_getIP(&(im_header->sender_ip), data + bytes);
 	bytes += qq_get16(&(im_header->sender_port), data + bytes);
 	bytes += qq_get16(&(im_header->im_type), data + bytes);
 	/* im_header prepared */

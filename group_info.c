@@ -107,7 +107,7 @@ void qq_send_cmd_group_get_online_members(PurpleConnection *gc, qq_group *group)
 	/* only get online members when conversation window is on */
 	if (NULL == purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT,group->group_name_utf8, purple_connection_get_account(gc))) {
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
-				"Conversation for \"%s\" is not open, ignore to get online members\n", group->group_name_utf8);
+				"Conversation \"%s\" is not open, ignore to get online members\n", group->group_name_utf8);
 		return;
 	}
 
@@ -253,7 +253,7 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 			group->group_name_utf8, purple_connection_get_account(gc));
 	if(NULL == purple_conv) {
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
-				"Conversation for \"%s\" is not open, do not set topic\n", group->group_name_utf8);
+				"Conversation \"%s\" is not open, do not set topic\n", group->group_name_utf8);
 		return;
 	}
 

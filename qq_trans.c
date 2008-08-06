@@ -90,11 +90,11 @@ static void trans_remove(qq_data *qd, qq_transaction *trans)
 	g_return_if_fail(qd != NULL && trans != NULL);
 	
 	purple_debug(PURPLE_DEBUG_INFO, "QQ_TRANS",
-				"Remove [%s%05d] %s, retry %d, rcved %d, scan %d\n",
+				"Remove [%s%05d] retry %d rcved %d scan %d %s\n",
 				(trans->flag & QQ_TRANS_IS_SERVER) ? "SRV-" : "",
 				trans->seq,
-				qq_get_cmd_desc(trans->cmd), 
-				trans->send_retries, trans->rcved_times, trans->scan_times);
+				trans->send_retries, trans->rcved_times, trans->scan_times,
+				qq_get_cmd_desc(trans->cmd));
 
 	if (trans->data)	g_free(trans->data);
 	qd->transactions = g_list_remove(qd->transactions, trans);
@@ -248,7 +248,7 @@ gboolean qq_trans_scan(qq_data *qd)
 				"Resend [%d] %s data %p, len %d, send_retries %d\n",
 				trans->seq, qq_get_cmd_desc(trans->cmd),
 				trans->data, trans->data_len, trans->send_retries);
-		qq_send_cmd_detail(qd, trans->cmd, trans->seq, FALSE, trans->data, trans->data_len);
+		qq_send_data(qd, trans->cmd, trans->seq, FALSE, trans->data, trans->data_len);
 	}
 
 	/* purple_debug(PURPLE_DEBUG_INFO, "QQ_TRANS", "Scan finished\n"); */

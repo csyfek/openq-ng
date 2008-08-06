@@ -447,7 +447,7 @@ static void _qq_send_packet_file_request (PurpleConnection *gc, guint32 to_uid, 
 	info = g_new0(ft_info, 1);
 	info->to_uid = to_uid;
 	info->send_seq = qd->send_seq;
-	info->local_internet_ip = g_ntohl(inet_addr(qd->my_ip));
+	info->local_internet_ip = qd->my_ip.s_addr;
 	info->local_internet_port = qd->my_port;
 	info->local_real_ip = 0x00000000;
 	info->conn_method = 0x00;
@@ -784,7 +784,7 @@ void qq_process_recv_file_request(guint8 *data, gint data_len, guint32 sender_ui
 	qd = (qq_data *) gc->proto_data;
 
 	info = g_newa(ft_info, 1);
-	info->local_internet_ip = g_ntohl(inet_addr(qd->my_ip));
+	info->local_internet_ip = qd->my_ip.s_addr;
 	info->local_internet_port = qd->my_port;
 	info->local_real_ip = 0x00000000;
 	info->to_uid = sender_uid;

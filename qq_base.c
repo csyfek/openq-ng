@@ -108,21 +108,21 @@ struct _qq_login_reply_ok {
 	guint8 result;
 	guint8 *session_key;
 	guint32 uid;
-	guint8 client_ip[4];	/* those detected by server */
+	struct in_addr client_ip;	/* those detected by server */
 	guint16 client_port;
-	guint8 server_ip[4];
+	struct in_addr server_ip;
 	guint16 server_port;
 	time_t login_time;
 	guint8 unknown1[26];
-	guint8 unknown_server1_ip[4];
+	struct in_addr unknown_server1_ip;
 	guint16 unknown_server1_port;
-	guint8 unknown_server2_ip[4];
+	struct in_addr unknown_server2_ip;
 	guint16 unknown_server2_port;
 	guint16 unknown2;	/* 0x0001 */
 	guint16 unknown3;	/* 0x0000 */
 	guint8 unknown4[32];
 	guint8 unknown5[12];
-	guint8 last_client_ip[4];
+	struct in_addr last_client_ip;
 	time_t last_login_time;
 	guint8 unknown6[8];
 };
@@ -130,7 +130,7 @@ struct _qq_login_reply_ok {
 struct _qq_login_reply_redirect {
 	guint8 result;
 	guint32 uid;
-	guint8 new_server_ip[4];
+	struct in_addr new_server_ip;
 	guint16 new_server_port;
 };
 
@@ -175,11 +175,11 @@ static gint _qq_process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 	/* 017-020: login uid */
 	bytes += qq_get32(&lrop.uid, data + bytes);
 	/* 021-024: server detected user public IP */
-	bytes += qq_getdata((guint8 *) &lrop.client_ip, 4, data + bytes);
+	bytes += qq_getIP(&lrop.client_ip, data + bytes);
 	/* 025-026: server detected user port */
 	bytes += qq_get16(&lrop.client_port, data + bytes);
 	/* 027-030: server detected itself ip 127.0.0.1 ? */
-	bytes += qq_getdata((guint8 *) &lrop.server_ip, 4, data + bytes);
+	bytes += qq_getIP(&lrop.server_ip, data + bytes);
 	/* 031-032: server listening port */
 	bytes += qq_get16(&lrop.server_port, data + bytes);
 	/* 033-036: login time for current session */
@@ -187,11 +187,11 @@ static gint _qq_process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 	/* 037-062: 26 bytes, unknown */
 	bytes += qq_getdata((guint8 *) &lrop.unknown1, 26, data + bytes);
 	/* 063-066: unknown server1 ip address */
-	bytes += qq_getdata((guint8 *) &lrop.unknown_server1_ip, 4, data + bytes);
+	bytes += qq_getIP(&lrop.unknown_server1_ip, data + bytes);
 	/* 067-068: unknown server1 port */
 	bytes += qq_get16(&lrop.unknown_server1_port, data + bytes);
 	/* 069-072: unknown server2 ip address */
-	bytes += qq_getdata((guint8 *) &lrop.unknown_server2_ip, 4, data + bytes);
+	bytes += qq_getIP(&lrop.unknown_server2_ip, data + bytes);
 	/* 073-074: unknown server2 port */
 	bytes += qq_get16(&lrop.unknown_server2_port, data + bytes);
 	/* 075-076: 2 bytes unknown */
@@ -203,7 +203,7 @@ static gint _qq_process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 	/* 111-122: 12 bytes unknown */
 	bytes += qq_getdata((guint8 *) &lrop.unknown5, 12, data + bytes);
 	/* 123-126: login IP of last session */
-	bytes += qq_getdata((guint8 *) &lrop.last_client_ip, 4, data + bytes);
+	bytes += qq_getIP(&lrop.last_client_ip, data + bytes);
 	/* 127-130: login time of last session */
 	bytes += qq_getime(&lrop.last_login_time, data + bytes);
 	/* 131-138: 8 bytes unknown */
@@ -221,13 +221,12 @@ static gint _qq_process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 	g_return_val_if_fail(qd->session_md5 == NULL, QQ_LOGIN_REPLY_MISC_ERROR);
 	qd->session_md5 = gen_session_md5(qd->uid, qd->session_key);
 	
-	g_return_val_if_fail(qd->my_ip == NULL, QQ_LOGIN_REPLY_MISC_ERROR);
-	qd->my_ip = gen_ip_str(lrop.client_ip);
+	qd->my_ip.s_addr = lrop.client_ip.s_addr;
 	
 	qd->my_port = lrop.client_port;
 	qd->login_time = lrop.login_time;
 	qd->last_login_time = lrop.last_login_time;
-	qd->last_login_ip = gen_ip_str(lrop.last_client_ip);
+	qd->last_login_ip = g_strdup( inet_ntoa(lrop.last_client_ip) );
 
 	purple_connection_set_state(gc, PURPLE_CONNECTED);
 	qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
@@ -267,7 +266,7 @@ static gint _qq_process_login_redirect(PurpleConnection *gc, guint8 *data, gint 
 	/* 001-004: login uid */
 	bytes += qq_get32(&lrrp.uid, data + bytes);
 	/* 005-008: redirected new server IP */
-	bytes += qq_getdata(lrrp.new_server_ip, 4, data + bytes);
+	bytes += qq_getIP(&lrrp.new_server_ip, data + bytes);
 	/* 009-010: redirected new server port */
 	bytes += qq_get16(&lrrp.new_server_port, data + bytes);
 
@@ -284,7 +283,7 @@ static gint _qq_process_login_redirect(PurpleConnection *gc, guint8 *data, gint 
 			g_free(qd->real_hostname);
 			qd->real_hostname = NULL;
 		}
-		qd->real_hostname = gen_ip_str(lrrp.new_server_ip);
+		qd->real_hostname = g_strdup( inet_ntoa(lrrp.new_server_ip) );
 		qd->real_port = lrrp.new_server_port;
 		qd->is_redirect = TRUE;
 
@@ -323,7 +322,8 @@ void qq_send_packet_token(PurpleConnection *gc)
 
 	bytes += qq_put8(buf + bytes, 0);
 	
-	qq_send_data(qd, QQ_CMD_TOKEN, buf, bytes);
+	qd->send_seq++;
+	qq_send_data(qd, QQ_CMD_TOKEN, qd->send_seq, TRUE, buf, bytes);
 }
 
 /* send login packet to QQ server */
@@ -382,7 +382,8 @@ void qq_send_packet_login(PurpleConnection *gc)
 	bytes += qq_putdata(buf + bytes, qd->inikey, QQ_KEY_LENGTH);
 	bytes += qq_putdata(buf + bytes, encrypted_data, encrypted_len);
 
-	qq_send_data(qd, QQ_CMD_LOGIN, buf, bytes);
+	qd->send_seq++;
+	qq_send_data(qd, QQ_CMD_LOGIN, qd->send_seq, TRUE, buf, bytes);
 }
 
 guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *buf, gint buf_len)
@@ -569,9 +570,12 @@ gboolean qq_process_keep_alive(guint8 *buf, gint buf_len, PurpleConnection *gc)
 		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 				_("Keep alive error"));
 	}
-	g_free(qd->my_ip);
-	qd->my_ip = g_strdup(segments[3]);
+	qd->my_ip.s_addr = inet_addr(segments[3]);
 	qd->my_port = strtol(segments[4], NULL, 10);
+
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "keep alive, %s:%d\n",
+		inet_ntoa(qd->my_ip), qd->my_port);
+	
 	g_strfreev(segments);
 	return TRUE;
 }
