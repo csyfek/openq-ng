@@ -557,7 +557,7 @@ gboolean qq_process_keep_alive(guint8 *buf, gint buf_len, PurpleConnection *gc)
 		return FALSE;
 	}
 
-	qq_show_packet("Keep alive reply packet", data, len);
+	/* qq_show_packet("Keep alive reply packet", data, len); */
 
 	/* the last one is 60, don't know what it is */
 	if (NULL == (segments = split_data(data, len, "\x1f", 6)))

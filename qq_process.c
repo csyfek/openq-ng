@@ -96,9 +96,6 @@ void qq_proc_cmd_server(PurpleConnection *gc,
 		case QQ_CMD_RECV_MSG_BUDDY_CHANGE_STATUS:
 			qq_process_buddy_change_status(data, data_len, gc);
 			break;
-		case QQ_CMD_GROUP_CMD:
-			qq_process_group_cmd_reply(data, data_len, seq, gc);
-			break;
 		default:
 			process_cmd_unknow(gc, "Unknow SERVER CMD", data, data_len, cmd, seq);
 			break;

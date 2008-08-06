@@ -181,7 +181,7 @@ guint8 qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConn
 		return -1;
 	}
 
-	qq_show_packet("Get buddies online reply packet", data, len);
+	/* qq_show_packet("Get buddies online reply packet", data, len); */
 
 	bytes = 0;
 	bytes += qq_get8(&position, data + bytes);
@@ -643,7 +643,7 @@ void qq_update_buddy_contact(PurpleConnection *gc, qq_buddy *q_bud)
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "unknown status: %x\n", q_bud->status);
 		break;
 	}
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "set buddy %d to %s\n", q_bud->uid, status_id);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "buddy %d %s\n", q_bud->uid, status_id);
 	purple_prpl_got_user_status(gc->account, name, status_id, NULL);
 
 	if (q_bud->comm_flag & QQ_COMM_FLAG_BIND_MOBILE && q_bud->status != QQ_BUDDY_OFFLINE)
@@ -651,7 +651,6 @@ void qq_update_buddy_contact(PurpleConnection *gc, qq_buddy *q_bud)
 	else
 		purple_prpl_got_user_status_deactive(gc->account, name, "mobile");
 
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "qq_update_buddy_contact, client=%04x\n", q_bud->client_version);
 	g_free(name);
 }
 

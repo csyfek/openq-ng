@@ -88,14 +88,11 @@ struct _qq_data {
 	gint fd;				/* socket file handler */
 	gint tx_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
 
-	GList *send_trans;	/* check ack packet and resend */
-	guint resend_timeout;
-
 	guint keep_alive_timeout;
 
-	guint8 rcv_window[1 << 13];		/* windows for check duplicate packet */
-	GQueue *rcv_trans;		/* queue to store packet can not process before login */
-	
+	GList *transactions;	/* check ack packet and resend */
+	guint trans_timeout;
+
 	/* tcp related */
 	PurpleCircBuffer *tcp_txbuf;
 	guint8 *tcp_rxqueue;

@@ -179,7 +179,7 @@ guint8 *qq_get_send_im_tail(const gchar *font_color,
 	send_im_tail[5] = 0x00;
 	send_im_tail[6] = 0x86;
 	send_im_tail[7] = 0x22;	/* encoding, 0x8622=GB, 0x0000=EN, define BIG5 support here */
-	qq_show_packet("QQ_MESG", send_im_tail, tail_len);
+	/* qq_show_packet("QQ_MESG", send_im_tail, tail_len); */
 	return (guint8 *) send_im_tail;
 }
 
