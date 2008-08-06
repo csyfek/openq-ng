@@ -239,14 +239,20 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 		return;
 	}
 
-	/* filter \r\n in notice */
-	notice_list = g_strsplit(group->notice_utf8, "\r\n", -1);
-	notice_noreturn = g_strjoinv(" ", notice_list);
+	if (strchr(group->notice_utf8, '\n') == NULL) {
+		purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL,
+				group->notice_utf8);
+	} else {
+		/* filter \r\n in notice */
+		notice_list = g_strsplit(group->notice_utf8, "\r\n", -1);
+		notice_noreturn = g_strjoinv(" ", notice_list);
 
-	purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL, notice_noreturn);
+		purple_conv_chat_set_topic(PURPLE_CONV_CHAT(purple_conv), NULL,
+				notice_noreturn);
 
-	g_free(notice_noreturn);
-	g_strfreev(notice_list);
+		g_free(notice_noreturn);
+		g_strfreev(notice_list);
+	}
 }
 
 void qq_process_group_cmd_get_online_members(guint8 *data, gint len, PurpleConnection *gc)
@@ -332,11 +338,15 @@ void qq_process_group_cmd_get_members_info(guint8 *data, gint len, PurpleConnect
 		bytes += qq_get8(&(member->flag1), data + bytes);
 		bytes += qq_get8(&(member->comm_flag), data + bytes);
 
-		/* filter \r\n in nick */
-		nick_list = g_strsplit(nick, "\n", -1);
-		member->nickname = g_strjoinv("", nick_list);
+		if (strchr(nick, '\n') == NULL) {
+			member->nickname = g_strdup(nick);
+		} else {
+			/* filter \r\n in nick */
+			nick_list = g_strsplit(nick, "\n", -1);
+			member->nickname = g_strjoinv("", nick_list);
+			g_strfreev(nick_list);
+		}
 		g_free(nick);
-		g_strfreev(nick_list);
 		
 		/*
 		if (QQ_DEBUG) {
