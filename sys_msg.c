@@ -322,7 +322,7 @@ void qq_process_msg_sys(guint8 *buf, gint buf_len, guint16 seq, PurpleConnection
 			break;
 		case QQ_MSG_SYS_NEW_VERSION:
 			purple_debug(PURPLE_DEBUG_WARNING, "QQ",
-				   "QQ server says there is newer version than %s\n", qq_get_source_str(QQ_CLIENT));
+				   "QQ server says there is newer version than %s\n", qq_get_ver_desc(QQ_CLIENT));
 			break;
 		default:
 			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Recv unknown sys msg code: %s\n", code);

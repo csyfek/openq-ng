@@ -814,11 +814,11 @@ void qq_process_recv_file_request(guint8 *data, gint data_len, guint32 sender_ui
 		q_bud = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
 		if (q_bud) {
 			if(0 != info->remote_real_ip) {
-				g_memmove(q_bud->ip, &info->remote_real_ip, 4);
+				g_memmove(&(q_bud->ip), &info->remote_real_ip, sizeof(q_bud->ip));
 				q_bud->port = info->remote_minor_port;
 			}
 			else if (0 != info->remote_internet_ip) {
-				g_memmove(q_bud->ip, &info->remote_internet_ip, 4);
+				g_memmove(&(q_bud->ip), &info->remote_internet_ip, sizeof(q_bud->ip));
 				q_bud->port = info->remote_major_port;
 			}
 
@@ -831,7 +831,7 @@ void qq_process_recv_file_request(guint8 *data, gint data_len, guint32 sender_ui
 
 		}
 		else 
-			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "buddy %d is not in my friendlist\n", sender_uid);
+			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "buddy %d is not in list\n", sender_uid);
 
 		g_free(sender_name);	    
 		g_strfreev(fileinfo);

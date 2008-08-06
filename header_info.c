@@ -34,10 +34,28 @@
 #define QQ_CLIENT_0B2F 0x0b2f	/* GB QQ2003iii build 0117 */
 #define QQ_CLIENT_0B35 0x0b35	/* GB QQ2003iii build 0304 (offical release) */
 #define QQ_CLIENT_0B37 0x0b37	/* GB QQ2003iii build 0304 (April 05 updates) */
-#define QQ_CLIENT_0E1B 0x0e1b	/* QQ2005? QQ2006? */
+#define QQ_CLIENT_0E1B 0x0e1b	/* QQ2005 ? */
 #define QQ_CLIENT_0E35 0x0e35	/* EN QQ2005 V05.0.200.020 */
 #define QQ_CLIENT_0F15 0x0f15	/* QQ2006 Spring Festival build */
 #define QQ_CLIENT_0F5F 0x0f5f	/* QQ2006 final build */
+
+#define QQ_CLIENT_0C0B 0x0C0B	/* QQ2004 */
+#define QQ_CLIENT_0C0D 0x0C0D	/* QQ2004 preview*/
+#define QQ_CLIENT_0C21 0x0C21	/* QQ2004 */
+#define QQ_CLIENT_0C49 0x0C49	/* QQ2004II */
+#define QQ_CLIENT_0D05 0x0D05	/* QQ2005 beta1 */
+#define QQ_CLIENT_0D51 0x0D51	/* QQ2005 beta2 */
+#define QQ_CLIENT_0D61 0x0D61	/* QQ2005 */
+#define QQ_CLIENT_05A5 0x05A5	/* ? */
+#define QQ_CLIENT_05F1 0x0F15	/* QQ2006 Spring Festival */
+#define QQ_CLIENT_0F4B 0x0F4B	/* QQ2006 Beta 3  */
+
+#define QQ_CLIENT_111D 0x111D	/* QQ2007 */
+#define QQ_CLIENT_1203 0x1203	   /* QQ2008 */
+#define QQ_CLIENT_1205 0x1205	   /* QQ2008 */
+#define QQ_CLIENT_120B 0x120B	/* QQ2008 July 8.0.978.400 */
+#define QQ_CLIENT_1412 0x1412	/* QQMac 1.0 preview1 build 670 */
+#define QQ_CLIENT_1441 0x1441	/* QQ2009 preview2 */
 
 #define QQ_SERVER_0100 0x0100	/* server */
 
@@ -55,10 +73,10 @@ const gchar *qq_get_cmd_desc(gint type)
 		return "QQ_CMD_SEARCH_USER";
 	case QQ_CMD_GET_USER_INFO:
 		return "QQ_CMD_GET_USER_INFO";
-	case QQ_CMD_ADD_FRIEND_WO_AUTH:
-		return "QQ_CMD_ADD_FRIEND_WO_AUTH";
-	case QQ_CMD_DEL_FRIEND:
-		return "QQ_CMD_DEL_FRIEND";
+	case QQ_CMD_ADD_BUDDY_WO_AUTH:
+		return "QQ_CMD_ADD_BUDDY_WO_AUTH";
+	case QQ_CMD_DEL_BUDDY:
+		return "QQ_CMD_DEL_BUDDY";
 	case QQ_CMD_BUDDY_AUTH:
 		return "QQ_CMD_BUDDY_AUTH";
 	case QQ_CMD_CHANGE_ONLINE_STATUS:
@@ -87,15 +105,15 @@ const gchar *qq_get_cmd_desc(gint type)
 		return "QQ_CMD_TOKEN";
 	case QQ_CMD_RECV_MSG_SYS:
 		return "QQ_CMD_RECV_MSG_SYS";
-	case QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS:
-		return "QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS";
+	case QQ_CMD_RECV_MSG_BUDDY_CHANGE_STATUS:
+		return "QQ_CMD_RECV_MSG_BUDDY_CHANGE_STATUS";
 	default:
-		return "UNKNOWN_TYPE";
+		return "Unknown";
 	}
 }
 
 /* given source tag, return its description accordingly */
-const gchar *qq_get_source_str(gint source)
+const gchar *qq_get_ver_desc(gint source)
 {
 	switch (source) {
 	case QQ_CLIENT_062E:
@@ -119,12 +137,38 @@ const gchar *qq_get_source_str(gint source)
 	case QQ_CLIENT_0E35:
 		return "En QQ2005 V05.0.200.020";
 	case QQ_CLIENT_0F15:
-		return "QQ2006 Spring Festival build";
+		return "QQ2006 Spring Festival";
 	case QQ_CLIENT_0F5F:
 		return "QQ2006 final build";
+	case QQ_CLIENT_0C0B:
+		return "QQ2004";
+	case QQ_CLIENT_0C0D:
+		return "QQ2004 preview";
+	case QQ_CLIENT_0C21:
+		return "QQ2004";
+	case QQ_CLIENT_0C49:
+		return "QQ2004II";
+	case QQ_CLIENT_0D05:
+		return "QQ2005 beta1";
+	case QQ_CLIENT_0D51:
+		return "QQ2005 beta2";
+	case QQ_CLIENT_0D61:
+		return "QQ2005";
+	case QQ_CLIENT_0F4B:
+		return "QQ2006 beta3";
+	case QQ_CLIENT_111D:
+		return "QQ2007";
+	case QQ_CLIENT_1203:
+	case QQ_CLIENT_1205:
+	case QQ_CLIENT_120B:
+		return "QQ2008";
+	case QQ_CLIENT_1412:
+		return "QQMac 1.0 preview1 build 670";
+	case QQ_CLIENT_1441:
+		return "QQ2009 preview2";
 	case QQ_SERVER_0100:
 		return "QQ Server 0100";
 	default:
-		return "QQ unknown version";
+		return "Unknown";
 	}
 }

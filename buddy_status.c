@@ -40,60 +40,43 @@
 #define QQ_MISC_STATUS_HAVING_VIIDEO      0x00000001
 #define QQ_CHANGE_ONLINE_STATUS_REPLY_OK 	0x30	/* ASCII value of "0" */
 
-void qq_buddy_status_dump_unclear(qq_buddy_status *s)
-{
-	GString *dump;
-
-	g_return_if_fail(s != NULL);
-
-	dump = g_string_new("");
-	g_string_append_printf(dump, "unclear fields for [%d]:\n", s->uid);
-	g_string_append_printf(dump, "004:     %02x   (unknown)\n", s->unknown1);
-	/* g_string_append_printf(dump, "005-008:     %09x   (ip)\n", *(s->ip)); */
-	g_string_append_printf(dump, "009-010:     %04x   (port)\n", s->port);
-	g_string_append_printf(dump, "011:     %02x   (unknown)\n", s->unknown2);
-	g_string_append_printf(dump, "012:     %02x   (status)\n", s->status);
-	g_string_append_printf(dump, "013-014:     %04x   (client_version)\n", s->client_version);
-	/* g_string_append_printf(dump, "015-030:     %s   (unknown key)\n", s->unknown_key); */
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Buddy status entry, %s", dump->str);
-	qq_show_packet("Unknown key", s->unknown_key, QQ_KEY_LENGTH);
-	g_string_free(dump, TRUE);
-}
-
 /* TODO: figure out what's going on with the IP region. Sometimes I get valid IP addresses, 
  * but the port number's weird, other times I get 0s. I get these simultaneously on the same buddy, 
  * using different accounts to get info. */
 
 /* parse the data into qq_buddy_status */
-gint qq_buddy_status_read(qq_buddy_status *s, guint8 *data)
+gint qq_buddy_status_read(qq_buddy_status *bs, guint8 *data)
 {
 	gint bytes = 0;
 
-	g_return_val_if_fail(data != NULL && s != NULL, -1);
+	g_return_val_if_fail(data != NULL && bs != NULL, -1);
 
 	/* 000-003: uid */
-	bytes += qq_get32(&s->uid, data + bytes);
+	bytes += qq_get32(&bs->uid, data + bytes);
 	/* 004-004: 0x01 */
-	bytes += qq_get8(&s->unknown1, data + bytes);
+	bytes += qq_get8(&bs->unknown1, data + bytes);
 	/* this is no longer the IP, it seems QQ (as of 2006) no longer sends
 	 * the buddy's IP in this packet. all 0s */
 	/* 005-008: ip */
-	s->ip = g_new0(guint8, 4);
-	bytes += qq_getdata(s->ip, 4, data + bytes);
+	bytes += qq_get32((guint32 *)&(bs->ip), data + bytes);
 	/* port info is no longer here either */
 	/* 009-010: port */
-	bytes += qq_get16(&s->port, data + bytes);
+	bytes += qq_get16(&bs->port, data + bytes);
 	/* 011-011: 0x00 */
-	bytes += qq_get8(&s->unknown2, data + bytes);
+	bytes += qq_get8(&bs->unknown2, data + bytes);
 	/* 012-012: status */
-	bytes += qq_get8(&s->status, data + bytes);
+	bytes += qq_get8(&bs->status, data + bytes);
 	/* 013-014: client_version */
-	bytes += qq_get16(&s->client_version, data + bytes);
+	bytes += qq_get16(&bs->unknown3, data + bytes);
 	/* 015-030: unknown key */
-	s->unknown_key = g_new0(guint8, QQ_KEY_LENGTH);
-	bytes += qq_getdata(s->unknown_key, QQ_KEY_LENGTH, data + bytes);
+	bytes += qq_getdata(&(bs->unknown_key[0]), QQ_KEY_LENGTH, data + bytes);
 
-	if (s->uid == 0 || bytes != 31)
+	purple_debug(PURPLE_DEBUG_INFO, "QQ_STATUS", 
+			"uid: %d, un1: %d, ip: %s:%d, un2:%d, status:%d, un3:%04X\n", 
+			bs->uid, bs->unknown1, inet_ntoa(bs->ip), bs->port,
+			bs->unknown2, bs->status, bs->unknown3);
+
+	if (bs->uid == 0 || bytes != 31)
 		return -1;
 
 	return bytes;
@@ -212,7 +195,7 @@ void qq_process_change_status_reply(guint8 *buf, gint buf_len, PurpleConnection 
 }
 
 /* it is a server message indicating that one of my buddies has changed its status */
-void qq_process_friend_change_status(guint8 *buf, gint buf_len, PurpleConnection *gc) 
+void qq_process_buddy_change_status(guint8 *buf, gint buf_len, PurpleConnection *gc) 
 {
 	qq_data *qd;
 	gint len, bytes;
@@ -220,7 +203,7 @@ void qq_process_friend_change_status(guint8 *buf, gint buf_len, PurpleConnection
 	guint8 *data;
 	PurpleBuddy *b;
 	qq_buddy *q_bud;
-	qq_buddy_status *s;
+	qq_buddy_status bs;
 	gchar *name;
 
 	g_return_if_fail(buf != NULL && buf_len != 0);
@@ -234,49 +217,43 @@ void qq_process_friend_change_status(guint8 *buf, gint buf_len, PurpleConnection
 		return;
 	}
 
-	s = g_new0(qq_buddy_status, 1);
+	memset(&bs, 0, sizeof(bs));
 	bytes = 0;
 	/* 000-030: qq_buddy_status */
-	bytes += qq_buddy_status_read(s, data + bytes);
-	/* 031-034: my uid */ 
+	bytes += qq_buddy_status_read(&bs, data + bytes);
+	/* 031-034:  Unknow, maybe my uid */ 
 	/* This has a value of 0 when we've changed our status to 
 	 * QQ_BUDDY_ONLINE_INVISIBLE */
 	bytes += qq_get32(&my_uid, data + bytes);
 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ",
+		"set new server to %s:%d\n", qd->real_hostname, qd->real_port);
+
 	if (bytes != 35) {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "bytes(%d) != 35\n", bytes);
-		g_free(s->ip);
-		g_free(s->unknown_key);
-		g_free(s);
 		return;
 	}
 
-	name = uid_to_purple_name(s->uid);
+	name = uid_to_purple_name(bs.uid);
 	b = purple_find_buddy(gc->account, name);
 	g_free(name);
 	q_bud = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
 	if (q_bud) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "s->uid = %d, q_bud->uid = %d\n", s->uid , q_bud->uid);
-		if(0 != *((guint32 *)s->ip)) { 
-			g_memmove(&(q_bud->ip), s->ip, sizeof(q_bud->ip));
-			q_bud->port = s->port;
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "status:.uid = %d, q_bud->uid = %d\n", bs.uid , q_bud->uid);
+		if(bs.ip.s_addr != 0) { 
+			g_memmove(&(q_bud->ip), &bs.ip, sizeof(q_bud->ip));
+			q_bud->port = bs.port;
 		}
-		q_bud->status = s->status;
-		if(0 != s->client_version) {
-			q_bud->client_version = s->client_version; 
-		}
+		q_bud->status =bs.status;
+
 		if (q_bud->status == QQ_BUDDY_ONLINE_NORMAL) {
 			qq_send_packet_get_level(gc, q_bud->uid);
 		}
 		qq_update_buddy_contact(gc, q_bud);
 	} else {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", 
-				"got information of unknown buddy %d\n", s->uid);
+				"got information of unknown buddy %d\n", bs.uid);
 	}
-
-	g_free(s->ip);
-	g_free(s->unknown_key);
-	g_free(s);
 }
 
 /*TODO: maybe this should be qq_update_buddy_status() ?*/

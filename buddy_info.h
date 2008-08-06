@@ -31,11 +31,33 @@
 #include "buddy_opt.h"
 #include "qq.h"
 
-#define QQ_COMM_FLAG_QQ_MEMBER      0x02
-#define QQ_COMM_FLAG_TCP_MODE       0x10
-#define QQ_COMM_FLAG_MOBILE         0x20
-#define QQ_COMM_FLAG_BIND_MOBILE    0x40
-#define QQ_COMM_FLAG_VIDEO          0x80
+/* use is openq2005
+ * ext_flag: (0-7)
+ *        bit1 => qq show
+ * comm_flag: (0-7)
+ *        bit1 => member
+ *        bit4 => TCP mode
+ *        bit5 => open mobile QQ
+ *        bit6 => bind to mobile
+ *        bit7 => whether having a video
+#define QQ_COMM_FLAG_QQ_MEMBER		0x02
+#define QQ_COMM_FLAG_TCP_MODE    	0x10
+#define QQ_COMM_FLAG_MOBILE       	0x20
+#define QQ_COMM_FLAG_BIND_MOBILE	0x40
+#define QQ_COMM_FLAG_VIDEO          	0x80
+ */
+/* status in eva for qq2006
+#define QQ_FRIEND_FLAG_QQ_MEMBER  0x01
+#define QQ_FRIEND_FLAG_MOBILE           0x10
+#define QQ_FRIEND_FLAG_BIND_MOBILE  0x20
+*/
+#define QQ_COMM_FLAG_QQ_MEMBER		0x02
+#define QQ_COMM_FLAG_TCP_MODE    	0x10
+#define QQ_COMM_FLAG_MOBILE       	0x20
+#define QQ_COMM_FLAG_BIND_MOBILE	0x40
+#define QQ_COMM_FLAG_VIDEO          	0x80
+
+#define QQ_EXT_FLAG_SHOW					0x02
 
 #define QQ_BUDDY_GENDER_GG          0x00
 #define QQ_BUDDY_GENDER_MM          0x01

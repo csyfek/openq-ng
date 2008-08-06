@@ -210,7 +210,7 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 		bytes += qq_get8(&role, data + bytes);
 
 		if(organization != 0 || role != 0) {
-			purple_debug(PURPLE_DEBUG_INFO, "QQ", "group member %d: organization=%d, role=%d\n", member_uid, organization, role);
+			purple_debug(PURPLE_DEBUG_INFO, "QQ_GRP_MB", "uid: %d, organization=%d, role=%d\n", member_uid, organization, role);
 		}
 		member = qq_group_find_or_add_member(gc, group, member_uid);
 		if (member != NULL)
@@ -322,7 +322,7 @@ void qq_process_group_cmd_get_members_info(guint8 *data, gint len, PurpleConnect
 		bytes += qq_get8(&(member->gender), data + bytes);
 		bytes += convert_as_pascal_string(data + bytes, &nick, QQ_CHARSET_DEFAULT);
 		bytes += qq_get16(&unknown, data + bytes);
-		bytes += qq_get8(&(member->flag1), data + bytes);
+		bytes += qq_get8(&(member->ext_flag), data + bytes);
 		bytes += qq_get8(&(member->comm_flag), data + bytes);
 
 		/* filter \r\n in nick */
@@ -333,8 +333,8 @@ void qq_process_group_cmd_get_members_info(guint8 *data, gint len, PurpleConnect
 		/*
 		if (QQ_DEBUG) {
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
-					"member [%09d]: flag1=0x%02x, comm_flag=0x%02x, nick=%s\n",
-					member_uid, member->flag1, member->comm_flag, member->nickname);
+					"member [%09d]: ext_flag=0x%02x, comm_flag=0x%02x, nick=%s\n",
+					member_uid, member->ext_flag, member->comm_flag, member->nickname);
 		}
 		*/
 

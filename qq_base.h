@@ -1,5 +1,5 @@
 /**
- * @file buddy_status.h
+ * file qq_base.h
  *
  * purple
  *
@@ -20,45 +20,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111-1301  USA
- *
  */
 
-#ifndef _QQ_BUDDY_STATUS_H_
-#define _QQ_BUDDY_STATUS_H_
+#ifndef _QQ_BASE_H_
+#define _QQ_BASE_H_
 
 #include <glib.h>
 #include "connection.h"
-#include "qq.h"
 
-typedef struct _qq_buddy_status {
-	guint32 uid;
-	guint8 unknown1;
-	struct in_addr ip;
-	guint16 port;
-	guint8 unknown2;
-	guint8 status;
-	guint16 unknown3;
-	guint8 unknown_key[QQ_KEY_LENGTH];
-} qq_buddy_status;
+#define QQ_LOGIN_TOKEN_REPLY_OK 	0x00
 
-enum {
-	QQ_BUDDY_OFFLINE = 0x00,
-	QQ_BUDDY_ONLINE_NORMAL = 0x0a,
-	QQ_BUDDY_ONLINE_OFFLINE = 0x14,
-	QQ_BUDDY_ONLINE_AWAY = 0x1e,
-	QQ_BUDDY_ONLINE_INVISIBLE = 0x28
-};
+#define QQ_LOGIN_REPLY_OK                   0x00
+#define QQ_LOGIN_REPLY_REDIRECT             0x01
+#define QQ_LOGIN_REPLY_PWD_ERROR            0x05
+#define QQ_LOGIN_REPLY_MISC_ERROR           0xff	/* defined by myself */
 
-gboolean is_online(guint8 status);
+#define QQ_LOGIN_MODE_NORMAL        0x0a
+#define QQ_LOGIN_MODE_AWAY	    0x1e
+#define QQ_LOGIN_MODE_HIDDEN        0x28
 
-gint qq_buddy_status_read(qq_buddy_status *bs, guint8 *data);
-gint get_icon_offset(PurpleConnection *gc);
+#define QQ_UPDATE_ONLINE_INTERVAL   300	/* in sec */
 
-void qq_send_packet_change_status(PurpleConnection *gc);
+void qq_send_packet_token(PurpleConnection *gc);
+guint8 qq_process_token_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
+void qq_process_login_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
+void qq_send_packet_logout(PurpleConnection *gc);
 
-void qq_process_change_status_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
-void qq_process_buddy_change_status(guint8 *buf, gint buf_len, PurpleConnection *gc);
-
-void qq_refresh_all_buddy_status(PurpleConnection *gc);
-void qq_update_buddy_contact(PurpleConnection *gc, qq_buddy *q_bud);
+void qq_send_packet_keep_alive(PurpleConnection *gc);
+gboolean qq_process_keep_alive(guint8 *buf, gint buf_len, PurpleConnection *gc);
 #endif

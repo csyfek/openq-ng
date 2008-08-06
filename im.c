@@ -261,6 +261,8 @@ static void _qq_process_recv_normal_im_text(guint8 *data, gint len, qq_recv_norm
 	qq_data *qd;
 	qq_recv_normal_im_text *im_text;
 	gint bytes = 0;
+	PurpleBuddy *b;
+	qq_buddy *qq_b;
 
 	g_return_if_fail(common != NULL);
 	qd = (qq_data *) gc->proto_data;
@@ -308,9 +310,16 @@ static void _qq_process_recv_normal_im_text(guint8 *data, gint len, qq_recv_norm
 	}			/* if im_text->msg_type */
 
 	name = uid_to_purple_name(common->sender_uid);
-	if (purple_find_buddy(gc->account, name) == NULL)
+	b = purple_find_buddy(gc->account, name);
+	if (b == NULL) {
 		qq_add_buddy_by_recv_packet(gc, common->sender_uid, FALSE, TRUE);
-
+		b = purple_find_buddy(gc->account, name);
+	}
+	qq_b = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
+	if (qq_b != NULL) {
+		qq_b->client_version = common->sender_ver; 
+	}
+	
 	purple_msg_type = (im_text->msg_type == QQ_IM_AUTO_REPLY) ? PURPLE_MESSAGE_AUTO_RESP : 0;
 
 	msg_with_purple_smiley = qq_smiley_to_purple(im_text->msg);
@@ -355,7 +364,7 @@ static void _qq_process_recv_normal_im(guint8 *data, gint len, PurpleConnection 
 			purple_debug (PURPLE_DEBUG_INFO, "QQ",
 					"Normal IM, text type:\n [%d] => [%d], src: %s\n",
 					common->sender_uid, common->receiver_uid,
-					qq_get_source_str (common->sender_ver));
+					qq_get_ver_desc (common->sender_ver));
 			if (bytes >= len - 1) {
 				purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Received normal IM text is empty\n");
 				return;

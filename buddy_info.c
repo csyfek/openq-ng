@@ -1010,8 +1010,8 @@ void qq_process_get_level_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 		bytes += qq_get32(&onlineTime, decr_buf + bytes);
 		bytes += qq_get16(&level, decr_buf + bytes);
 		bytes += qq_get16(&timeRemainder, decr_buf + bytes);
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", 
-				"Level uid: %d, onlineTime: %d, level: %d, timeRemainder: %d\n", 
+		purple_debug(PURPLE_DEBUG_INFO, "QQ_LEVEL", 
+				"uid: %d, tmOnline: %d, level: %d, tmRemainder: %d\n", 
 				uid, onlineTime, level, timeRemainder);
 		purple_name = uid_to_purple_name(uid);
 		b = purple_find_buddy(account, purple_name);

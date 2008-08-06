@@ -236,7 +236,7 @@ static void packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 	if (QQ_DEBUG) {
 		purple_debug(PURPLE_DEBUG_INFO, "QQ",
 				"==> [%05d] 0x%04X %s, from (0x%04X %s)\n",
-				seq, cmd, qq_get_cmd_desc(cmd), source_tag, qq_get_source_str(source_tag));
+				seq, cmd, qq_get_cmd_desc(cmd), source_tag, qq_get_ver_desc(source_tag));
 	}
 	
 	bytes_not_read = buf_len - bytes - 1;
@@ -702,7 +702,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 
 	g_return_if_fail(qd->resend_timeout == 0);
 	/* call trans_timeout every 5 seconds */
-	qd->resend_timeout = purple_timeout_add(5000, trans_timeout, gc);
+	qd->resend_timeout = purple_timeout_add(10000, trans_timeout, gc);
 	
 	g_return_if_fail(qd->keep_alive_timeout == 0);
 	/* call keep_alive_timeout every 60 seconds */

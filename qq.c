@@ -237,78 +237,107 @@ static gchar *_qq_status_text(PurpleBuddy *b)
 static void _qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gboolean full)
 {
 	qq_buddy *q_bud;
-	gchar *ip_str;
-	char *tmp;
-	const char *tmp2;
+	gchar *tmp;
+	GString *str;
 
 	g_return_if_fail(b != NULL);
 
 	q_bud = (qq_buddy *) b->proto_data;
-	g_return_if_fail(q_bud != NULL);
+	if (q_bud == NULL)
+		return;
 
-	if (PURPLE_BUDDY_IS_ONLINE(b) && q_bud != NULL)
-	{
-		ip_str = gen_ip_str(q_bud->ip);
-		if (strlen(ip_str) != 0) {
-			if (q_bud->comm_flag & QQ_COMM_FLAG_TCP_MODE)
-				tmp2 = _("TCP Address");
-			else
-				tmp2 = _("UDP Address");
-			tmp = g_strdup_printf("%s:%d", ip_str, q_bud->port);
-			purple_notify_user_info_add_pair(user_info, tmp2, tmp);
-			g_free(tmp);
+	/* if (PURPLE_BUDDY_IS_ONLINE(b) && q_bud != NULL) */
+	if (q_bud->ip.s_addr != 0) {
+		str = g_string_new(NULL);
+		g_string_printf(str, "%s:%d", inet_ntoa(q_bud->ip), q_bud->port);
+		if (q_bud->comm_flag & QQ_COMM_FLAG_TCP_MODE) {
+			g_string_append(str, " TCP");
+		} else {
+			g_string_append(str, " UDP");
 		}
-		g_free(ip_str);
-
-		tmp = g_strdup_printf("%d", q_bud->age);
-		purple_notify_user_info_add_pair(user_info, _("Age"), tmp);
-		g_free(tmp);
-
-		switch (q_bud->gender) {
-		case QQ_BUDDY_GENDER_GG:
-			purple_notify_user_info_add_pair(user_info, _("Gender"), _("Male"));
-			break;
-		case QQ_BUDDY_GENDER_MM:
-			purple_notify_user_info_add_pair(user_info, _("Gender"), _("Female"));
-			break;
-		case QQ_BUDDY_GENDER_UNKNOWN:
-			purple_notify_user_info_add_pair(user_info, _("Gender"), _("Unknown"));
-			break;
-		default:
-			tmp = g_strdup_printf("Error (%d)", q_bud->gender);
-			purple_notify_user_info_add_pair(user_info, _("Gender"), tmp);
-			g_free(tmp);
-		}
-
-		if (q_bud->level) {
-			tmp = g_strdup_printf("%d", q_bud->level);
-			purple_notify_user_info_add_pair(user_info, _("Level"), tmp);
-			g_free(tmp);
-		}
-		/* For debugging */
-		/*
-		g_string_append_printf(tooltip, "\n<b>Flag:</b> %01x", q_bud->flag1);
-		g_string_append_printf(tooltip, "\n<b>CommFlag:</b> %01x", q_bud->comm_flag);
-		g_string_append_printf(tooltip, "\n<b>Client:</b> %04x", q_bud->client_version);
-		*/
+		g_string_free(str, TRUE);
 	}
+
+	tmp = g_strdup_printf("%d", q_bud->age);
+	purple_notify_user_info_add_pair(user_info, _("Age"), tmp);
+	g_free(tmp);
+
+	switch (q_bud->gender) {
+	case QQ_BUDDY_GENDER_GG:
+		purple_notify_user_info_add_pair(user_info, _("Gender"), _("Male"));
+		break;
+	case QQ_BUDDY_GENDER_MM:
+		purple_notify_user_info_add_pair(user_info, _("Gender"), _("Female"));
+		break;
+	case QQ_BUDDY_GENDER_UNKNOWN:
+		purple_notify_user_info_add_pair(user_info, _("Gender"), _("Unknown"));
+		break;
+	default:
+		tmp = g_strdup_printf("Error (%d)", q_bud->gender);
+		purple_notify_user_info_add_pair(user_info, _("Gender"), tmp);
+		g_free(tmp);
+	}
+
+	if (q_bud->level) {
+		tmp = g_strdup_printf("%d", q_bud->level);
+		purple_notify_user_info_add_pair(user_info, _("Level"), tmp);
+		g_free(tmp);
+	}
+
+	str = g_string_new(NULL);
+	if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_MEMBER) {
+		g_string_append( str, _("Member") );
+	}
+	if (q_bud->comm_flag & QQ_COMM_FLAG_TCP_MODE) {
+		g_string_append( str, _(" TCP") );
+	}
+	if (q_bud->comm_flag & QQ_COMM_FLAG_MOBILE) {
+		g_string_append( str, _(" FromMobile") );
+	}
+	if (q_bud->comm_flag & QQ_COMM_FLAG_BIND_MOBILE) {
+		g_string_append( str, _(" BindMobile") );
+	}
+	if (q_bud->comm_flag & QQ_COMM_FLAG_VIDEO) {
+		g_string_append( str, _(" Video") );
+	}
+
+	if (q_bud->ext_flag & QQ_EXT_FLAG_SHOW) {
+		g_string_append( str, _(" Show") );
+	}
+	purple_notify_user_info_add_pair(user_info, _("Flag"), str->str);
+
+	g_string_free(str, TRUE);
+
+#ifdef DEBUG
+	tmp = g_strdup_printf( "%s (%04X)",
+										qq_get_ver_desc(q_bud->client_version),
+										q_bud->client_version );
+	purple_notify_user_info_add_pair(user_info, _("Ver"), tmp);
+	g_free(tmp);
+
+	tmp = g_strdup_printf( "Ext 0x%X, Comm 0x%X",
+												q_bud->ext_flag, q_bud->comm_flag );
+	purple_notify_user_info_add_pair(user_info, _("Flag"), tmp);
+	g_free(tmp);
+#endif
 }
 
 /* we can show tiny icons on the four corners of buddy icon, */
 static const char *_qq_list_emblem(PurpleBuddy *b)
 {
 	/* each char** are refering to a filename in pixmaps/purple/status/default/ */
-
-	qq_buddy *q_bud = b->proto_data;
-
-	if (q_bud) {
-		if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_MEMBER)
-			return "qq_member";
-		/*
-		if (q_bud->comm_flag & QQ_COMM_FLAG_VIDEO)
-			return "video";
-		*/
+	qq_buddy *q_bud;
+	
+	if (!b || !(q_bud = b->proto_data)) {
+		return NULL;
 	}
+
+	if (q_bud->comm_flag & QQ_COMM_FLAG_MOBILE)
+		return "mobile";
+	if (q_bud->comm_flag & QQ_COMM_FLAG_VIDEO)
+		return "video";
+	if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_MEMBER)
+		return "qq_member";
 
 	return NULL;
 }

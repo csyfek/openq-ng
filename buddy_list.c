@@ -50,14 +50,14 @@
 
 #define QQ_ONLINE_BUDDY_ENTRY_LEN       38
 
-typedef struct _qq_friends_online_entry {
-	qq_buddy_status *s;
+typedef struct _qq_buddy_online {
+	qq_buddy_status bs;
 	guint16 unknown1;
-	guint8 flag1;
+	guint8 ext_flag;
 	guint8 comm_flag;
 	guint16 unknown2;
 	guint8 ending;		/* 0x00 */
-} qq_friends_online_entry;
+} qq_buddy_online;
 
 /* get a list of online_buddies */
 void qq_send_packet_get_buddies_online(PurpleConnection *gc, guint8 position)
@@ -123,25 +123,6 @@ void qq_send_packet_get_all_list_with_group(PurpleConnection *gc, guint32 positi
 	qq_send_cmd(qd, QQ_CMD_GET_ALL_LIST_WITH_GROUP, raw_data, bytes);
 }
 
-static void _qq_buddies_online_reply_dump_unclear(qq_friends_online_entry *fe)
-{
-	GString *dump;
-
-	g_return_if_fail(fe != NULL);
-
-	qq_buddy_status_dump_unclear(fe->s);
-
-	dump = g_string_new("");
-	g_string_append_printf(dump, "unclear fields for [%d]:\n", fe->s->uid);
-	g_string_append_printf(dump, "031-032: %04x (unknown)\n", fe->unknown1);
-	g_string_append_printf(dump, "033:     %02x   (flag1)\n", fe->flag1);
-	g_string_append_printf(dump, "034:     %02x   (comm_flag)\n", fe->comm_flag);
-	g_string_append_printf(dump, "035-036: %04x (unknown)\n", fe->unknown2);
-
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Online buddy entry, %s", dump->str);
-	g_string_free(dump, TRUE);
-}
-
 /* process the reply packet for get_buddies_online packet */
 guint8 qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 {
@@ -151,7 +132,7 @@ guint8 qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConn
 	guint8 *data, position;
 	PurpleBuddy *b;
 	qq_buddy *q_bud;
-	qq_friends_online_entry *fe;
+	qq_buddy_online bo;
 
 	g_return_val_if_fail(buf != NULL && buf_len != 0, -1);
 
@@ -171,62 +152,54 @@ guint8 qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConn
 	bytes = 0;
 	bytes += qq_get8(&position, data + bytes);
 
-	fe = g_newa(qq_friends_online_entry, 1);
-	fe->s = g_newa(qq_buddy_status, 1);
-
 	count = 0;
 	while (bytes < len) {
+		memset(&bo, 0 ,sizeof(bo));
+		
 		/* set flag */
 		bytes_buddy = bytes;
 		/* based on one online buddy entry */
-		/* ATTTENTION! NEWED in the sub function, but FREED here */
 		/* 000-030 qq_buddy_status */
-		bytes += qq_buddy_status_read(fe->s, data + bytes);
-		/* 031-032: unknown4 */
-		bytes += qq_get16(&fe->unknown1, data + bytes);
-		/* 033-033: flag1 */
-		bytes += qq_get8(&fe->flag1, data + bytes);
+		bytes += qq_buddy_status_read(&(bo.bs), data + bytes);
+		/* 031-032: */
+		bytes += qq_get16(&bo.unknown1, data + bytes);
+		/* 033-033: ext_flag */
+		bytes += qq_get8(&bo.ext_flag, data + bytes);
 		/* 034-034: comm_flag */
-		bytes += qq_get8(&fe->comm_flag, data + bytes);
+		bytes += qq_get8(&bo.comm_flag, data + bytes);
 		/* 035-036: */
-		bytes += qq_get16(&fe->unknown2, data + bytes);
+		bytes += qq_get16(&bo.unknown2, data + bytes);
 		/* 037-037: */
-		bytes += qq_get8(&fe->ending, data + bytes);	/* 0x00 */
+		bytes += qq_get8(&bo.ending, data + bytes);	/* 0x00 */
 
-		if (fe->s->uid == 0 || (bytes - bytes_buddy) != QQ_ONLINE_BUDDY_ENTRY_LEN) {
+		if (bo.bs.uid == 0 || (bytes - bytes_buddy) != QQ_ONLINE_BUDDY_ENTRY_LEN) {
 			purple_debug(PURPLE_DEBUG_ERROR, "QQ", 
 					"uid=0 or entry complete len(%d) != %d", 
 					(bytes - bytes_buddy), QQ_ONLINE_BUDDY_ENTRY_LEN);
-			g_free(fe->s->ip);
-			g_free(fe->s->unknown_key);
 			continue;
 		}	/* check if it is a valid entry */
 
-		if (QQ_DEBUG) {
-			_qq_buddies_online_reply_dump_unclear(fe);
-		}
-
 		/* update buddy information */
-		b = purple_find_buddy(purple_connection_get_account(gc), uid_to_purple_name(fe->s->uid));
+		b = purple_find_buddy(purple_connection_get_account(gc), 
+												uid_to_purple_name(bo.bs.uid) );
 		q_bud = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
 
 		if (q_bud != NULL) {	/* we find one and update qq_buddy */
+			/*
 			if(0 != fe->s->client_version)
 				q_bud->client_version = fe->s->client_version;
-			g_memmove(&(q_bud->ip), fe->s->ip, sizeof(q_bud->ip));
-			q_bud->port = fe->s->port;
-			q_bud->status = fe->s->status;
-			q_bud->flag1 = fe->flag1;
-			q_bud->comm_flag = fe->comm_flag;
+			*/
+			g_memmove(&(q_bud->ip), &(bo.bs.ip), sizeof(q_bud->ip));
+			q_bud->port = bo.bs.port;
+			q_bud->status = bo.bs.status;
+			q_bud->ext_flag = bo.ext_flag;
+			q_bud->comm_flag = bo.comm_flag;
 			qq_update_buddy_contact(gc, q_bud);
 			count++;
 		} else {
 			purple_debug(PURPLE_DEBUG_ERROR, "QQ", 
-					"Got an online buddy %d, but not in my buddy list\n", fe->s->uid);
+					"Got an online buddy %d, but not in my buddy list\n", bo.bs.uid);
 		}
-
-		g_free(fe->s->ip);
-		g_free(fe->s->unknown_key);
 	}
 
 	if(bytes > len) {
@@ -283,16 +256,7 @@ guint16 qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConne
 		bytes += pascal_len;
 
 		bytes += qq_get16(&unknown, data + bytes);
-		/* flag1: (0-7)
-		 *        bit1 => qq show
-		 * comm_flag: (0-7)
-		 *        bit1 => member
-		 *        bit4 => TCP mode
-		 *        bit5 => open mobile QQ
-		 *        bit6 => bind to mobile
-		 *        bit7 => whether having a video
-		 */
-		bytes += qq_get8(&q_bud->flag1, data + bytes);
+		bytes += qq_get8(&q_bud->ext_flag, data + bytes);
 		bytes += qq_get8(&q_bud->comm_flag, data + bytes);
 
 		bytes_expected = 12 + pascal_len;
@@ -309,8 +273,8 @@ guint16 qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConne
 
 		if (QQ_DEBUG) {
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
-					"buddy [%09d]: flag1=0x%02x, comm_flag=0x%02x, nick=%s\n",
-					q_bud->uid, q_bud->flag1, q_bud->comm_flag, q_bud->nickname);
+					"buddy [%09d]: ext_flag=0x%02x, comm_flag=0x%02x, nick=%s\n",
+					q_bud->uid, q_bud->ext_flag, q_bud->comm_flag, q_bud->nickname);
 		}
 
 		name = uid_to_purple_name(q_bud->uid);

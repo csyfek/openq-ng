@@ -52,10 +52,10 @@ struct _qq_buddy {
 	guint8 age;
 	guint8 gender;
 	gchar *nickname;
-	guint8 ip[4];
+	struct in_addr ip;
 	guint16 port;
 	guint8 status;
-	guint8 flag1;
+	guint8 ext_flag;
 	guint8 comm_flag;	/* details in qq_buddy_list.c */
 	guint16 client_version;
 	guint8 onlineTime;

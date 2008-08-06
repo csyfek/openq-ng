@@ -67,7 +67,7 @@ static void _qq_send_packet_remove_buddy(PurpleConnection *gc, guint32 uid)
 	g_return_if_fail(uid > 0);
 
 	g_snprintf(uid_str, sizeof(uid_str), "%d", uid);
-	qq_send_cmd(qd, QQ_CMD_DEL_FRIEND, (guint8 *) uid_str, strlen(uid_str));
+	qq_send_cmd(qd, QQ_CMD_DEL_BUDDY, (guint8 *) uid_str, strlen(uid_str));
 }
 
 /* try to remove myself from someone's buddy list */
@@ -95,7 +95,7 @@ static void _qq_send_packet_add_buddy(PurpleConnection *gc, guint32 uid)
 
 	/* we need to send the ascii code of this uid to qq server */
 	g_snprintf(uid_str, sizeof(uid_str), "%d", uid);
-	qq_send_cmd(qd, QQ_CMD_ADD_FRIEND_WO_AUTH, (guint8 *) uid_str, strlen(uid_str));
+	qq_send_cmd(qd, QQ_CMD_ADD_BUDDY_WO_AUTH, (guint8 *) uid_str, strlen(uid_str));
 
 	/* must be set after sending packet to get the correct send_seq */
 	req = g_new0(qq_add_buddy_request, 1);

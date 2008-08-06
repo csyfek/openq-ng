@@ -203,10 +203,13 @@ gint qq_rcv_trans_pop(qq_data *qd, guint16 *cmd, guint16 *seq, guint8 *data, gin
 	gint copy_len;
 
 	g_return_val_if_fail(data != NULL && max_len > 0, -1);
-
-	if (g_queue_is_empty(qd->rcv_trans)) {
+	if (qd->rcv_trans == NULL) {
 		return -1;
 	}
+	if ( g_queue_is_empty(qd->rcv_trans) ) {
+		return -1;
+	}
+	
 	trans = (transaction *) g_queue_pop_head(qd->rcv_trans);
 	if (trans == NULL) {
 		return 0;
@@ -233,14 +236,16 @@ void qq_rcv_trans_remove_all(qq_data *qd)
 
 	g_return_if_fail(qd != NULL);
 
-	/* now clean up my own data structures */
-	if (qd->rcv_trans != NULL) {
-		while (NULL != (trans = g_queue_pop_tail(qd->rcv_trans))) {
-			g_free(trans->buf);
-			g_free(trans);
-			count++;
-		}
-		g_queue_free(qd->rcv_trans);
+	if (qd->rcv_trans == NULL) {
+		return;
 	}
+
+	/* now clean up my own data structures */
+	while (NULL != (trans = g_queue_pop_tail(qd->rcv_trans))) {
+		g_free(trans->buf);
+		g_free(trans);
+		count++;
+	}
+	g_queue_free(qd->rcv_trans);
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "%d packets in receive tranactions are freed!\n", count);
 }
