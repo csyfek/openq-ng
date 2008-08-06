@@ -231,7 +231,7 @@ gchar *qq_smiley_to_purple(gchar *text)
 	GString *converted;
 
 	converted = g_string_new("");
-	segments = split_data((guint8 *) text, strlen(text), "\x14", 0);
+	segments = split_data((guint8 *) text, strlen(text), "\x14\x15", 0);
 	g_string_append(converted, segments[0]);
 
 	while ((*(++segments)) != NULL) {

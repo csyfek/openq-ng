@@ -97,7 +97,7 @@ gchar **split_data(guint8 *data, gint len, const gchar *delimit, gint expected_f
 	g_memmove(input, data, len);
 	input[len] = 0x00;
 
-	segments = g_strsplit((gchar *) input, delimit, 0);
+	segments = g_strsplit_set((gchar *) input, delimit, 0);
 	if (expected_fields <= 0)
 		return segments;
 
