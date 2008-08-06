@@ -955,23 +955,23 @@ void qq_send_packet_get_buddies_levels(PurpleConnection *gc)
 	GList *node = qd->buddies;
 	gint bytes = 0;
 
-	if (qd->buddies) {
-		/* server only sends back levels for online buddies, no point
-		 * in asking for anyone else */
-		size = 4 * g_list_length(qd->buddies) + 1;
-		buf = g_new0(guint8, size);
-		bytes += 1;
-
-		while (NULL != node) {
-			q_bud = (qq_buddy *) node->data;
-			if (NULL != q_bud) {
-				bytes += qq_put32(buf + bytes, q_bud->uid);
-			}
-			node = node->next;
-		}
-		qq_send_cmd(qd, QQ_CMD_GET_LEVEL, buf, size);
-		g_free(buf);
+	if ( qd->buddies == NULL) {
+		return;
 	}
+	/* server only sends back levels for online buddies, no point
+	 * in asking for anyone else */
+	size = 4 * g_list_length(qd->buddies) + 1;
+	buf = g_newa(guint8, size);
+	bytes += qq_put8(buf + bytes, 0x00);
+	
+	while (NULL != node) {
+		q_bud = (qq_buddy *) node->data;
+		if (NULL != q_bud) {
+			bytes += qq_put32(buf + bytes, q_bud->uid);
+		}
+		node = node->next;
+	}
+	qq_send_cmd(qd, QQ_CMD_GET_LEVEL, buf, size);
 }
 
 void qq_process_get_level_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)

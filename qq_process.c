@@ -162,9 +162,10 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 				qq_send_packet_get_buddies_online(gc, ret_8);
 			} else {
 				purple_debug(PURPLE_DEBUG_INFO, "QQ", "All online buddies received\n"); 
+				/* Fixme: this should not be called once*/
+				qq_send_packet_get_buddies_levels(gc);
+
 				qq_refresh_all_buddy_status(gc);
-				
-				qq_send_cmd_group_all_get_online_members(gc);
 			}
 			break;
 		case QQ_CMD_GET_LEVEL:
@@ -177,7 +178,7 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 				qq_send_packet_get_buddies_list(gc, ret_16);
 			} else {
 				purple_debug(PURPLE_DEBUG_INFO, "QQ", "All buddies received. Requesting buddies' levels\n");
-				qq_send_packet_get_buddies_levels(gc);
+				qq_send_packet_get_buddies_online(gc, 0);
 			}
 			break;
 		case QQ_CMD_GROUP_CMD:

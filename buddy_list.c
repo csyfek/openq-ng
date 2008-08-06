@@ -652,10 +652,15 @@ void qq_update_buddy_contact(PurpleConnection *gc, qq_buddy *q_bud)
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "buddy %d %s\n", q_bud->uid, status_id);
 	purple_prpl_got_user_status(gc->account, name, status_id, NULL);
 
-	if (q_bud->comm_flag & QQ_COMM_FLAG_BIND_MOBILE && q_bud->status != QQ_BUDDY_OFFLINE)
+	if (q_bud->comm_flag & QQ_COMM_FLAG_MOBILE && q_bud->status != QQ_BUDDY_OFFLINE)
 		purple_prpl_got_user_status(gc->account, name, "mobile", NULL);
 	else
 		purple_prpl_got_user_status_deactive(gc->account, name, "mobile");
+
+	if (q_bud->comm_flag & QQ_COMM_FLAG_VIDEO && q_bud->status != QQ_BUDDY_OFFLINE)
+		purple_prpl_got_user_status(gc->account, name, "video", NULL);
+	else
+		purple_prpl_got_user_status_deactive(gc->account, name, "video");
 
 	g_free(name);
 }

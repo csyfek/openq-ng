@@ -425,6 +425,7 @@ static int _qq_chat_send(PurpleConnection *gc, int channel, const char *message,
 	group = qq_group_find_by_channel(gc, channel);
 	g_return_val_if_fail(group != NULL, -1);
 
+	purple_debug_info("QQ_MESG", "Send qun mesg in utf8: %s\n", message);
 	msg = utf8_to_qq(message, QQ_CHARSET_DEFAULT);
 	msg_with_qq_smiley = purple_smiley_to_qq(msg);
 	qq_send_packet_group_im(gc, group, msg_with_qq_smiley);

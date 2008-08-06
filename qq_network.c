@@ -562,6 +562,8 @@ static gboolean network_timeout(gpointer data)
 	if (qd->itv_count.update <= 0) {
 		qd->itv_count.update = qd->itv_config.update;
 		qq_send_packet_get_buddies_online(gc, 0);
+
+		qq_send_cmd_group_all_get_online_members(gc);
 		return TRUE;
 	}
 
