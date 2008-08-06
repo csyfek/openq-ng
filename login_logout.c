@@ -170,6 +170,7 @@ static gint _qq_process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 	qq_login_reply_ok_packet lrop;
 
 	qd = (qq_data *) gc->proto_data;
+	// Fixme, check QQ_LOGIN_REPLY_OK_PACKET_LEN here
 	bytes = 0;
 
 	/* 000-000: reply code */
@@ -327,7 +328,7 @@ void qq_send_packet_request_login_token(PurpleConnection *gc)
 
 	bytes += qq_put8(buf + bytes, 0);
 	
-	qq_send_data(gc, QQ_CMD_REQUEST_LOGIN_TOKEN, buf, bytes);
+	qq_send_data(qd, QQ_CMD_REQUEST_LOGIN_TOKEN, buf, bytes);
 }
 
 /* send login packet to QQ server */
@@ -384,7 +385,7 @@ static void qq_send_packet_login(PurpleConnection *gc, guint8 token_length, guin
 	bytes += qq_putdata(buf + bytes, qd->inikey, QQ_KEY_LENGTH);
 	bytes += qq_putdata(buf + bytes, encrypted_data, encrypted_len);
 
-	qq_send_data(gc, QQ_CMD_LOGIN, buf, bytes);
+	qq_send_data(qd, QQ_CMD_LOGIN, buf, bytes);
 }
 
 void qq_process_request_login_token_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
@@ -431,7 +432,7 @@ void qq_send_packet_logout(PurpleConnection *gc)
 
 	qd = (qq_data *) gc->proto_data;
 	for (i = 0; i < 4; i++)
-		qq_send_cmd(gc, QQ_CMD_LOGOUT, FALSE, 0xffff, FALSE, qd->pwkey, QQ_KEY_LENGTH);
+		qq_send_cmd_detail(qd, QQ_CMD_LOGOUT, 0xffff, FALSE, qd->pwkey, QQ_KEY_LENGTH);
 
 	qd->logged_in = FALSE;	/* update login status AFTER sending logout packets */
 }
