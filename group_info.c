@@ -183,13 +183,19 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 	bytes += qq_get32(&(group->group_category), data + bytes);
 	bytes += qq_get16(&max_members, data + bytes);
 	bytes += qq_get8(&unknown1, data + bytes);
-	bytes += qq_get32(&(unknown4), data + bytes);	/* versionID */
-
+	bytes += qq_get8(&unknown1, data + bytes);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "type=%u ctorid=%u cate=%u\n",
+							group->group_type, group->creator_uid, group->group_category);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "maxmembers=%u", max_members); 
+	
 	/* strlen + <str content> */
 	bytes += convert_as_pascal_string(data + bytes, &(group->group_name_utf8), QQ_CHARSET_DEFAULT);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "group \"%s\"\n", group->group_name_utf8); 
 	bytes += qq_get16(&unknown, data + bytes);	/* 0x0000 */
 	bytes += convert_as_pascal_string(data + bytes, &(group->notice_utf8), QQ_CHARSET_DEFAULT);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "notice \"%s\"\n", group->notice_utf8); 
 	bytes += convert_as_pascal_string(data + bytes, &(group->group_desc_utf8), QQ_CHARSET_DEFAULT);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "group_desc \"%s\"\n", group->group_desc_utf8); 
 
 	num = 0;
 	/* now comes the member list separated by 0x00 */
