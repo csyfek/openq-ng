@@ -30,6 +30,8 @@
 #include "win32dep.h"
 #endif
 
+#include "cipher.h"
+
 #include "char_conv.h"
 #include "debug.h"
 #include "prefs.h"
@@ -49,6 +51,21 @@
    inet_ntoa(sin.sin_addr), g_ntohs(sin.sin_port));
    }
    */
+
+void qq_get_md5(guint8 *md5, gint md5_len, const guint8* const src, gint src_len)
+{
+	PurpleCipher *cipher;
+	PurpleCipherContext *context;
+
+	g_return_if_fail(md5 != NULL && md5_len > 0);
+	g_return_if_fail(src != NULL && src_len > 0);
+
+	cipher = purple_ciphers_find_cipher("md5");
+	context = purple_cipher_context_new(cipher, NULL);
+	purple_cipher_context_append(context, src, src_len);
+	purple_cipher_context_digest(context, md5_len, md5, NULL);
+	purple_cipher_context_destroy(context);
+}
 
 gchar *get_name_by_index_str(gchar **array, const gchar *index_str, gint amount)
 {

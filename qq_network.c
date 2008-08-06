@@ -104,27 +104,6 @@ static gboolean set_new_server(qq_data *qd)
 	return TRUE;
 }
 
-/* QQ 2003iii uses double MD5 for the pwkey to get the session key */
-static guint8 *encrypt_account_password(const gchar *pwd)
-{
-	PurpleCipher *cipher;
-	PurpleCipherContext *context;
-
-	guchar pwkey_tmp[QQ_KEY_LENGTH];
-
-	cipher = purple_ciphers_find_cipher("md5");
-	context = purple_cipher_context_new(cipher, NULL);
-	purple_cipher_context_append(context, (guchar *) pwd, strlen(pwd));
-	purple_cipher_context_digest(context, sizeof(pwkey_tmp), pwkey_tmp, NULL);
-	purple_cipher_context_destroy(context);
-	context = purple_cipher_context_new(cipher, NULL);
-	purple_cipher_context_append(context, pwkey_tmp, QQ_KEY_LENGTH);
-	purple_cipher_context_digest(context, sizeof(pwkey_tmp), pwkey_tmp, NULL);
-	purple_cipher_context_destroy(context);
-
-	return g_memdup(pwkey_tmp, QQ_KEY_LENGTH);
-}
-
 static gint packet_get_header(guint8 *header_tag,  guint16 *source_tag,
 	guint16 *cmd, guint16 *seq, guint8 *buf)
 {
@@ -615,8 +594,12 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 
 	/* now generate md5 processed passwd */
 	passwd = purple_account_get_password(purple_connection_get_account(gc));
-	g_return_if_fail(qd->pwkey == NULL);
-	qd->pwkey = encrypt_account_password(passwd);
+
+	/* use twice-md5 of user password as session key since QQ 2003iii */
+	qq_get_md5(qd->password_twice_md5, sizeof(qd->password_twice_md5),
+		(guint8 *)passwd, strlen(passwd));
+	qq_get_md5(qd->password_twice_md5, sizeof(qd->password_twice_md5),
+		qd->password_twice_md5, sizeof(qd->password_twice_md5));
 
 	g_return_if_fail(qd->network_timeout == 0);
 	qd->itv_config.resend = purple_account_get_int(account, "resend_interval", 10);
@@ -943,26 +926,10 @@ void qq_disconnect(PurpleConnection *gc)
 		qd->token = NULL;
 		qd->token_len = 0;
 	}
-	if (qd->inikey) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free inikey\n");
-		g_free(qd->inikey);
-		qd->inikey = NULL;
-	}
-	if (qd->pwkey) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free pwkey\n");
-		g_free(qd->pwkey);
-		qd->pwkey = NULL;
-	}
-	if (qd->session_key) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free session_key\n");
-		g_free(qd->session_key);
-		qd->session_key = NULL;
-	}
-	if (qd->session_md5) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free session_md5\n");
-		g_free(qd->session_md5);
-		qd->session_md5 = NULL;
-	}
+	memset(qd->inikey, 0, sizeof(qd->inikey));
+	memset(qd->password_twice_md5, 0, sizeof(qd->password_twice_md5));
+	memset(qd->session_key, 0, sizeof(qd->session_key));
+	memset(qd->session_md5, 0, sizeof(qd->session_md5));
 
 	qd->my_ip.s_addr = 0;
 
@@ -1056,7 +1023,7 @@ gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack
 	guint8 *encrypted_data;
 	gint encrypted_len;
 
-	g_return_val_if_fail(qd != NULL && qd->session_key != NULL, -1);
+	g_return_val_if_fail(qd != NULL, -1);
 	g_return_val_if_fail(data != NULL && data_len > 0, -1);
 
 	encrypted_len = data_len + 16;	/* at most 16 bytes more */

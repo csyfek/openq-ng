@@ -34,7 +34,6 @@
 #include "proxy.h"
 #include "roomlist.h"
 
-#define QQ_FACES	    100
 #define QQ_KEY_LENGTH       16
 #define QQ_DEBUG            1	/* whether we are doing DEBUG */
 
@@ -112,10 +111,10 @@ struct _qq_data {
 	guint32 uid;			/* QQ number */
 	guint8 *token;		/* get from server*/
 	int token_len;
-	guint8 *inikey;			/* initial key to encrypt login packet */
-	guint8 *pwkey;			/* password in md5 (or md5' md5) */
-	guint8 *session_key;		/* later use this as key in this session */
-	guint8 *session_md5;		/* concatenate my uid with session_key and md5 it */
+	guint8 inikey[QQ_KEY_LENGTH];			/* initial key to encrypt login packet */
+	guint8 password_twice_md5[QQ_KEY_LENGTH];			/* password in md5 (or md5' md5) */
+	guint8 session_key[QQ_KEY_LENGTH];		/* later use this as key in this session */
+	guint8 session_md5[QQ_KEY_LENGTH];		/* concatenate my uid with session_key and md5 it */
 
 	guint16 send_seq;		/* send sequence number */
 	guint8 login_mode;		/* online of invisible */

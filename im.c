@@ -79,7 +79,7 @@ struct _qq_recv_normal_im_common {
 	guint16 sender_ver;
 	guint32 sender_uid;
 	guint32 receiver_uid;
-	guint8 *session_md5;
+	guint8 session_md5[QQ_KEY_LENGTH];
 	guint16 normal_im_type;
 };
 
@@ -237,10 +237,7 @@ static gint _qq_normal_im_common_read(guint8 *data, gint len, qq_recv_normal_im_
 	bytes += qq_get16(&(common->sender_ver), data + bytes);
 	bytes += qq_get32(&(common->sender_uid), data + bytes);
 	bytes += qq_get32(&(common->receiver_uid), data + bytes);
-
-	common->session_md5 = g_memdup(data + bytes, QQ_KEY_LENGTH);
-	bytes += QQ_KEY_LENGTH;
-
+	bytes += qq_getdata(common->session_md5, QQ_KEY_LENGTH, data + bytes);
 	bytes += qq_get16(&(common->normal_im_type), data + bytes);
 
 	if (bytes != 28) {	/* read common place fail */
@@ -396,11 +393,8 @@ static void _qq_process_recv_normal_im(guint8 *data, gint len, PurpleConnection 
 					"Normal IM, unprocessed type [0x%04x], len %d\n",
 					common->normal_im_type, im_unprocessed->length);
 			qq_show_packet ("QQ unk-im", im_unprocessed->unknown, im_unprocessed->length);
-			g_free (common->session_md5);
 			return;
 	}
-
-	g_free (common->session_md5);
 }
 
 /* process im from system administrator */

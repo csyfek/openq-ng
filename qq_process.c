@@ -102,6 +102,41 @@ void qq_proc_cmd_server(PurpleConnection *gc,
 	}
 }
 
+static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len) {
+	guint ret_8;
+	ret_8 = qq_process_login_reply(data, data_len, gc);
+	
+	if (ret_8 == QQ_LOGIN_REPLY_OK) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Login repliess OK; everything is fine\n");
+		return;
+	}
+
+	if (ret_8 == QQ_LOGIN_REPLY_REDIRECT) {
+		/* the redirect has been done in _qq_process_login_reply */
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Login repliess OK; everything is fine\n");
+		return;
+	}
+
+	if (ret_8 == QQ_LOGIN_REPLY_ERR_PWD) {
+		if (!purple_account_get_remember_password(gc->account)) {
+			purple_account_set_password(gc->account, NULL);
+		}
+		purple_connection_error_reason(gc,
+			PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED, _("Incorrect password."));
+		return;
+	}
+
+	if (ret_8 == QQ_LOGIN_REPLY_ERR_MISC) {
+		if (purple_debug_is_enabled())
+			purple_connection_error_reason(gc,
+				PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Unable to login. Check debug log."));
+		else
+			purple_connection_error_reason(gc,
+				PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Unable to login"));
+		return;
+	}
+}
+
 void qq_proc_cmd_reply(PurpleConnection *gc,
 	guint16 cmd, guint16 seq, guint8 *data, gint data_len)
 {
@@ -126,7 +161,7 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 			qq_send_packet_login(gc);
 			break;
 		case QQ_CMD_LOGIN:
-			qq_process_login_reply(data, data_len, gc);
+			process_cmd_login(gc, data, data_len);
 			break;
 		case QQ_CMD_UPDATE_INFO:
 			qq_process_modify_info_reply(data, data_len, gc);

@@ -86,6 +86,7 @@ static const gchar *genders[] = {
 };
 
 #define QQ_CONTACT_FIELDS                               37
+#define QQ_FACES	    100
 
 /* There is no user id stored in the reply packet for information query
  * we have to manually store the query, so that we know the query source */

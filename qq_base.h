@@ -30,10 +30,12 @@
 
 #define QQ_TOKEN_REPLY_OK 	0x00
 
-#define QQ_LOGIN_REPLY_OK                   0x00
-#define QQ_LOGIN_REPLY_REDIRECT             0x01
-#define QQ_LOGIN_REPLY_PWD_ERROR            0x05
-#define QQ_LOGIN_REPLY_MISC_ERROR           0xff	/* defined by myself */
+#define QQ_LOGIN_REPLY_OK							0x00
+#define QQ_LOGIN_REPLY_REDIRECT				0x01
+#define QQ_LOGIN_REPLY_ERR_PWD					0x05
+#define QQ_LOGIN_REPLY_NEED_REACTIVE		0x06
+#define QQ_LOGIN_REPLY_REDIRECT_EX			0x0A
+#define QQ_LOGIN_REPLY_ERR_MISC				0xff	/* defined by myself */
 
 #define QQ_LOGIN_MODE_NORMAL        0x0a
 #define QQ_LOGIN_MODE_AWAY	    0x1e
@@ -45,7 +47,7 @@ void qq_send_packet_token(PurpleConnection *gc);
 guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *buf, gint buf_len);
 
 void qq_send_packet_login(PurpleConnection *gc);
-void qq_process_login_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
+guint8 qq_process_login_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
 
 void qq_send_packet_logout(PurpleConnection *gc);
 

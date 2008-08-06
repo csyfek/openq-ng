@@ -82,7 +82,7 @@ static void qq_encipher(guint32 *const v, const guint32 *const k, guint32 *const
 
 /* it can be the real random seed function */
 /* override with number, convenient for debug */
-#ifdef XDEBUG
+#ifdef DEBUG
 static gint rand(void) {	
 	return 0xdead; 
 }
