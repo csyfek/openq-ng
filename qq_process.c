@@ -102,18 +102,49 @@ void qq_proc_cmd_server(PurpleConnection *gc,
 	}
 }
 
-static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len) {
+static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
+{
+	qq_data *qd;
 	guint ret_8;
-	ret_8 = qq_process_login_reply(data, data_len, gc);
+
+	g_return_if_fail (gc != NULL && gc->proto_data != NULL);
 	
+	qd = (qq_data *) gc->proto_data;
+
+	ret_8 = qq_process_login_reply(data, data_len, gc);
 	if (ret_8 == QQ_LOGIN_REPLY_OK) {
 		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Login repliess OK; everything is fine\n");
+
+		purple_connection_set_state(gc, PURPLE_CONNECTED);
+		qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
+
+		/* now initiate QQ Qun, do it first as it may take longer to finish */
+		qq_group_init(gc);
+
+		/* Now goes on updating my icon/nickname, not showing info_window */
+		qd->modifying_face = FALSE;
+
+		qq_send_packet_get_info(gc, qd->uid, FALSE);
+		/* grab my level */
+		qq_send_packet_get_level(gc, qd->uid);
+
+		qq_send_packet_change_status(gc);
+
+		/* refresh buddies */
+		qq_send_packet_get_buddies_list(gc, 0);
+
+		/* refresh groups */
+		qq_send_packet_get_all_list_with_group(gc, 0);
+
 		return;
 	}
 
 	if (ret_8 == QQ_LOGIN_REPLY_REDIRECT) {
-		/* the redirect has been done in _qq_process_login_reply */
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Login repliess OK; everything is fine\n");
+		qd->is_redirect = TRUE;
+		/*
+		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+			"Redirected to new server: %s:%d\n", qd->real_hostname, qd->real_port);
+		*/
 		return;
 	}
 

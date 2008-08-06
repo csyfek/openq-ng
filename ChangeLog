@@ -1,5 +1,19 @@
+2008.08.02 - csyfek <csyfek(at)gmail.com>
+	* Commit to Pidgin
+	* Tickets:
+		Fixes #1861
+		Fixes #1902
+		References #5112
+
+2008.08.02 - ccpaging <ecc_hy(at)hotmail.com>
+	* Store all keys and md5 values of qq_data in char[QQ_KEY_LENGTH]
+	* Use random value in inikey
+	* TEA header padding in crypt.c
+	* Rewrite login part of qq_process
+
 2008.07.31 - ccpaging <ecc_hy(at)hotmail.com>
 	* Fixed: send reply when get duplicate server command. The server may not get our reply before.
+	* Tag custom picture as text "(Broken)"
 
 2008.07.30 - ccpaging <ecc_hy(at)hotmail.com>, csyfek <csyfek(at)gmail.com>
 	* Change some debug message
@@ -7,13 +21,11 @@
 	* Modify buddy status parse and correspond to eva2
 	* Add getIP/putIP functions to packet_parse.c, and replace some gen_ip_str
 	* Replace guint32 *ip with struct in_addr, and reduce g_new/g_free operation
-
 	* Source file changed:
    		Merge buddy_status into buddy_list
    		Change login_logout to qq_base
    		Merge keep_alive into qq_base
    		New qq_process extract from qq_network
-	
 	* Fixed: Byte alignment bug in crypt.c, tested in ARM PDA
 	* Fixed: group chat message may get in before getting group info, and so group info is empty
 	* Add qq_send_cmd_group_get_group_info when joined a group chat in group_im.c

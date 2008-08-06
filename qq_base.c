@@ -215,35 +215,14 @@ static gint8 process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 	qd->last_login_time = lrop.last_login_time;
 	qd->last_login_ip = g_strdup( inet_ntoa(lrop.last_client_ip) );
 
-	purple_connection_set_state(gc, PURPLE_CONNECTED);
-	qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
-
-	/* now initiate QQ Qun, do it first as it may take longer to finish */
-	qq_group_init(gc);
-
-	/* Now goes on updating my icon/nickname, not showing info_window */
-	qd->modifying_face = FALSE;
-
-	qq_send_packet_get_info(gc, qd->uid, FALSE);
-	/* grab my level */
-	qq_send_packet_get_level(gc, qd->uid);
-
-	qq_send_packet_change_status(gc);
-
-	/* refresh buddies */
-	qq_send_packet_get_buddies_list(gc, 0);
-
-	/* refresh groups */
-	qq_send_packet_get_all_list_with_group(gc, 0);
-
 	return QQ_LOGIN_REPLY_OK;
 }
 
 /* process login reply packet which includes redirected new server address */
 static gint8 process_login_redirect(PurpleConnection *gc, guint8 *data, gint len)
 {
-	gint bytes, ret;
 	qq_data *qd;
+	gint bytes;
 	qq_login_reply_redirect_packet lrrp;
 
 	qd = (qq_data *) gc->proto_data;
@@ -261,26 +240,20 @@ static gint8 process_login_redirect(PurpleConnection *gc, guint8 *data, gint len
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
 			   "Fail parsing login redirect packet, expect %d bytes, read %d bytes\n",
 			   QQ_LOGIN_REPLY_REDIRECT_PACKET_LEN, bytes);
-		ret = QQ_LOGIN_REPLY_ERR_MISC;
-	} else {
-		/* redirect to new server, do not disconnect or connect here
-		 * those connect should be called at packet_process */
-		if (qd->real_hostname) {
-			purple_debug(PURPLE_DEBUG_INFO, "QQ", "free real_hostname\n");
-			g_free(qd->real_hostname);
-			qd->real_hostname = NULL;
-		}
-		qd->real_hostname = g_strdup( inet_ntoa(lrrp.new_server_ip) );
-		qd->real_port = lrrp.new_server_port;
-		qd->is_redirect = TRUE;
-
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
-			   "Redirected to new server: %s:%d\n", qd->real_hostname, qd->real_port);
-
-		ret = QQ_LOGIN_REPLY_REDIRECT;
+		return QQ_LOGIN_REPLY_ERR_MISC;
 	}
+	
+	/* redirect to new server, do not disconnect or connect here
+	 * those connect should be called at packet_process */
+	if (qd->real_hostname) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free real_hostname\n");
+		g_free(qd->real_hostname);
+		qd->real_hostname = NULL;
+	}
+	qd->real_hostname = g_strdup( inet_ntoa(lrrp.new_server_ip) );
+	qd->real_port = lrrp.new_server_port;
 
-	return ret;
+	return QQ_LOGIN_REPLY_REDIRECT;
 }
 
 /* process login reply which says wrong password */
