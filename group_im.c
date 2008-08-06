@@ -379,6 +379,9 @@ void qq_process_recv_group_im(guint8 *data, gint data_len, guint32 internal_grou
 
 	conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->group_name_utf8, purple_connection_get_account(gc));
 	if (conv == NULL && purple_prefs_get_bool("/plugins/prpl/qq/prompt_group_msg_on_recv")) {
+		/* New conv should open, get group info*/
+		qq_send_cmd_group_get_group_info(gc, group);
+		
 		serv_got_joined_chat(gc, qd->channel++, group->group_name_utf8);
 		conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->group_name_utf8, purple_connection_get_account(gc));
 	}

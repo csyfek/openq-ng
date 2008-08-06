@@ -50,6 +50,7 @@
 #define QQ_CLIENT_05F1 0x0F15	/* QQ2006 Spring Festival */
 #define QQ_CLIENT_0F4B 0x0F4B	/* QQ2006 Beta 3  */
 
+#define QQ_CLIENT_1105 0x1105	/* QQ2007 beta4*/
 #define QQ_CLIENT_111D 0x111D	/* QQ2007 */
 #define QQ_CLIENT_1203 0x1203	   /* QQ2008 */
 #define QQ_CLIENT_1205 0x1205	   /* QQ2008 */
@@ -92,9 +93,9 @@ const gchar *qq_get_cmd_desc(gint type)
 	case QQ_CMD_LOGIN:
 		return "QQ_CMD_LOGIN";
 	case QQ_CMD_GET_BUDDIES_LIST:
-		return "QQ_CMD_GET_FRIENDS_LIST";
+		return "QQ_CMD_GET_BUDDIES_LIST";
 	case QQ_CMD_GET_BUDDIES_ONLINE:
-		return "QQ_CMD_GET_FRIENDS_ONLINE";
+		return "QQ_CMD_GET_BUDDIES_ONLINE";
 	case QQ_CMD_GROUP_CMD:
 		return "QQ_CMD_GROUP_CMD";
 	case QQ_CMD_GET_ALL_LIST_WITH_GROUP:
@@ -132,14 +133,6 @@ const gchar *qq_get_ver_desc(gint source)
 		return "GB QQ2003iii build 0304";
 	case QQ_CLIENT_0B37:
 		return "GB QQ2003iii build 0304 (April 5 update)";
-	case QQ_CLIENT_0E1B:
-		return "QQ2005 or QQ2006";
-	case QQ_CLIENT_0E35:
-		return "En QQ2005 V05.0.200.020";
-	case QQ_CLIENT_0F15:
-		return "QQ2006 Spring Festival";
-	case QQ_CLIENT_0F5F:
-		return "QQ2006 final build";
 	case QQ_CLIENT_0C0B:
 		return "QQ2004";
 	case QQ_CLIENT_0C0D:
@@ -154,8 +147,18 @@ const gchar *qq_get_ver_desc(gint source)
 		return "QQ2005 beta2";
 	case QQ_CLIENT_0D61:
 		return "QQ2005";
+	case QQ_CLIENT_0E1B:
+		return "QQ2005 or QQ2006";
+	case QQ_CLIENT_0E35:
+		return "En QQ2005 V05.0.200.020";
+	case QQ_CLIENT_0F15:
+		return "QQ2006 Spring Festival";
 	case QQ_CLIENT_0F4B:
 		return "QQ2006 beta3";
+	case QQ_CLIENT_0F5F:
+		return "QQ2006 final build";
+	case QQ_CLIENT_1105:
+		return "QQ2007 beta4";
 	case QQ_CLIENT_111D:
 		return "QQ2007";
 	case QQ_CLIENT_1203:

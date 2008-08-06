@@ -34,7 +34,7 @@
 #include "buddy_info.h"
 #include "buddy_list.h"
 #include "buddy_opt.h"
-#include "buddy_status.h"
+#include "group_info.h"
 #include "group_free.h"
 #include "char_conv.h"
 #include "crypt.h"
@@ -50,7 +50,7 @@
 #include "utils.h"
 
 /* default process, decrypt and dump */
-static void process_cmd_unknow(PurpleConnection *gc, guint8 *buf, gint buf_len, guint16 cmd, guint16 seq)
+static void process_cmd_unknow(PurpleConnection *gc,gchar *title, guint8 *buf, gint buf_len, guint16 cmd, guint16 seq)
 {
 	qq_data *qd;
 	guint8 *data;
@@ -59,7 +59,7 @@ static void process_cmd_unknow(PurpleConnection *gc, guint8 *buf, gint buf_len, 
 
 	g_return_if_fail(buf != NULL && buf_len != 0);
 
-	qq_show_packet("Processing unknown packet", buf, buf_len);
+	qq_show_packet(title, buf, buf_len);
 
 	qd = (qq_data *) gc->proto_data;
 
@@ -96,8 +96,11 @@ void qq_proc_cmd_server(PurpleConnection *gc,
 		case QQ_CMD_RECV_MSG_BUDDY_CHANGE_STATUS:
 			qq_process_buddy_change_status(data, data_len, gc);
 			break;
+		case QQ_CMD_GROUP_CMD:
+			qq_process_group_cmd_reply(data, data_len, seq, gc);
+			break;
 		default:
-			process_cmd_unknow(gc, data, data_len, cmd, seq);
+			process_cmd_unknow(gc, "Unknow SERVER CMD", data, data_len, cmd, seq);
 			break;
 	}
 }
@@ -109,10 +112,21 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	guint8 ret_8 = 0;
 	guint16 ret_16 = 0;
 	guint32 ret_32 = 0;
+	gchar *error_msg = NULL;
 
 	switch (cmd) {
 		case QQ_CMD_TOKEN:
-			ret_8 = qq_process_token_reply(data, data_len, gc);
+			ret_8 = qq_process_token_reply(gc, error_msg, data, data_len);
+			if (ret_8 != QQ_TOKEN_REPLY_OK) {
+				if (error_msg == NULL) {
+					error_msg = g_strdup_printf( _("Invalid token reply code, 0x%02X"), ret_8);
+				}
+				purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
+				g_free(error_msg);
+				return;
+			}
+			
+			qq_send_packet_login(gc);
 			break;
 		case QQ_CMD_LOGIN:
 			qq_process_login_reply(data, data_len, gc);
@@ -155,6 +169,8 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 			} else {
 				purple_debug(PURPLE_DEBUG_INFO, "QQ", "All online buddies received\n"); 
 				qq_refresh_all_buddy_status(gc);
+				
+				qq_send_cmd_group_all_get_online_members(gc);
 			}
 			break;
 		case QQ_CMD_GET_LEVEL:
@@ -185,7 +201,7 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 			}
 			break;
 		default:
-			process_cmd_unknow(gc, data, data_len, cmd, seq);
+			process_cmd_unknow(gc, "Unknow reply CMD", data, data_len, cmd, seq);
 			break;
 	}
 }

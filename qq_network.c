@@ -564,25 +564,9 @@ static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 
 static gboolean keep_alive_timeout(gpointer data) {
 	PurpleConnection *gc = (PurpleConnection *) data;
-	qq_data *qd;
-	qq_group *group;
-	GList *list;
-
-	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, TRUE);
-	qd = (qq_data *) gc->proto_data;
+	g_return_val_if_fail(gc != NULL, TRUE);
 
 	qq_send_packet_keep_alive(gc);
-
-	list = qd->groups;
-	while (list != NULL) {
-		group = (qq_group *) list->data;
-		if (group->my_status == QQ_GROUP_MEMBER_STATUS_IS_MEMBER ||
-		    group->my_status == QQ_GROUP_MEMBER_STATUS_IS_ADMIN)
-			/* no need to get info time and time again, online members enough */
-			qq_send_cmd_group_get_online_members(gc, group);
-
-		list = list->next;
-	}
 
 	return TRUE;		/* if return FALSE, timeout callback stops */
 }
@@ -1013,6 +997,12 @@ void qq_disconnect(PurpleConnection *gc)
 	qq_rcv_trans_remove_all(qd);
 	qq_send_trans_remove_all(qd);
 	
+	if (qd->token) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free token\n");
+		g_free(qd->token);
+		qd->token = NULL;
+		qd->token_len = 0;
+	}
 	if (qd->inikey) {
 		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free inikey\n");
 		g_free(qd->inikey);

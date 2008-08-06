@@ -29,8 +29,8 @@
 
 #include "utils.h"
 #include "packet_parse.h"
+#include "buddy_list.h"
 #include "buddy_info.h"
-#include "buddy_status.h"
 #include "char_conv.h"
 #include "crypt.h"
 #include "header_info.h"

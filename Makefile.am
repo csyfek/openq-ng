@@ -10,8 +10,6 @@ QQSOURCES = \
 	buddy_list.h \
 	buddy_opt.c \
 	buddy_opt.h \
-	buddy_status.c \
-	buddy_status.h \
 	char_conv.c \
 	char_conv.h \
 	crypt.c \

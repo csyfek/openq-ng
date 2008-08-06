@@ -40,7 +40,7 @@
 
 #include "buddy_info.h"
 #include "buddy_opt.h"
-#include "buddy_status.h"
+#include "buddy_list.h"
 #include "char_conv.h"
 #include "crypt.h"
 #include "group.h"
@@ -288,6 +288,9 @@ static void _qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gb
 	if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_MEMBER) {
 		g_string_append( str, _("Member") );
 	}
+	if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_VIP) {
+		g_string_append( str, _(" VIP") );
+	}
 	if (q_bud->comm_flag & QQ_COMM_FLAG_TCP_MODE) {
 		g_string_append( str, _(" TCP") );
 	}
@@ -301,8 +304,8 @@ static void _qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gb
 		g_string_append( str, _(" Video") );
 	}
 
-	if (q_bud->ext_flag & QQ_EXT_FLAG_SHOW) {
-		g_string_append( str, _(" Show") );
+	if (q_bud->ext_flag & QQ_EXT_FLAG_SPACE) {
+		g_string_append( str, _(" Space") );
 	}
 	purple_notify_user_info_add_pair(user_info, _("Flag"), str->str);
 

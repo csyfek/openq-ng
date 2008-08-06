@@ -105,6 +105,8 @@ struct _qq_data {
 	PurpleDnsQueryData *udp_query_data;
 
 	guint32 uid;			/* QQ number */
+	guint8 *token;		/* get from server*/
+	int token_len;
 	guint8 *inikey;			/* initial key to encrypt login packet */
 	guint8 *pwkey;			/* password in md5 (or md5' md5) */
 	guint8 *session_key;		/* later use this as key in this session */

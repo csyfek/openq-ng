@@ -28,7 +28,7 @@
 #include <glib.h>
 #include "connection.h"
 
-#define QQ_LOGIN_TOKEN_REPLY_OK 	0x00
+#define QQ_TOKEN_REPLY_OK 	0x00
 
 #define QQ_LOGIN_REPLY_OK                   0x00
 #define QQ_LOGIN_REPLY_REDIRECT             0x01
@@ -42,8 +42,11 @@
 #define QQ_UPDATE_ONLINE_INTERVAL   300	/* in sec */
 
 void qq_send_packet_token(PurpleConnection *gc);
-guint8 qq_process_token_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
+guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *buf, gint buf_len);
+
+void qq_send_packet_login(PurpleConnection *gc);
 void qq_process_login_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
+
 void qq_send_packet_logout(PurpleConnection *gc);
 
 void qq_send_packet_keep_alive(PurpleConnection *gc);

@@ -29,7 +29,6 @@
 
 #include "buddy_info.h"
 #include "buddy_list.h"
-#include "buddy_status.h"
 #include "char_conv.h"
 #include "crypt.h"
 #include "group.h"
@@ -238,6 +237,7 @@ static gint _qq_process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 
 	/* Now goes on updating my icon/nickname, not showing info_window */
 	qd->modifying_face = FALSE;
+
 	qq_send_packet_get_info(gc, qd->uid, FALSE);
 	/* grab my level */
 	qq_send_packet_get_level(gc, qd->uid);
@@ -327,7 +327,7 @@ void qq_send_packet_token(PurpleConnection *gc)
 }
 
 /* send login packet to QQ server */
-static void qq_send_packet_login(PurpleConnection *gc, guint8 *token, guint8 token_len)
+void qq_send_packet_login(PurpleConnection *gc)
 {
 	qq_data *qd;
 	guint8 *buf, *raw_data;
@@ -337,6 +337,8 @@ static void qq_send_packet_login(PurpleConnection *gc, guint8 *token, guint8 tok
 
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 	qd = (qq_data *) gc->proto_data;
+
+	g_return_if_fail(qd->token != NULL && qd->token_len > 0);
 
 	raw_data = g_newa(guint8, QQ_LOGIN_DATA_LENGTH);
 	memset(raw_data, 0, QQ_LOGIN_DATA_LENGTH);
@@ -365,9 +367,9 @@ static void qq_send_packet_login(PurpleConnection *gc, guint8 *token, guint8 tok
 	/* 053-068, fixed value, maybe related to per machine */
 	bytes += qq_putdata(raw_data + bytes, login_53_68, 16);
 	/* 069, login token length */
-	bytes += qq_put8(raw_data + bytes, token_len);
+	bytes += qq_put8(raw_data + bytes, qd->token_len);
 	/* 070-093, login token, normally 24 bytes */
-	bytes += qq_putdata(raw_data + bytes, token, token_len);
+	bytes += qq_putdata(raw_data + bytes, qd->token, qd->token_len);
 	/* 100 bytes unknown */
 	bytes += qq_putdata(raw_data + bytes, login_100_bytes, 100);
 	/* all zero left */
@@ -383,44 +385,45 @@ static void qq_send_packet_login(PurpleConnection *gc, guint8 *token, guint8 tok
 	qq_send_data(qd, QQ_CMD_LOGIN, buf, bytes);
 }
 
-guint8 qq_process_token_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
+guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *buf, gint buf_len)
 {
 	qq_data *qd;
 	guint8 ret;
-	gchar *error_msg;
+	int token_len;
 
 	g_return_val_if_fail(buf != NULL && buf_len != 0, -1);
 
+	g_return_val_if_fail(gc != NULL  && gc->proto_data != NULL, -1);
 	qd = (qq_data *) gc->proto_data;
 
 	ret = buf[0];
 	
-	if (buf[0] == QQ_LOGIN_TOKEN_REPLY_OK) {
-		if (buf[1] != buf_len-2) {
-			purple_debug(PURPLE_DEBUG_INFO, "QQ",
-					"Malformed login token reply packet. Packet specifies length of %d, actual length is %d\n", buf[1], buf_len-2);
-			purple_debug(PURPLE_DEBUG_INFO, "QQ",
-					"Attempting to proceed with the actual packet length.\n");
-		}
-		qq_hex_dump(PURPLE_DEBUG_INFO, "QQ",
-				buf+2, buf_len-2,
-				"<<< got a token -> [default] decrypt and dump");
-		qq_send_packet_login(gc, buf + 2, buf_len-2);
+	if (ret != QQ_TOKEN_REPLY_OK) {
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Unknown request login token reply code : %d\n", buf[0]);
+		qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
+				buf, buf_len,
+				">>> [default] decrypt and dump");
+		error_msg = try_dump_as_gbk(buf, buf_len);
 		return ret;
 	}
 	
-	purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Unknown request login token reply code : %d\n", buf[0]);
-	qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
-			buf, buf_len,
-			">>> [default] decrypt and dump");
-	error_msg = try_dump_as_gbk(buf, buf_len);
-	if (error_msg) {
-		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
-		g_free(error_msg);
-	} else {
-		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-			_("Error requesting login token"));
+	token_len = buf_len-2;
+	if (token_len <= 0) {
+		error_msg = g_strdup_printf( _("Invalid token len, %d"), token_len);
+		return -1;
 	}
+	
+	if (buf[1] != token_len) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ",
+				"Invalid token len. Packet specifies length of %d, actual length is %d\n", buf[1], buf_len-2);
+	}
+	qq_hex_dump(PURPLE_DEBUG_INFO, "QQ",
+			buf+2, token_len,
+			"<<< got a token -> [default] decrypt and dump");
+			
+	qd->token = g_new0(guint8, token_len);
+	qd->token_len = token_len;
+	g_memmove(qd->token, buf + 2, qd->token_len);
 	return ret;
 }
 

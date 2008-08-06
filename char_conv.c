@@ -113,9 +113,9 @@ static gchar *_my_convert(const gchar *str, gssize len, const gchar *to_charset,
 	}
 	
 	/* conversion error */
-	purple_debug(PURPLE_DEBUG_ERROR, "QQ", "%s\n", error->message);
+	purple_debug(PURPLE_DEBUG_ERROR, "QQ_CONVERT", "%s\n", error->message);
 
-	qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
+	qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ_CONVERT",
 		(guint8 *) str, (len == -1) ? strlen(str) : len,
 		"Dump failed text");
 
