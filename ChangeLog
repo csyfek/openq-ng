@@ -1,3 +1,6 @@
+2008.06.07 - ccpaging <ecc_hy(at)hotmail.com>, csyfek <csyfek(at)gmail.com>
+	* Clean code and apply patches from QuLogic
+
 2008.05.19 - ccpaging <ecc_hy(at)hotmail.com>, csyfek <csyfek(at)gmail.com>
 	* Reconnect server 5 time in 5000 ms, when connect failed
 	* Rename sendqueue.c/sendqueue.h to qq_trans.c/qq_trans.h

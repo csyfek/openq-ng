@@ -70,7 +70,7 @@ static const guint8 login_23_51[29] = {
 */
 
 /* for QQ 2005? copy from lumaqq */
-// Fixme: change to guint8
+/* FIXME: change to guint8 */
 static const guint8 login_23_51[29] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x86, 0xcc, 0x4c, 0x35,
@@ -150,8 +150,9 @@ static guint8 *gen_session_md5(gint uid, guint8 *session_key)
 	PurpleCipherContext *context;
 
 	src = g_newa(guint8, 20);
-	memcpy(src, &uid, 4);
-	memcpy(src, session_key, QQ_KEY_LENGTH);
+	/* bug found by QuLogic */
+	memcpy(src, &uid, sizeof(uid));
+	memcpy(src + sizeof(uid), session_key, QQ_KEY_LENGTH);
 
 	cipher = purple_ciphers_find_cipher("md5");
 	context = purple_cipher_context_new(cipher, NULL);
@@ -170,7 +171,7 @@ static gint _qq_process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 	qq_login_reply_ok_packet lrop;
 
 	qd = (qq_data *) gc->proto_data;
-	// Fixme, check QQ_LOGIN_REPLY_OK_PACKET_LEN here
+	/* FIXME, check QQ_LOGIN_REPLY_OK_PACKET_LEN here */
 	bytes = 0;
 
 	/* 000-000: reply code */
@@ -282,8 +283,8 @@ static gint _qq_process_login_redirect(PurpleConnection *gc, guint8 *data, gint 
 			   QQ_LOGIN_REPLY_REDIRECT_PACKET_LEN, bytes);
 		ret = QQ_LOGIN_REPLY_MISC_ERROR;
 	} else {
-		// redirect to new server, do not disconnect or connect here
-		// those connect should be called at packet_process
+		/* redirect to new server, do not disconnect or connect here
+		 * those connect should be called at packet_process */
 		if (qd->real_hostname) {
 			purple_debug(PURPLE_DEBUG_INFO, "QQ", "free real_hostname\n");
 			g_free(qd->real_hostname);

@@ -71,35 +71,35 @@ struct _qq_buddy {
 struct _qq_data {
 	PurpleConnection *gc;
 
-	// common network resource
+	/* common network resource */
 	GList *servers;
 	gchar *user_server;
 	gint user_port;
-	gboolean use_tcp;		// network in tcp or udp
+	gboolean use_tcp;		/* network in tcp or udp */
 	
 	gchar *server_name;
 	gboolean is_redirect;
-	gchar *real_hostname;	// from real connction
+	gchar *real_hostname;	/* from real connction */
 	guint16 real_port;
 	guint reconnect_timeout;
 	gint reconnect_times;
 
 	PurpleProxyConnectData *connect_data;
-	gint fd;				// socket file handler
-	gint tx_handler; 	// socket can_write handle, use in udp connecting and tcp send out
+	gint fd;				/* socket file handler */
+	gint tx_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
 
-	GList *send_trans;	// check ack packet and resend
+	GList *send_trans;	/* check ack packet and resend */
 	guint resend_timeout;
 
-	guint8 rcv_window[1 << 13];		// windows for check duplicate packet
-	GQueue *rcv_trans;		// queue to store packet can not process before login
+	guint8 rcv_window[1 << 13];		/* windows for check duplicate packet */
+	GQueue *rcv_trans;		/* queue to store packet can not process before login */
 	
-	// tcp related
+	/* tcp related */
 	PurpleCircBuffer *tcp_txbuf;
 	guint8 *tcp_rxqueue;
 	int tcp_rxlen;
 	
-	// udp related
+	/* udp related */
 	PurpleDnsQueryData *udp_query_data;
 
 	guint32 uid;			/* QQ number */

@@ -62,7 +62,7 @@ void qq_send_trans_append(qq_data *qd, guint8 *buf, gint buf_len, guint16 cmd, g
 	trans->buf_len = buf_len;
 
 	purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-			"Add to transaction, seq = %d, buf = %lu, len = %d\n",
+			"Add to transaction, seq = %d, buf = %p, len = %d\n",
 			trans->seq, trans->buf, trans->buf_len);
 	qd->send_trans = g_list_append(qd->send_trans, trans);
 }
@@ -117,7 +117,7 @@ void qq_send_trans_remove_all(qq_data *qd)
 		trans = (transaction *) (curr->data);
 		/*
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-			"Remove to transaction, seq = %d, buf = %lu, len = %d\n",
+			"Remove to transaction, seq = %d, buf = %p, len = %d\n",
 			trans->seq, trans->buf, trans->len);
 		*/
 		qq_send_trans_remove(qd, trans);
@@ -140,7 +140,7 @@ gint qq_send_trans_scan(qq_data *qd, gint *start,
 
 	g_return_val_if_fail(qd != NULL && *start >= 0 && maxlen > 0, -1);
 	
-	//purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Scan from %d\n", *start);
+	/* purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Scan from %d\n", *start); */
 	curr = g_list_nth(qd->send_trans, *start);
 	while(curr) {
 		next = curr->next;
@@ -155,7 +155,7 @@ gint qq_send_trans_scan(qq_data *qd, gint *start,
 
 		if (trans->retries < 0) {
 			purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-				"Remove transaction, seq %d, buf %lu, len %d, retries %d, next %d\n",
+				"Remove transaction, seq %d, buf %p, len %d, retries %d, next %d\n",
 				trans->seq, trans->buf, trans->buf_len, trans->retries, *start);
 			qq_send_trans_remove(qd, trans);
 			curr = next;
@@ -163,7 +163,7 @@ gint qq_send_trans_scan(qq_data *qd, gint *start,
 		}
 
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-				"Resend transaction, seq %d, buf %lu, len %d, retries %d, next %d\n",
+				"Resend transaction, seq %d, buf %p, len %d, retries %d, next %d\n",
 				trans->seq, trans->buf, trans->buf_len, trans->retries, *start);
 		copylen = MIN(trans->buf_len, maxlen);
 		g_memmove(buf, trans->buf, copylen);
@@ -174,7 +174,7 @@ gint qq_send_trans_scan(qq_data *qd, gint *start,
 		return copylen;
 	}
 
-	// purple_debug(PURPLE_DEBUG_INFO, "QQ", "Scan finished\n");
+	/* purple_debug(PURPLE_DEBUG_INFO, "QQ", "Scan finished\n"); */
 	return -1;
 }
 
