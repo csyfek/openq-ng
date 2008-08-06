@@ -306,8 +306,10 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	 *  QQ need a keep alive packet in every 60 seconds
 	 gc->last_received = time(NULL);
 	*/
+	/*
 	purple_debug(PURPLE_DEBUG_INFO, "TCP_PENDING",
 			   "Read %d bytes from socket, rxlen is %d\n", buf_len, qd->tcp_rxlen);
+	*/
 	qd->tcp_rxqueue = g_realloc(qd->tcp_rxqueue, buf_len + qd->tcp_rxlen);
 	memcpy(qd->tcp_rxqueue + qd->tcp_rxlen, buf, buf_len);
 	qd->tcp_rxlen += buf_len;
@@ -324,9 +326,10 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 			break;
 		}
 
+		/* 
 		purple_debug(PURPLE_DEBUG_INFO, "TCP_PENDING",
 				   "Packet len is %d bytes, rxlen is %d\n", pkt_len, qd->tcp_rxlen);
-
+		*/
 		if ( pkt_len < QQ_TCP_HEADER_LENGTH
 		    || *(qd->tcp_rxqueue + bytes) != QQ_PACKET_TAG
 			|| *(qd->tcp_rxqueue + pkt_len - 1) != QQ_PACKET_TAIL) {
@@ -360,14 +363,14 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 		/* jump to next packet */
 		qd->tcp_rxlen -= pkt_len;
 		if (qd->tcp_rxlen) {
-			purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING",
-			 	"shrink tcp_rxqueue to %d\n", qd->tcp_rxlen);		
+			/*
+			purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING", "shrink tcp_rxqueue to %d\n", qd->tcp_rxlen);		
+			*/
 			jump = g_memdup(qd->tcp_rxqueue + pkt_len, qd->tcp_rxlen);
 			g_free(qd->tcp_rxqueue);
 			qd->tcp_rxqueue = jump;
 		} else {
-			purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING",
-			 	"free tcp_rxqueue\n");		
+			/* purple_debug(PURPLE_DEBUG_ERROR, "TCP_PENDING", "free tcp_rxqueue\n"); */
 			g_free(qd->tcp_rxqueue);
 			qd->tcp_rxqueue = NULL;
 		}
@@ -433,8 +436,10 @@ static gint udp_send_out(qq_data *qd, guint8 *data, gint data_len)
 
 	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
 
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Send %d bytes to socket %d\n", data_len, qd->fd);
-
+	/*
+	purple_debug(PURPLE_DEBUG_INFO, "UDP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
+	*/
+	
 	errno = 0;
 	ret = send(qd->fd, data, data_len, 0);
 	if (ret < 0 && errno == EAGAIN) {
@@ -443,7 +448,7 @@ static gint udp_send_out(qq_data *qd, guint8 *data, gint data_len)
 	
 	if (ret < 0) {
 		/* TODO: what to do here - do we really have to disconnect? */
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Send failed: %d, %s\n", errno, g_strerror(errno));
+		purple_debug(PURPLE_DEBUG_ERROR, "UDP_SEND_OUT", "Send failed: %d, %s\n", errno, g_strerror(errno));
 		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, g_strerror(errno));
 	}
 	return ret;
@@ -484,7 +489,7 @@ static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
 
 	/*
-	 * purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
+	purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
 	 */
 
 	if (qd->tx_handler == 0) {
@@ -494,13 +499,13 @@ static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 		errno = EAGAIN;
 	}
 
+	/*
 	purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT",
 		"Socket %d, total %d bytes is sent %d\n", qd->fd, data_len, ret);
+	*/
 	if (ret < 0 && errno == EAGAIN) {
 		/* socket is busy, send later */
-		/*
-		 * purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Socket is busy and send later\n");
-		 */
+		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Socket is busy and send later\n");
 		ret = 0;
 	} else if (ret <= 0) {
 		/* TODO: what to do here - do we really have to disconnect? */

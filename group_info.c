@@ -229,9 +229,11 @@ void qq_process_group_cmd_get_group_info(guint8 *data, gint len, PurpleConnectio
 		bytes += qq_get8(&organization, data + bytes);
 		bytes += qq_get8(&role, data + bytes);
 
+		/*
 		if(organization != 0 || role != 0) {
-			purple_debug(PURPLE_DEBUG_INFO, "QQ_GRP", "uid: %d, organization=%d, role=%d\n", member_uid, organization, role);
+			purple_debug(PURPLE_DEBUG_INFO, "QQ_GRP", "%d, organization=%d, role=%d\n", member_uid, organization, role);
 		}
+		*/
 		member = qq_group_find_or_add_member(gc, group, member_uid);
 		if (member != NULL)
 			member->role = role;

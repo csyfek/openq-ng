@@ -150,7 +150,7 @@ static gint get_buddy_status(qq_buddy_status *bs, guint8 *data)
 	bytes += qq_getdata(&(bs->unknown_key[0]), QQ_KEY_LENGTH, data + bytes);
 
 	purple_debug(PURPLE_DEBUG_INFO, "QQ_STATUS", 
-			"uid: %d, un1: %d, ip: %s:%d, un2:%d, status:%d, un3:%04X\n", 
+			"uid: %d, U1: %d, ip: %s:%d, U2:%d, status:%d, U3:%04X\n", 
 			bs->uid, bs->unknown1, inet_ntoa(bs->ip), bs->port,
 			bs->unknown2, bs->status, bs->unknown3);
 
@@ -522,16 +522,17 @@ void qq_process_change_status_reply(guint8 *buf, gint buf_len, PurpleConnection 
 	bytes = 0;
 	bytes = qq_get8(&reply, data + bytes);
 	if (reply != QQ_CHANGE_ONLINE_STATUS_REPLY_OK) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Change status fail\n");
-	} else {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Change status OK\n");
-		name = uid_to_purple_name(qd->uid);
-		b = purple_find_buddy(gc->account, name);
-		g_free(name);
-		q_bud = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
-		if (q_bud != NULL) {
-			qq_update_buddy_contact(gc, q_bud);
-		}
+		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Change status fail 0x%02X\n", reply);
+		return;
+	}
+
+	/* purple_debug(PURPLE_DEBUG_INFO, "QQ", "Change status OK\n"); */
+	name = uid_to_purple_name(qd->uid);
+	b = purple_find_buddy(gc->account, name);
+	g_free(name);
+	q_bud = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
+	if (q_bud != NULL) {
+		qq_update_buddy_contact(gc, q_bud);
 	}
 }
 

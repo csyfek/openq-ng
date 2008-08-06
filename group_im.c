@@ -311,9 +311,7 @@ void qq_process_recv_group_im(guint8 *data, gint data_len, guint32 internal_grou
 
 	qd = (qq_data *) gc->proto_data;
 
-	qq_hex_dump(PURPLE_DEBUG_INFO, "QQ",
-		data, data_len,
-		"group im hex dump");
+	/* qq_hex_dump(PURPLE_DEBUG_INFO, "QQ", data, data_len, "group im hex dump"); */
 
 	im_group = g_newa(qq_recv_group_im, 1);
 

@@ -53,6 +53,9 @@ qq_transaction *qq_trans_find_rcved(qq_data *qd, guint16 cmd, guint16 seq)
 		
 		trans = (qq_transaction *) (curr->data);
 		if(trans->cmd == cmd && trans->seq == seq) {
+			if (trans->rcved_times == 0) {
+				trans->scan_times = 0;
+			}
 			trans->rcved_times++;
 			return trans;
 		}
@@ -87,8 +90,10 @@ static void trans_remove(qq_data *qd, qq_transaction *trans)
 	g_return_if_fail(qd != NULL && trans != NULL);
 	
 	purple_debug(PURPLE_DEBUG_INFO, "QQ_TRANS",
-				"Remove [%05d] %s, retry %d, rcved %d, scan %d\n",
-				trans->seq, qq_get_cmd_desc(trans->cmd), 
+				"Remove [%s%05d] %s, retry %d, rcved %d, scan %d\n",
+				(trans->flag & QQ_TRANS_IS_SERVER) ? "SRV-" : "",
+				trans->seq,
+				qq_get_cmd_desc(trans->cmd), 
 				trans->send_retries, trans->rcved_times, trans->scan_times);
 
 	if (trans->data)	g_free(trans->data);
@@ -147,7 +152,7 @@ void qq_trans_add_server_cmd(qq_data *qd, guint16 cmd, guint16 seq, guint8 *data
 		trans->data_len = data_len;
 	}
 	purple_debug(PURPLE_DEBUG_ERROR, "QQ_TRANS",
-			"Add client cmd, seq = %d, data = %p, len = %d\n",
+			"Add server cmd, seq = %d, data = %p, len = %d\n",
 			trans->seq, trans->data, trans->data_len);
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
@@ -204,13 +209,16 @@ gboolean qq_trans_scan(qq_data *qd)
 			/* keep server cmd before login*/
 			continue;
 		}
+
+		trans->scan_times++;
+		if (trans->scan_times <= 1) {
+			/* skip in 10 seconds */
+			continue;
+		}
+
 		if (trans->rcved_times > 0) {
 			/* Has been received */
-			trans->scan_times++;
-			if (trans->scan_times > 1) {
-				/* remove after 10 seconds of received*/
-				trans_remove(qd, trans);
-			}
+			trans_remove(qd, trans);
 			continue;
 		}
 
