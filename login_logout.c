@@ -346,7 +346,9 @@ static void qq_send_packet_login(PurpleConnection *gc, guint8 token_length, guin
 	memset(raw_data, 0, QQ_LOGIN_DATA_LENGTH);
 
 	encrypted_data = g_newa(guint8, QQ_LOGIN_DATA_LENGTH + 16);	/* 16 bytes more */
-	g_return_if_fail(qd->inikey == NULL);
+	if (qd->inikey) {
+		g_free(qd->inikey);
+	}
 	qd->inikey = (guint8 *) g_strnfill(QQ_KEY_LENGTH, 0x01);
 
 	bytes = 0;

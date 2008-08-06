@@ -35,8 +35,6 @@
 void qq_connect(PurpleAccount *account);
 void qq_disconnect(PurpleConnection *gc);
 
-void qq_b4_packets_free(qq_data *qd);
-
 gint qq_send_data(PurpleConnection *gc, guint16 cmd, guint8 *data, gint datalen);
 gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, gboolean is_auto_seq, guint16 seq, 
 		gboolean need_ack, guint8 *data, gint datalen);

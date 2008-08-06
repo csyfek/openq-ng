@@ -37,49 +37,53 @@
 #define QQ_RESEND_MAX               8	/* max resend per packet */
 
 typedef struct _transaction {
-	gint fd;
+	guint16 seq;
+	guint16 cmd;
 	guint8 *buf;
 	gint buf_len;
 
-	guint16 cmd;
-	guint16 send_seq;
-
+	gint fd;
 	gint retries;
-	time_t sendtime;
+	time_t create_time;
 } transaction;
 
-void qq_trans_append(qq_data *qd, guint8 *buf, gint buf_len, guint16 cmd)
+void qq_trans_append(qq_data *qd, guint8 *buf, gint buf_len, guint16 cmd, guint16 seq)
 {
-	transaction *trans = NULL;
-	trans = g_new0(transaction, 1);
+	transaction *trans = g_new0(transaction, 1);
+
+	g_return_if_fail(trans != NULL);
 
 	trans->fd = qd->fd;
 	trans->cmd = cmd;
-	trans->send_seq = qd->send_seq;
+	trans->seq = seq;
 	trans->retries = QQ_RESEND_MAX;
-	trans->sendtime = time(NULL);
+	trans->create_time = time(NULL);
 	trans->buf = g_memdup(buf, buf_len);	/* don't use g_strdup, may have 0x00 */
 	trans->buf_len = buf_len;
 
 	purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-			"Add to transaction, send_seq = %d, buf = %lu, len = %d\n",
-			trans->send_seq, trans->buf, trans->buf_len);
+			"Add to transaction, seq = %d, buf = %lu, len = %d\n",
+			trans->seq, trans->buf, trans->buf_len);
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
-/* Remove a packet with send_seq from sendqueue */
+/* Remove a packet with seq from sendqueue */
 void qq_trans_remove(qq_data *qd, gpointer data) 
 {
 	transaction *trans = (transaction *)data;
 
 	g_return_if_fail(qd != NULL && data != NULL);
 	
+	purple_debug(PURPLE_DEBUG_INFO, "QQ",
+				"ack [%05d] %s, remove from sendqueue\n",
+				trans->seq, qq_get_cmd_desc(trans->cmd));
+
 	if (trans->buf)	g_free(trans->buf);
 	qd->transactions = g_list_remove(qd->transactions, trans);
 	g_free(trans);
 }
 
-gpointer qq_trans_find(qq_data *qd, guint16 send_seq)
+gpointer qq_trans_find(qq_data *qd, guint16 seq)
 {
 	GList *curr;
 	GList *next;
@@ -89,7 +93,7 @@ gpointer qq_trans_find(qq_data *qd, guint16 send_seq)
 	while(curr) {
 		next = curr->next;
 		trans = (transaction *) (curr->data);
-		if(trans->send_seq == send_seq) {
+		if(trans->seq == seq) {
 			return trans;
 		}
 		curr = next;
@@ -113,8 +117,8 @@ void qq_trans_remove_all(qq_data *qd)
 		trans = (transaction *) (curr->data);
 		/*
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
-			"Remove to transaction, send_seq = %d, buf = %lu, len = %d\n",
-			trans->send_seq, trans->buf, trans->len);
+			"Remove to transaction, seq = %d, buf = %lu, len = %d\n",
+			trans->seq, trans->buf, trans->len);
 		*/
 		qq_trans_remove(qd, trans);
 
@@ -152,7 +156,7 @@ gint qq_trans_scan(qq_data *qd, gint *start,
 		if (trans->retries < 0) {
 			purple_debug(PURPLE_DEBUG_ERROR, "QQ",
 				"Remove transaction, seq %d, buf %lu, len %d, retries %d, next %d\n",
-				trans->send_seq, trans->buf, trans->buf_len, trans->retries, *start);
+				trans->seq, trans->buf, trans->buf_len, trans->retries, *start);
 			qq_trans_remove(qd, trans);
 			curr = next;
 			continue;
@@ -160,7 +164,7 @@ gint qq_trans_scan(qq_data *qd, gint *start,
 
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
 				"Resend transaction, seq %d, buf %lu, len %d, retries %d, next %d\n",
-				trans->send_seq, trans->buf, trans->buf_len, trans->retries, *start);
+				trans->seq, trans->buf, trans->buf_len, trans->retries, *start);
 		copylen = MIN(trans->buf_len, maxlen);
 		g_memmove(buf, trans->buf, copylen);
 
@@ -170,6 +174,70 @@ gint qq_trans_scan(qq_data *qd, gint *start,
 		return copylen;
 	}
 
-	// purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Scan finished\n");
+	// purple_debug(PURPLE_DEBUG_INFO, "QQ", "Scan finished\n");
 	return -1;
+}
+
+void qq_packet_push(qq_data *qd, guint16 cmd, guint16 seq, guint8 *data, gint data_len)
+{
+	transaction *trans = g_new0(transaction, 1);
+
+	g_return_if_fail(data != NULL && data_len > 0);
+	g_return_if_fail(trans != NULL);
+
+	trans->cmd = cmd;
+	trans->seq = seq;
+	trans->buf = g_memdup(data, data_len);
+	trans->buf_len = data_len;
+	trans->create_time = time(NULL);
+
+	if (qd->rcv_trans == NULL)
+		qd->rcv_trans = g_queue_new();
+
+	g_queue_push_head(qd->rcv_trans, trans);
+}
+
+gint qq_packet_pop(qq_data *qd, guint16 *cmd, guint16 *seq, guint8 *data, gint max_len)
+{
+	transaction *trans = NULL;
+	gint copy_len;
+
+	g_return_val_if_fail(data != NULL && max_len > 0, -1);
+
+	if (g_queue_is_empty(qd->rcv_trans)) {
+		return -1;
+	}
+	trans = (transaction *) g_queue_pop_head(qd->rcv_trans);
+	if (trans == NULL) {
+		return 0;
+	}
+	if (trans->buf == NULL || trans->buf_len <= 0) {
+		return 0;
+	}
+
+	copy_len = MIN(max_len, trans->buf_len);
+	g_memmove(data, trans->buf, copy_len);
+	*cmd = trans->cmd;
+	*seq = trans->seq;
+
+	g_free(trans->buf);
+	g_free(trans);
+	return copy_len;
+}
+
+/* clean up the packets before login */
+void qq_packet_remove_all(qq_data *qd)
+{
+	transaction *trans = NULL;
+
+	g_return_if_fail(qd != NULL);
+
+	/* now clean up my own data structures */
+	if (qd->rcv_trans != NULL) {
+		while (NULL != (trans = g_queue_pop_tail(qd->rcv_trans))) {
+			g_free(trans->buf);
+			g_free(trans);
+		}
+		g_queue_free(qd->rcv_trans);
+	}
 }

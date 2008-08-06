@@ -79,14 +79,15 @@ struct _qq_data {
 	guint16 real_port;
 	gboolean use_tcp;		// network in tcp or udp
 	
+	PurpleProxyConnectData *connect_data;
 	gint fd;				// socket file handler
 	gint tx_handler; 	// socket can_write handle, use in udp connecting and tcp send out
 
 	GList *transactions;	// check ack packet and resend
 	guint resend_timeout;
 
-	guint8 window[1 << 13];		/* check up for duplicated packet */
-	GQueue *before_login_packets;
+	guint8 rcv_window[1 << 13];		// windows for check duplicate packet
+	GQueue *rcv_trans;		// queue to store packet can not process before login
 	
 	// tcp related
 	PurpleCircBuffer *tcp_txbuf;
