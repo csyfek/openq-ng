@@ -91,6 +91,8 @@ struct _qq_data {
 	GList *send_trans;	/* check ack packet and resend */
 	guint resend_timeout;
 
+	guint keep_alive_timeout;
+
 	guint8 rcv_window[1 << 13];		/* windows for check duplicate packet */
 	GQueue *rcv_trans;		/* queue to store packet can not process before login */
 	
@@ -123,7 +125,7 @@ struct _qq_data {
 	guint16 my_port;		/* my port detected by server */
 	guint16 my_icon;		/* my icon index */
 	guint16 my_level;		/* my level */
-	guint32 all_online;		/* the number of online QQ users */
+	guint32 total_online;		/* the number of online QQ users */
 	time_t last_get_online;		/* last time send get_friends_online packet */
 
 	PurpleRoomlist *roomlist;

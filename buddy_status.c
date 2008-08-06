@@ -31,7 +31,7 @@
 #include "buddy_status.h"
 #include "crypt.h"
 #include "header_info.h"
-#include "keep_alive.h"
+#include "qq_base.h"
 #include "packet_parse.h"
 #include "utils.h"
 
@@ -258,7 +258,7 @@ void qq_process_friend_change_status(guint8 *buf, gint buf_len, PurpleConnection
 	if (q_bud) {
 		purple_debug(PURPLE_DEBUG_INFO, "QQ", "s->uid = %d, q_bud->uid = %d\n", s->uid , q_bud->uid);
 		if(0 != *((guint32 *)s->ip)) { 
-			g_memmove(q_bud->ip, s->ip, 4);
+			g_memmove(&(q_bud->ip), s->ip, sizeof(q_bud->ip));
 			q_bud->port = s->port;
 		}
 		q_bud->status = s->status;
@@ -277,4 +277,85 @@ void qq_process_friend_change_status(guint8 *buf, gint buf_len, PurpleConnection
 	g_free(s->ip);
 	g_free(s->unknown_key);
 	g_free(s);
+}
+
+/*TODO: maybe this should be qq_update_buddy_status() ?*/
+void qq_update_buddy_contact(PurpleConnection *gc, qq_buddy *q_bud)
+{
+	gchar *name;
+	PurpleBuddy *bud;
+	gchar *status_id;
+	
+	g_return_if_fail(q_bud != NULL);
+
+	name = uid_to_purple_name(q_bud->uid);
+	bud = purple_find_buddy(gc->account, name);
+	g_return_if_fail(bud != NULL);
+
+	if (bud != NULL) {
+		purple_blist_server_alias_buddy(bud, q_bud->nickname); /* server */
+		q_bud->last_refresh = time(NULL);
+
+		/* purple supports signon and idle time
+		 * but it is not much use for QQ, I do not use them */
+		/* serv_got_update(gc, name, online, 0, q_bud->signon, q_bud->idle, bud->uc); */
+		status_id = "available";
+		switch(q_bud->status) {
+		case QQ_BUDDY_OFFLINE:
+			status_id = "offline";
+			break;
+		case QQ_BUDDY_ONLINE_NORMAL:
+			status_id = "available";
+			break;
+		case QQ_BUDDY_ONLINE_OFFLINE:
+			status_id = "offline";
+			break;
+	        case QQ_BUDDY_ONLINE_AWAY:
+			status_id = "away";
+			break;
+	       	case QQ_BUDDY_ONLINE_INVISIBLE:
+			status_id = "invisible";
+			break;
+		default:
+			status_id = "invisible";
+			purple_debug(PURPLE_DEBUG_ERROR, "QQ", "unknown status: %x\n", q_bud->status);
+			break;
+		}
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "set buddy %d to %s\n", q_bud->uid, status_id);
+		purple_prpl_got_user_status(gc->account, name, status_id, NULL);
+
+		if (q_bud->comm_flag & QQ_COMM_FLAG_BIND_MOBILE && q_bud->status != QQ_BUDDY_OFFLINE)
+			purple_prpl_got_user_status(gc->account, name, "mobile", NULL);
+		else
+			purple_prpl_got_user_status_deactive(gc->account, name, "mobile");
+	} else {
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "unknown buddy: %d\n", q_bud->uid);
+	}
+
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "qq_update_buddy_contact, client=%04x\n", q_bud->client_version);
+	g_free(name);
+}
+
+/* refresh all buddies online/offline,
+ * after receiving reply for get_buddies_online packet */
+void qq_refresh_all_buddy_status(PurpleConnection *gc)
+{
+	time_t now;
+	GList *list;
+	qq_data *qd;
+	qq_buddy *q_bud;
+
+	qd = (qq_data *) (gc->proto_data);
+	now = time(NULL);
+	list = qd->buddies;
+
+	while (list != NULL) {
+		q_bud = (qq_buddy *) list->data;
+		if (q_bud != NULL && now > q_bud->last_refresh + QQ_UPDATE_ONLINE_INTERVAL
+				&& q_bud->status != QQ_BUDDY_ONLINE_INVISIBLE) {
+			q_bud->status = QQ_BUDDY_ONLINE_OFFLINE;
+			qq_update_buddy_contact(gc, q_bud);
+		}
+		list = list->next;
+	}
 }

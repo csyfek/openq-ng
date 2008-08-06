@@ -51,8 +51,8 @@
 #include "group_opt.h"
 #include "header_info.h"
 #include "im.h"
-#include "keep_alive.h"
-#include "login_logout.h"
+#include "qq_process.h"
+#include "qq_base.h"
 #include "packet_parse.h"
 #include "qq.h"
 #include "qq_network.h"
@@ -479,7 +479,7 @@ static void _qq_menu_show_login_info(PurplePluginAction *action)
 	qd = (qq_data *) gc->proto_data;
 	info = g_string_new("<html><body>\n");
 
-	g_string_append_printf(info, _("<b>Current Online</b>: %d<br>\n"), qd->all_online);
+	g_string_append_printf(info, _("<b>Current Online</b>: %d<br>\n"), qd->total_online);
 	g_string_append_printf(info, _("<b>Last Refresh</b>: %s<br>\n"), ctime(&qd->last_get_online));
 
 	g_string_append(info, "<hr>\n");
@@ -636,30 +636,6 @@ static GList *_qq_buddy_menu(PurpleBlistNode * node)
 	return m;
 }
 
-
-static void qq_keep_alive(PurpleConnection *gc)
-{
-	qq_group *group;
-	qq_data *qd;
-	GList *list;
-
-	if (NULL == (qd = (qq_data *) gc->proto_data))
-		return;
-
-	list = qd->groups;
-	while (list != NULL) {
-		group = (qq_group *) list->data;
-		if (group->my_status == QQ_GROUP_MEMBER_STATUS_IS_MEMBER ||
-		    group->my_status == QQ_GROUP_MEMBER_STATUS_IS_ADMIN)
-			/* no need to get info time and time again, online members enough */
-			qq_send_cmd_group_get_online_members(gc, group);
-
-		list = list->next;
-	}
-
-	qq_send_packet_keep_alive(gc);
-}
-
 /* convert chat nickname to qq-uid to get this buddy info */
 /* who is the nickname of buddy in QQ chat-room (Qun) */
 static void _qq_get_chat_buddy_info(PurpleConnection *gc, gint channel, const gchar *who)
@@ -718,8 +694,8 @@ static PurplePluginProtocolInfo prpl_info	= {
 	NULL,							/* chat_invite	*/
 	NULL,							/* chat_leave */
 	NULL,							/* chat_whisper */
-	_qq_chat_send,						/* chat_send */
-	qq_keep_alive,						/* keepalive */
+	_qq_chat_send,			/* chat_send */
+	NULL,							/* keepalive */
 	NULL,							/* register_user */
 	_qq_get_chat_buddy_info,				/* get_cb_info	*/
 	NULL,							/* get_cb_away	*/

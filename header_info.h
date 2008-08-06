@@ -53,13 +53,13 @@ enum {
 	QQ_CMD_REQUEST_KEY = 0x001d,			/* request key for file transfer */
 	QQ_CMD_CELL_PHONE_1 = 0x0021,			/* cell phone 1 */
 	QQ_CMD_LOGIN = 0x0022,				/* login */
-	QQ_CMD_GET_FRIENDS_LIST = 0x0026,		/* retrieve my freinds list */
-	QQ_CMD_GET_FRIENDS_ONLINE = 0x0027,		/* get my online friends list */
+	QQ_CMD_GET_BUDDIES_LIST = 0x0026,		/* retrieve my freinds list */
+	QQ_CMD_GET_BUDDIES_ONLINE = 0x0027,		/* get my online friends list */
 	QQ_CMD_CELL_PHONE_2 = 0x0029,			/* cell phone 2 */
 	QQ_CMD_GROUP_CMD = 0x0030,			/* group command */
 	QQ_CMD_GET_ALL_LIST_WITH_GROUP = 0x0058,  
 	QQ_CMD_GET_LEVEL = 0x005C,			/* get level for one or more buddies */
-	QQ_CMD_REQUEST_LOGIN_TOKEN  = 0x0062, 		/* get login token */
+	QQ_CMD_TOKEN  = 0x0062, 		/* get login token */
 	QQ_CMD_RECV_MSG_SYS = 0x0080,			/* receive a system message */
 	QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS = 0x0081,	/* friends change status */
 };

@@ -59,4 +59,7 @@ void qq_send_packet_change_status(PurpleConnection *gc);
 
 void qq_process_change_status_reply(guint8 *buf, gint buf_len, PurpleConnection *gc);
 void qq_process_friend_change_status(guint8 *buf, gint buf_len, PurpleConnection *gc);
+
+void qq_refresh_all_buddy_status(PurpleConnection *gc);
+void qq_update_buddy_contact(PurpleConnection *gc, qq_buddy *q_bud);
 #endif

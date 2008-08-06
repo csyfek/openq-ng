@@ -73,9 +73,9 @@ const gchar *qq_get_cmd_desc(gint type)
 		return "QQ_CMD_REMOVE_SELF";
 	case QQ_CMD_LOGIN:
 		return "QQ_CMD_LOGIN";
-	case QQ_CMD_GET_FRIENDS_LIST:
+	case QQ_CMD_GET_BUDDIES_LIST:
 		return "QQ_CMD_GET_FRIENDS_LIST";
-	case QQ_CMD_GET_FRIENDS_ONLINE:
+	case QQ_CMD_GET_BUDDIES_ONLINE:
 		return "QQ_CMD_GET_FRIENDS_ONLINE";
 	case QQ_CMD_GROUP_CMD:
 		return "QQ_CMD_GROUP_CMD";
@@ -83,8 +83,8 @@ const gchar *qq_get_cmd_desc(gint type)
 		return "QQ_CMD_GET_ALL_LIST_WITH_GROUP";
 	case QQ_CMD_GET_LEVEL:
 		return "QQ_CMD_GET_LEVEL";
-	case QQ_CMD_REQUEST_LOGIN_TOKEN:
-		return "QQ_CMD_REQUEST_LOGIN_TOKEN";
+	case QQ_CMD_TOKEN:
+		return "QQ_CMD_TOKEN";
 	case QQ_CMD_RECV_MSG_SYS:
 		return "QQ_CMD_RECV_MSG_SYS";
 	case QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS:

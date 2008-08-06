@@ -286,7 +286,7 @@ void qq_filter_str(gchar *str) {
 	}
 
 	for (temp = str; *temp != 0; temp++) {
-		if (*temp == '\r' || *temp == '\n')  *temp = 0x20;
+		if (*temp == '\r' || *temp == '\n')  *temp = ' ';
 	}
 	g_strstrip(str);
 }

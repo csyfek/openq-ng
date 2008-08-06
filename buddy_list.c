@@ -37,7 +37,7 @@
 #include "char_conv.h"
 #include "crypt.h"
 #include "header_info.h"
-#include "keep_alive.h"
+#include "qq_base.h"
 #include "group.h"
 #include "group_find.h"
 #include "group_internal.h"
@@ -81,7 +81,7 @@ void qq_send_packet_get_buddies_online(PurpleConnection *gc, guint8 position)
 	/* 003-004 */
 	bytes += qq_put16(raw_data + bytes, 0x0000);
 
-	qq_send_cmd(qd, QQ_CMD_GET_FRIENDS_ONLINE, raw_data, 5);
+	qq_send_cmd(qd, QQ_CMD_GET_BUDDIES_ONLINE, raw_data, 5);
 	qd->last_get_online = time(NULL);
 }
 
@@ -102,7 +102,7 @@ void qq_send_packet_get_buddies_list(PurpleConnection *gc, guint16 position)
 	 * March 22, found the 00,00,00 starts to work as well */
 	bytes += qq_put8(raw_data + bytes, 0x00);
 
-	qq_send_cmd(qd, QQ_CMD_GET_FRIENDS_LIST, raw_data, bytes);
+	qq_send_cmd(qd, QQ_CMD_GET_BUDDIES_LIST, raw_data, bytes);
 }
 
 /* get all list, buddies & Quns with groupsid support */
@@ -143,7 +143,7 @@ static void _qq_buddies_online_reply_dump_unclear(qq_friends_online_entry *fe)
 }
 
 /* process the reply packet for get_buddies_online packet */
-void qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
+guint8 qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 {
 	qq_data *qd;
 	gint len, bytes, bytes_buddy;
@@ -153,7 +153,7 @@ void qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnec
 	qq_buddy *q_bud;
 	qq_friends_online_entry *fe;
 
-	g_return_if_fail(buf != NULL && buf_len != 0);
+	g_return_val_if_fail(buf != NULL && buf_len != 0, -1);
 
 	qd = (qq_data *) gc->proto_data;
 	len = buf_len;
@@ -163,7 +163,7 @@ void qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnec
 
 	if (!qq_decrypt(buf, buf_len, qd->session_key, data, &len)) {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Error decrypt buddies online");
-		return;
+		return -1;
 	}
 
 	qq_show_packet("Get buddies online reply packet", data, len);
@@ -213,7 +213,7 @@ void qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnec
 		if (q_bud != NULL) {	/* we find one and update qq_buddy */
 			if(0 != fe->s->client_version)
 				q_bud->client_version = fe->s->client_version;
-			g_memmove(q_bud->ip, fe->s->ip, 4);
+			g_memmove(&(q_bud->ip), fe->s->ip, sizeof(q_bud->ip));
 			q_bud->port = fe->s->port;
 			q_bud->status = fe->s->status;
 			q_bud->flag1 = fe->flag1;
@@ -236,20 +236,12 @@ void qq_process_get_buddies_online_reply(guint8 *buf, gint buf_len, PurpleConnec
 
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Received %d online buddies, nextposition=%u\n",
 							count, (guint) position);
-	if (position != QQ_FRIENDS_ONLINE_POSITION_END
-		  && position != QQ_FRIENDS_ONLINE_POSITION_START) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more online buddies\n"); 
-		qq_send_packet_get_buddies_online(gc, position);
-	} else {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "All online buddies received\n"); 
-		qq_send_packet_get_buddies_levels(gc);
-		qq_refresh_all_buddy_status(gc);
-	}
+	return position;
 }
 
 
 /* process reply for get_buddies_list */
-void qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
+guint16 qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 {
 	qq_data *qd;
 	qq_buddy *q_bud;
@@ -260,7 +252,7 @@ void qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConnecti
 	gchar *name;
 	PurpleBuddy *b;
 
-	g_return_if_fail(buf != NULL && buf_len != 0);
+	g_return_val_if_fail(buf != NULL && buf_len != 0, -1);
 
 	qd = (qq_data *) gc->proto_data;
 	len = buf_len;
@@ -268,7 +260,7 @@ void qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConnecti
 
 	if (!qq_decrypt(buf, buf_len, qd->session_key, data, &len)) {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Error decrypt buddies list");
-		return;
+		return -1;
 	}
 	bytes = 0;
 	bytes += qq_get16(&position, data + bytes);
@@ -341,17 +333,10 @@ void qq_process_get_buddies_list_reply(guint8 *buf, gint buf_len, PurpleConnecti
 
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Received %d buddies, nextposition=%u\n",
 		count, (guint) position);
-	if (position != QQ_FRIENDS_LIST_POSITION_START
-		&& position != QQ_FRIENDS_LIST_POSITION_END) { 
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more buddies\n"); 
-		qq_send_packet_get_buddies_list(gc, position);
-	} else {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "All buddies received. Requesting for online buddies list\n");
-		qq_send_packet_get_buddies_online(gc, QQ_FRIENDS_LIST_POSITION_START); 
-	}
+	return position;
 }
 
-void qq_process_get_all_list_with_group_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
+guint32 qq_process_get_all_list_with_group_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 {
 	qq_data *qd;
 	gint len, i, j;
@@ -363,7 +348,7 @@ void qq_process_get_all_list_with_group_reply(guint8 *buf, gint buf_len, PurpleC
 	guint8 type, groupid;
 	qq_group *group;
 
-	g_return_if_fail(buf != NULL && buf_len != 0);
+	g_return_val_if_fail(buf != NULL && buf_len != 0, -1);
 
 	qd = (qq_data *) gc->proto_data;
 	len = buf_len;
@@ -371,11 +356,11 @@ void qq_process_get_all_list_with_group_reply(guint8 *buf, gint buf_len, PurpleC
 
 	if (!qq_decrypt(buf, buf_len, qd->session_key, data, &len)) {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Error decrypt all list with group");
-		return;
+		return -1;
 	}
 
 	bytes += qq_get8(&sub_cmd, data + bytes);
-	g_return_if_fail(sub_cmd == 0x01);
+	g_return_val_if_fail(sub_cmd == 0x01, -1);
 
 	bytes += qq_get8(&reply_code, data + bytes);
 	if(0 != reply_code) {
@@ -431,12 +416,6 @@ void qq_process_get_all_list_with_group_reply(guint8 *buf, gint buf_len, PurpleC
 
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Get all list done, %d buddies and %d Quns\n", i, j);
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Received %d buddies and %d groups, nextposition=%u\n", i, j, (guint) position);
-
-	if (position != QQ_FRIENDS_ALL_LIST_POSITION_START
-		&& position != QQ_FRIENDS_ALL_LIST_POSITION_END) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more buddies and groups\n");
-		qq_send_packet_get_all_list_with_group(gc, position);
-	} else {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "All buddies and groups received\n"); 
-	}
+	
+	return position;
 }

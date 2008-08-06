@@ -34,7 +34,7 @@
 #include "crypt.h"
 #include "header_info.h"
 #include "im.h"
-#include "keep_alive.h"
+#include "qq_base.h"
 #include "packet_parse.h"
 #include "qq_network.h"
 #include "utils.h"
@@ -481,7 +481,7 @@ PurpleBuddy *qq_add_buddy_by_recv_packet(PurpleConnection *gc, guint32 uid, gboo
 		b->proto_data = q_bud;
 		qd->buddies = g_list_append(qd->buddies, q_bud);
 		qq_send_packet_get_info(gc, q_bud->uid, FALSE);
-		qq_send_packet_get_buddies_online(gc, QQ_FRIENDS_ONLINE_POSITION_START);
+		qq_send_packet_get_buddies_online(gc, 0);
 	}
 
 	purple_blist_add_buddy(b, NULL, g, NULL);

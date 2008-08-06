@@ -32,26 +32,21 @@
 #endif
 
 #include "buddy_info.h"
-#include "buddy_list.h"
-#include "buddy_opt.h"
-#include "buddy_status.h"
+#include "group_info.h"
 #include "group_free.h"
-#include "char_conv.h"
 #include "crypt.h"
-#include "group_network.h"
 #include "header_info.h"
-#include "keep_alive.h"
-#include "im.h"
-#include "login_logout.h"
+#include "qq_base.h"
 #include "packet_parse.h"
 #include "qq_network.h"
 #include "qq_trans.h"
-#include "sys_msg.h"
 #include "utils.h"
+#include "qq_process.h"
 
 /* set QQ_RECONNECT_MAX to 1, when test reconnecting */
 #define QQ_RECONNECT_MAX					4
 #define QQ_RECONNECT_INTERVAL		5000
+#define QQ_KEEP_ALIVE_INTERVAL		60000
 
 static gboolean set_new_server(qq_data *qd)
 {
@@ -126,39 +121,6 @@ static guint8 *encrypt_account_password(const gchar *pwd)
 	purple_cipher_context_destroy(context);
 
 	return g_memdup(pwkey_tmp, QQ_KEY_LENGTH);
-}
-
-/* default process, decrypt and dump */
-static void process_cmd_unknow(PurpleConnection *gc, guint8 *buf, gint buf_len, guint16 cmd, guint16 seq)
-{
-	qq_data *qd;
-	guint8 *data;
-	gint data_len;
-	gchar *msg_utf8 = NULL;
-
-	g_return_if_fail(buf != NULL && buf_len != 0);
-
-	qq_show_packet("Processing unknown packet", buf, buf_len);
-
-	qd = (qq_data *) gc->proto_data;
-
-	data_len = buf_len;
-	data = g_newa(guint8, data_len);
-	memset(data, 0, data_len);
-	if ( !qq_decrypt(buf, buf_len, qd->session_key, data, &data_len )) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Fail decrypt packet with default process\n");
-		return;
-	}
-	
-	qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
-			data, data_len,
-			">>> [%d] %s -> [default] decrypt and dump",
-			seq, qq_get_cmd_desc(cmd));
-
-	msg_utf8 = try_dump_as_gbk(data, data_len);
-	if (msg_utf8) {
-		g_free(msg_utf8);
-	}
 }
 
 static gint packet_get_header(guint8 *header_tag,  guint16 *source_tag,
@@ -244,85 +206,6 @@ static void reconnect_later(PurpleConnection *gc)
 		reconnect_later_cb, gc);
 }
 
-static void process_cmd_server(
-	PurpleConnection *gc, guint16 cmd, guint16 seq, guint8 *data, gint data_len)
-{
-	/* now process the packet */
-	switch (cmd) {
-		case QQ_CMD_RECV_IM:
-			qq_process_recv_im(data, data_len, seq, gc);
-			break;
-		case QQ_CMD_RECV_MSG_SYS:
-			qq_process_msg_sys(data, data_len, seq, gc);
-			break;
-		case QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS:
-			qq_process_friend_change_status(data, data_len, gc);
-			break;
-		default:
-			process_cmd_unknow(gc, data, data_len, cmd, seq);
-			break;
-	}
-}
-
-static void process_cmd_reply(
-	PurpleConnection *gc, guint16 cmd, guint16 seq, guint8 *data, gint data_len)
-{
-	/* now process the packet */
-	switch (cmd) {
-		case QQ_CMD_KEEP_ALIVE:
-			qq_process_keep_alive_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_UPDATE_INFO:
-			qq_process_modify_info_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_ADD_FRIEND_WO_AUTH:
-			qq_process_add_buddy_reply(data, data_len, seq, gc);
-			break;
-		case QQ_CMD_DEL_FRIEND:
-			qq_process_remove_buddy_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_REMOVE_SELF:
-			qq_process_remove_self_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_BUDDY_AUTH:
-			qq_process_add_buddy_auth_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_GET_USER_INFO:
-			qq_process_get_info_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_CHANGE_ONLINE_STATUS:
-			qq_process_change_status_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_SEND_IM:
-			qq_process_send_im_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_LOGIN:
-			qq_process_login_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_GET_FRIENDS_LIST:
-			qq_process_get_buddies_list_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_GET_FRIENDS_ONLINE:
-			qq_process_get_buddies_online_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_GROUP_CMD:
-			qq_process_group_cmd_reply(data, data_len, seq, gc);
-			break;
-		case QQ_CMD_GET_ALL_LIST_WITH_GROUP:
-			qq_process_get_all_list_with_group_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_GET_LEVEL:
-			qq_process_get_level_reply(data, data_len, gc);
-			break;
-		case QQ_CMD_REQUEST_LOGIN_TOKEN:
-			qq_process_request_login_token_reply(data, data_len, gc);
-			break;
-		default:
-			process_cmd_unknow(gc, data, data_len, cmd, seq);
-			break;
-	}
-}
-
 /* process the incoming packet from qq_pending */
 static void packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 {
@@ -376,12 +259,12 @@ static void packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 					"QQ", "dup [%05d] %s, discard...\n", seq, qq_get_cmd_desc(cmd));
 			return;
 		}
-		process_cmd_server(gc, cmd, seq, buf + bytes, bytes_not_read);
+		qq_proc_cmd_server(gc, cmd, seq, buf + bytes, bytes_not_read);
 		return;
 	}
 
 	/* this is the length of all the encrypted data (also remove tail tag */
-	process_cmd_reply(gc, cmd, seq, buf + bytes, bytes_not_read);
+	qq_proc_cmd_reply(gc, cmd, seq, buf + bytes, bytes_not_read);
 
 	/* check is redirect or not, and do it now */
 	if (qd->is_redirect) {
@@ -404,7 +287,7 @@ static void packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 			if (new_data_len == 0) {
 				continue;
 			}
-			process_cmd_reply(gc, seq, cmd, new_data, new_data_len);
+			qq_proc_cmd_reply(gc, seq, cmd, new_data, new_data_len);
 		}
 	}
 }
@@ -679,9 +562,34 @@ static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 	return ret;
 }
 
+static gboolean keep_alive_timeout(gpointer data) {
+	PurpleConnection *gc = (PurpleConnection *) data;
+	qq_data *qd;
+	qq_group *group;
+	GList *list;
+
+	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, TRUE);
+	qd = (qq_data *) gc->proto_data;
+
+	qq_send_packet_keep_alive(gc);
+
+	list = qd->groups;
+	while (list != NULL) {
+		group = (qq_group *) list->data;
+		if (group->my_status == QQ_GROUP_MEMBER_STATUS_IS_MEMBER ||
+		    group->my_status == QQ_GROUP_MEMBER_STATUS_IS_ADMIN)
+			/* no need to get info time and time again, online members enough */
+			qq_send_cmd_group_get_online_members(gc, group);
+
+		list = list->next;
+	}
+
+	return TRUE;		/* if return FALSE, timeout callback stops */
+}
+
 static gboolean trans_timeout(gpointer data)
 {
-	PurpleConnection *gc;
+	PurpleConnection *gc = (PurpleConnection *) data;
 	qq_data *qd;
 	guint8 *buf;
 	gint buf_len = 0;
@@ -689,9 +597,7 @@ static gboolean trans_timeout(gpointer data)
 	gint retries = 0;
 	int index;
 	
-	gc = (PurpleConnection *) data;
 	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, TRUE);
-
 	qd = (qq_data *) gc->proto_data;
 	
 	index = 0;
@@ -732,7 +638,7 @@ static gboolean trans_timeout(gpointer data)
 			}
 			break;
 		case QQ_CMD_LOGIN:
-		case QQ_CMD_REQUEST_LOGIN_TOKEN:
+		case QQ_CMD_TOKEN:
 			if (!qd->logged_in)	{
 				/* cancel login progress */
 				purple_connection_error_reason(gc,
@@ -798,6 +704,11 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	/* call trans_timeout every 5 seconds */
 	qd->resend_timeout = purple_timeout_add(5000, trans_timeout, gc);
 	
+	g_return_if_fail(qd->keep_alive_timeout == 0);
+	/* call keep_alive_timeout every 60 seconds */
+	qd->keep_alive_timeout = purple_timeout_add(QQ_KEEP_ALIVE_INTERVAL,
+			keep_alive_timeout, gc);
+
 	if (qd->use_tcp)
 		gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, tcp_pending, gc);
 	else
@@ -808,7 +719,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	purple_connection_update_progress(gc, conn_msg, QQ_CONNECT_STEPS - 1, QQ_CONNECT_STEPS);
 	g_free(conn_msg);
 
-	qq_send_packet_request_login_token(gc);
+	qq_send_packet_token(gc);
 }
 
 static void udp_can_write(gpointer data, gint source, PurpleInputCondition cond)
@@ -1039,14 +950,20 @@ void qq_disconnect(PurpleConnection *gc)
 	qd = (qq_data *) gc->proto_data;
 
 	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Disconnecting ...\n");
-	/* finish  all I/O */
-	if (qd->fd >= 0 && qd->logged_in) {
-		qq_send_packet_logout(gc);
+
+	if (qd->keep_alive_timeout > 0) {
+		purple_timeout_remove(qd->keep_alive_timeout);
+		qd->keep_alive_timeout = 0;
 	}
 
 	if (qd->resend_timeout > 0) {
 		purple_timeout_remove(qd->resend_timeout);
 		qd->resend_timeout = 0;
+	}
+
+	/* finish  all I/O */
+	if (qd->fd >= 0 && qd->logged_in) {
+		qq_send_packet_logout(gc);
 	}
 
 	if (gc->inpa > 0) {

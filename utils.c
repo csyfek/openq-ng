@@ -123,10 +123,20 @@ gchar **split_data(guint8 *data, gint len, const gchar *delimit, gint expected_f
 	return segments;
 }
 
-/* given a four-byte ip data, convert it into a human readable ip string
- * the return needs to be freed */
-gchar *gen_ip_str(guint8 *ip)
+/* convert Purple name to original QQ UID */
+guint32 purple_name_to_uid(const gchar *const name)
 {
+	guint32 ret;
+	g_return_val_if_fail(name != NULL, 0);
+
+	ret = strtol(name, NULL, 10);
+	if (errno == ERANGE)
+		return 0;
+	else
+		return ret;
+}
+
+gchar *gen_ip_str(guint8 *ip) {
 	gchar *ret;
 	if (ip == NULL || ip[0] == 0) {
 		ret = g_new(gchar, 1);
@@ -147,19 +157,6 @@ guint8 *str_ip_gen(gchar *str) {
 	ip[2] = c;
 	ip[3] = d;
 	return ip;
-}
-
-/* convert Purple name to original QQ UID */
-guint32 purple_name_to_uid(const gchar *const name)
-{
-	guint32 ret;
-	g_return_val_if_fail(name != NULL, 0);
-
-	ret = strtol(name, NULL, 10);
-	if (errno == ERANGE)
-		return 0;
-	else
-		return ret;
 }
 
 /* convert a QQ UID to a unique name of Purple

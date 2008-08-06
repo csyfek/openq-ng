@@ -30,10 +30,11 @@
 #include "utils.h"
 #include "packet_parse.h"
 #include "buddy_info.h"
+#include "buddy_status.h"
 #include "char_conv.h"
 #include "crypt.h"
 #include "header_info.h"
-#include "keep_alive.h"
+#include "qq_base.h"
 #include "qq_network.h"
 
 #define QQ_PRIMARY_INFORMATION _("Primary Information")
@@ -1033,3 +1034,4 @@ void qq_process_get_level_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 	}
 	g_free(decr_buf);
 }
+

@@ -34,7 +34,7 @@
 #include "file_trans.h"
 #include "header_info.h"
 #include "im.h"
-#include "keep_alive.h"
+#include "qq_base.h"
 #include "packet_parse.h"
 #include "qq_network.h"
 #include "utils.h"

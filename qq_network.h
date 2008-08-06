@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111-1301  USA
  */
 
-#ifndef _QQ_PROXY_H
-#define _QQ_PROXY_H
+#ifndef _QQ_NETWORK_H
+#define _QQ_NETWORK_H
 
 #include <glib.h>
 #include "connection.h"
