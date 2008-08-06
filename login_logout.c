@@ -141,12 +141,6 @@ struct _qq_login_reply_redirect {
 	guint16 new_server_port;
 };
 
-extern gint			/* defined in send_core.c */
- _create_packet_head_seq(guint8 *buf, PurpleConnection *gc,
- 		guint16 cmd, gboolean is_auto_seq, guint16 *seq);
-extern gint			/* defined in send_core.c */
- _qq_send_packet(PurpleConnection *gc, guint8 *buf, gint len, guint16 cmd);
-
 /* It is fixed to 16 bytes 0x01 for QQ2003, 
  * Any value works (or a random 16 bytes string) */
 static guint8 *_gen_login_key(void)
@@ -308,23 +302,23 @@ void qq_send_packet_request_login_token(PurpleConnection *gc)
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 
 	bytes = 0;
-        purple_debug(PURPLE_DEBUG_INFO, "QQ", "=BEGIN= send_packet_request_login, bytes: %d\n", bytes); 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "=BEGIN= send_packet_request_login, bytes: %d\n", bytes); 
 	bytes += _create_packet_head_seq(buf + bytes, gc, QQ_CMD_REQUEST_LOGIN_TOKEN, TRUE, &seq_ret);
-        purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
 	if (bytes <= 0) {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Fail create request login token packet\n");
 		return;
 	}
 	bytes += qq_put32(buf + bytes, qd->uid);
-        purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
 	bytes += qq_put8(buf + bytes, 0);
-        purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
 	bytes += qq_put8(buf + bytes, QQ_PACKET_TAIL);
-        purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
-        
-        /* debugging info, s3e, 20070628 */
-        bytes_sent = _qq_send_packet(gc, buf, bytes, QQ_CMD_REQUEST_LOGIN_TOKEN);
-        purple_debug(PURPLE_DEBUG_INFO, "QQ", "world<==me %s, %d bytes\n", 
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "send_packet_request_login, bytes: %d\n", bytes); 
+
+	/* debugging info, s3e, 20070628 */
+	bytes_sent = qq_send_packet(gc, buf, bytes, QQ_CMD_REQUEST_LOGIN_TOKEN);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "world<==me %s, %d bytes\n", 
                 qq_get_cmd_desc(QQ_CMD_REQUEST_LOGIN_TOKEN), bytes_sent);
 
 }
@@ -383,12 +377,13 @@ static void qq_send_packet_login(PurpleConnection *gc, guint8 token_length, guin
 	bytes += qq_putdata(buf + bytes, encrypted_data, encrypted_len);
 	bytes += qq_put8(buf + bytes, QQ_PACKET_TAIL);
 
-	_qq_send_packet(gc, buf, bytes, QQ_CMD_LOGIN);
+	qq_send_packet(gc, buf, bytes, QQ_CMD_LOGIN);
 }
 
 void qq_process_request_login_token_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 {
 	qq_data *qd;
+	gchar *error_msg;
 
 	g_return_if_fail(buf != NULL && buf_len != 0);
 
@@ -410,8 +405,13 @@ void qq_process_request_login_token_reply(guint8 *buf, gint buf_len, PurpleConne
 		qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
 				buf, buf_len,
 				">>> [default] decrypt and dump");
-		try_dump_as_gbk(buf, buf_len);
-		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Error requesting login token"));
+		error_msg = try_dump_as_gbk(buf, buf_len);
+		if (error_msg) {
+			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
+			g_free(error_msg);
+		} else {
+			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Error requesting login token"));
+		}
 	}
 }
 
@@ -434,6 +434,7 @@ void qq_process_login_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 	gint len, ret, bytes;
 	guint8 *data;
 	qq_data *qd;
+	gchar* error_msg;
 
 	g_return_if_fail(buf != NULL && buf_len != 0);
 
@@ -469,8 +470,11 @@ void qq_process_login_reply(guint8 *buf, gint buf_len, PurpleConnection *gc)
 				qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
 						data, len,
 						">>> [default] decrypt and dump");
-				try_dump_as_gbk(data, len);
-
+				error_msg = try_dump_as_gbk(data, len);
+				if (error_msg)	{
+					purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
+					g_free(error_msg);
+				}
 				ret = QQ_LOGIN_REPLY_MISC_ERROR;
 			}
 		} else {	/* no idea how to decrypt */

@@ -28,6 +28,8 @@
 #include <glib.h>
 #include "internal.h"
 #include "ft.h"
+#include "dnsquery.h"
+#include "dnssrv.h"
 #include "proxy.h"
 #include "roomlist.h"
 
@@ -66,6 +68,11 @@ struct _qq_buddy {
 };
 
 struct _qq_data {
+	PurpleConnection *gc;
+	gchar *server_name;
+	PurpleDnsQueryData *query_data;
+	PurpleSrvQueryData *srv_query_data;
+	
 	gint fd;			/* socket file handler */
 	guint32 uid;			/* QQ number */
 	guint8 *inikey;			/* initial key to encrypt login packet */
@@ -78,15 +85,17 @@ struct _qq_data {
 	gboolean logged_in;		/* used by qq-add_buddy */
 	gboolean use_tcp;		/* network in tcp or udp */
 
+	gint fd_udp_active; 	// socket file handle for active udp socket
+
 	PurpleProxyType proxy_type;
-	PurpleConnection *gc;
 
 	PurpleXfer *xfer;			/* file transfer handler */
 	struct sockaddr_in dest_sin;
 
 	/* from real connction */
-	gchar *server_ip;
-	guint16 server_port;
+	gchar *real_hostname;
+	guint16 real_port;
+	
 	/* get from login reply packet */
 	time_t login_time;
 	time_t last_login_time;

@@ -108,18 +108,19 @@ static gchar *_my_convert(const gchar *str, gssize len, const gchar *to_charset,
 
 	ret = g_convert(str, len, to_charset, from_charset, &byte_read, &byte_write, &error);
 
-	if (error == NULL)
+	if (error == NULL) {
 		return ret;	/* conversion is OK */
-	else {			/* conversion error */
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "%s\n", error->message);
-
-		qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
-			(guint8 *) str, (len == -1) ? strlen(str) : len,
-			"Dump failed text");
-
-		g_error_free(error);
-		return g_strdup(QQ_NULL_MSG);
 	}
+	
+	/* conversion error */
+	purple_debug(PURPLE_DEBUG_ERROR, "QQ", "%s\n", error->message);
+
+	qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
+		(guint8 *) str, (len == -1) ? strlen(str) : len,
+		"Dump failed text");
+
+	g_error_free(error);
+	return g_strdup(QQ_NULL_MSG);
 }
 
 /* take the input as a pascal string and return a converted c-string in UTF-8

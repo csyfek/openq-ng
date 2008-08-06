@@ -194,7 +194,7 @@ gchar *chat_name_to_purple_name(const gchar *const name)
 }
 
 /* try to dump the data as GBK */
-void try_dump_as_gbk(const guint8 *const data, gint len)
+gchar* try_dump_as_gbk(const guint8 *const data, gint len)
 {
 	gint i;
 	guint8 *incoming;
@@ -215,8 +215,8 @@ void try_dump_as_gbk(const guint8 *const data, gint len)
 
 	if (msg_utf8 != NULL) {
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Try extract GB msg: %s\n", msg_utf8);
-		g_free(msg_utf8);
 	}
+	return msg_utf8;
 }
 
 /* strips whitespace */

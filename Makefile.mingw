@@ -67,7 +67,6 @@ C_SRC = \
 	send_file.c \
 	sendqueue.c \
 	sys_msg.c \
-	qq_udp_s5.c \
 	utils.c
 
 OBJECTS = $(C_SRC:%.c=%.o)

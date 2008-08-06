@@ -45,11 +45,9 @@
 #include "login_logout.h"
 #include "packet_parse.h"
 #include "qq_network.h"
-#include "qq_udp_s5.h"
 #include "sendqueue.h"
 #include "sys_msg.h"
 #include "utils.h"
-
 
 /* These functions are used only in development phase */
 /*
@@ -63,7 +61,7 @@
    */
 
 /* QQ 2003iii uses double MD5 for the pwkey to get the session key */
-static guint8 *_gen_pwkey(const gchar *pwd)
+static guint8 *encrypt_account_password(const gchar *pwd)
 {
 	PurpleCipher *cipher;
 	PurpleCipherContext *context;
@@ -133,7 +131,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 
 	/* now generate md5 processed passwd */
 	passwd = purple_account_get_password(purple_connection_get_account(gc));
-	qd->pwkey = _gen_pwkey(passwd);
+	qd->pwkey = encrypt_account_password(passwd);
 
 	qd->sendqueue_timeout = purple_timeout_add(QQ_SENDQUEUE_TIMEOUT, qq_sendqueue_timeout_callback, gc);
 	gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, qq_input_pending, gc);
@@ -148,34 +146,178 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	qq_send_packet_request_login_token(gc);
 }
 
+static void qq_udp_conn_cb(gpointer data, gint source, PurpleInputCondition cond)
+{
+	PurpleConnection *gc;
+	qq_data *qd;
+	socklen_t len;
+	int error=0, ret;
+
+	gc = (PurpleConnection *) data;
+	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
+
+	qd = (qq_data *) gc->proto_data;
+
+
+	purple_debug_info("proxy", "Connected.\n");
+
+	/*
+	 * getsockopt after a non-blocking connect returns -1 if something is
+	 * really messed up (bad descriptor, usually). Otherwise, it returns 0 and
+	 * error holds what connect would have returned if it blocked until now.
+	 * Thus, error == 0 is success, error == EINPROGRESS means "try again",
+	 * and anything else is a real error.
+	 *
+	 * (error == EINPROGRESS can happen after a select because the kernel can
+	 * be overly optimistic sometimes. select is just a hint that you might be
+	 * able to do something.)
+	 */
+	len = sizeof(error);
+	ret = getsockopt(source, SOL_SOCKET, SO_ERROR, &error, &len);
+	if (ret == 0 && error == EINPROGRESS)
+		return; /* we'll be called again later */
+		
+	purple_input_remove(qd->fd_udp_active);
+	if (ret < 0 || error != 0) {
+		if(ret != 0) 
+			error = errno;
+
+		close(source);
+
+		purple_debug_error("proxy", "getsockopt SO_ERROR check: %s\n", g_strerror(error));
+
+		qq_connect_cb(gc, -1, _("Unable to connect"));
+		return;
+	}
+
+	qq_connect_cb(gc, source, NULL);
+}
+
+static void qq_udp_host_resolved(GSList *hosts, gpointer data, const char *error_message) {
+	PurpleConnection *gc;
+	qq_data *qd;
+	struct sockaddr server_addr;
+	int addr_size;
+	gint fd = -1;
+	int flags;
+
+	gc = (PurpleConnection *) data;
+	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
+
+	if (!hosts || !hosts->data) {
+		purple_connection_error_reason(gc,
+			PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+			_("Couldn't resolve host"));
+		return;
+	}
+
+	qd = (qq_data *) gc->proto_data;
+	qd->query_data = NULL;
+
+	addr_size = GPOINTER_TO_INT(hosts->data);
+	hosts = g_slist_remove(hosts, hosts->data);
+	memcpy(&server_addr, hosts->data, addr_size);
+	g_free(hosts->data);
+	
+	hosts = g_slist_remove(hosts, hosts->data);
+	while(hosts) {
+		hosts = g_slist_remove(hosts, hosts->data);
+		g_free(hosts->data);
+		hosts = g_slist_remove(hosts, hosts->data);
+	}
+
+	fd = socket(PF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ", 
+				"Unable to create socket: %s\n", g_strerror(errno));
+		return;
+	}
+
+	/* we use non-blocking mode to speed up connection */
+	flags = fcntl(fd, F_GETFL);
+	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+	/* From Unix-socket-FAQ: http://www.faqs.org/faqs/unix-faq/socket/
+	 *
+	 * If a UDP socket is unconnected, which is the normal state after a
+	 * bind() call, then send() or write() are not allowed, since no
+	 * destination is available; only sendto() can be used to send data.
+	 *   
+	 * Calling connect() on the socket simply records the specified address
+	 * and port number as being the desired communications partner. That
+	 * means that send() or write() are now allowed; they use the destination
+	 * address and port given on the connect call as the destination of packets.
+	 */
+	if (connect(fd, &server_addr, addr_size) >= 0) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Connected.\n");
+		flags = fcntl(fd, F_GETFL);
+		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+		qq_connect_cb(gc, fd, NULL);
+		return;
+	}
+	
+	/* [EINPROGRESS]
+	 *    The socket is marked as non-blocking and the connection cannot be 
+	 *    completed immediately. It is possible to select for completion by 
+	 *    selecting the socket for writing.
+	 * [EINTR]
+	 *    A signal interrupted the call. 
+	 *    The connection is established asynchronously.
+	 */
+	if ((errno == EINPROGRESS) || (errno == EINTR)) {
+			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Connect in asynchronous mode.\n");
+			qd->fd_udp_active = purple_input_add(fd, PURPLE_INPUT_WRITE, qq_udp_conn_cb, gc);
+			return;
+		}
+
+	purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Connection failed: %d\n", g_strerror(errno));
+	close(fd);
+}
+
 /* establish a generic QQ connection 
  * TCP/UDP, and direct/redirected */
-gint qq_connect(PurpleAccount *account, const gchar *host, guint16 port, 
+void qq_connect(PurpleAccount *account, const gchar *hostname, guint16 port, 
 		gboolean use_tcp)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
 
-	g_return_val_if_fail(host != NULL, -1);
-	g_return_val_if_fail(port > 0, -1);
+	g_return_if_fail(hostname != NULL);
+	g_return_if_fail(port > 0);
 
 	gc = purple_account_get_connection(account);
-	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, -1);
+	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 
 	qd = (qq_data *) gc->proto_data;
+
 	qd->before_login_packets = g_queue_new();
 
-	qd->server_ip = g_strdup(host);
-	qd->server_port = port;
+	qd->real_hostname = g_strdup(hostname);
+	qd->real_port = port;
 
 	/* QQ connection via UDP/TCP. 
 	* I use Purple proxy function to provide TCP proxy support,
 	* and qq_udp_proxy.c to add UDP proxy support (thanks henry) */
-	if(use_tcp) {
-		return (purple_proxy_connect(NULL, account, host, port, qq_connect_cb, gc) == NULL);
+	if(qd->use_tcp) {
+   		purple_debug(PURPLE_DEBUG_INFO, "QQ", "TCP Connect to %s:%d\n",
+   			qd->real_hostname, qd->real_port);
+		if (purple_proxy_connect(NULL, account,
+				qd->real_hostname, qd->real_port, qq_connect_cb, gc) == NULL) {
+			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+				_("Unable to connect."));
+		}
+		return;
 	}
 	
-	return qq_connect_by_udp(account, host, port, qq_connect_cb, gc);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ", "UDP Connect to %s:%d\n",
+		qd->real_hostname, qd->real_port);
+	qd->query_data = purple_dnsquery_a(qd->real_hostname, qd->real_port,
+		qq_udp_host_resolved, gc);
+	if (qd->query_data == NULL) {
+		purple_connection_error_reason(qd->gc,
+			PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+			_("Could not resolve hostname"));
+	}
 }
 
 /* clean up qq_data structure and all its components
@@ -201,6 +343,8 @@ void qq_disconnect(PurpleConnection *gc)
 		purple_input_remove(gc->inpa);
 		gc->inpa = 0;
 	}
+
+	g_free(qd->real_hostname);
 
 	qq_b4_packets_free(qd);
 	qq_sendqueue_free(qd);
@@ -306,7 +450,7 @@ static void _qq_process_packet_default(guint8 *buf, gint buf_len, guint16 cmd, g
 {
 	qq_data *qd;
 	guint8 *data;
-	gchar *msg_utf8;
+	gchar *msg_utf8 = NULL;
 	gint len;
 
 	g_return_if_fail(buf != NULL && buf_len != 0);
@@ -314,7 +458,6 @@ static void _qq_process_packet_default(guint8 *buf, gint buf_len, guint16 cmd, g
 	qd = (qq_data *) gc->proto_data;
 	len = buf_len;
 	data = g_newa(guint8, len);
-	msg_utf8 = NULL;
 
 	qq_show_packet("Processing unknown packet", buf, len);
 	if (qq_decrypt(buf, buf_len, qd->session_key, data, &len)) {
@@ -322,7 +465,10 @@ static void _qq_process_packet_default(guint8 *buf, gint buf_len, guint16 cmd, g
 				data, len,
 				">>> [%d] %s -> [default] decrypt and dump",
 				seq, qq_get_cmd_desc(cmd));
-		try_dump_as_gbk(data, len);
+		msg_utf8 = try_dump_as_gbk(data, len);
+		if (msg_utf8) {
+			g_free(msg_utf8);
+		}
 	} else {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Fail decrypt packet with default process\n");
 	}
@@ -586,7 +732,7 @@ gint _create_packet_head_seq(guint8 *buf, PurpleConnection *gc,
 /* for those need ack and resend no ack feed back from server
  * return number of bytes written to the socket,
  * return -1 if there is any error */
-gint _qq_send_packet(PurpleConnection *gc, guint8 *buf, gint len, guint16 cmd)
+gint qq_send_packet(PurpleConnection *gc, guint8 *buf, gint len, guint16 cmd)
 {
 	qq_data *qd;
 	qq_sendpacket *p = NULL;
@@ -673,7 +819,7 @@ gint qq_send_cmd(PurpleConnection *gc, guint16 cmd,
 
 	/* if it does not need ACK, we send ACK manually several times */
 	if (need_ack)   /* my request, send it */
-		bytes_sent = _qq_send_packet(gc, buf, bytes, cmd);
+		bytes_sent = qq_send_packet(gc, buf, bytes, cmd);
 	else		/* server's request, send ACK */
 		bytes_sent = qq_proxy_write(qd, buf, bytes);
 

@@ -46,7 +46,7 @@ gchar *chat_name_to_purple_name(const gchar *const name);
 
 gchar *face_to_icon_str(gint face);
 
-void try_dump_as_gbk(const guint8 *const data, gint len);
+gchar *try_dump_as_gbk(const guint8 *const data, gint len);
 
 void qq_show_packet(const gchar *desc, const guint8 *buf, gint len);
 void qq_hex_dump(PurpleDebugLevel level, const char *category,

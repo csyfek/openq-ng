@@ -60,8 +60,6 @@ QQSOURCES = \
 	sendqueue.h \
 	sys_msg.c \
 	sys_msg.h \
-	qq_udp_s5.c \
-	qq_udp_s5.h \
 	utils.c \
 	utils.h
 

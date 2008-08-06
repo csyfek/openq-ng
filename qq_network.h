@@ -35,7 +35,7 @@
 gint qq_proxy_read(qq_data *qd, guint8 *data, gint len);
 gint qq_proxy_write(qq_data *qd, guint8 *data, gint len);
 
-gint qq_connect(PurpleAccount *account, const gchar *host, guint16 port, gboolean use_tcp);
+void qq_connect(PurpleAccount *account, const gchar *host, guint16 port, gboolean use_tcp);
 void qq_disconnect(PurpleConnection *gc);
 
 void qq_b4_packets_free(qq_data *qd);
@@ -43,7 +43,7 @@ void qq_input_pending(gpointer data, gint source, PurpleInputCondition cond);
 
 gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, gboolean is_auto_seq, guint16 seq, 
 		gboolean need_ack, guint8 *data, gint len);
-gint _qq_send_packet(PurpleConnection * gc, guint8 *buf, gint len, guint16 cmd);
+gint qq_send_packet(PurpleConnection *gc, guint8 *buf, gint len, guint16 cmd);
 gint _create_packet_head_seq(guint8 *buf, PurpleConnection *gc,
 		guint16 cmd, gboolean is_auto_seq, guint16 *seq);
 #endif
