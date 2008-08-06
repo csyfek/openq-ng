@@ -126,9 +126,10 @@ static void srv_resolved(PurpleSrvResponse *resp, int results, gpointer account)
 		}
 	}
 
+	/*
 	purple_debug(PURPLE_DEBUG_INFO, "QQ",
-		"using udp with server %s and port %d\n", hostname, port);
-
+		"using with server %s and port %d\n", hostname, port);
+	*/
 	qd->real_hostname = g_strdup(hostname);
 	qd->real_port = port;
 	qq_connect(account);

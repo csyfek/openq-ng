@@ -510,12 +510,6 @@ static void tcp_can_write(gpointer data, gint source, PurpleInputCondition cond)
 	qq_data *qd = data;
 	int ret, writelen;
 
-	if(cond != PURPLE_INPUT_READ) {
-		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-				_("Socket error"));
-		return;
-	}
-
 	writelen = purple_circ_buffer_get_max_read(qd->tcp_txbuf);
 	if (writelen == 0) {
 		purple_input_remove(qd->tx_handler);
@@ -545,30 +539,32 @@ static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 
 	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
 
-	purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
+	// purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
 
 	if (qd->tx_handler == 0) {
 		ret = write(qd->fd, data, data_len);
-		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT",
-			"total %d bytes is sent %d\n", data_len, ret);
 	} else {
 		ret = -1;
 		errno = EAGAIN;
 	}
 
+	purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT",
+		"Socket %d, total %d bytes is sent %d\n", qd->fd, data_len, ret);
 	if (ret < 0 && errno == EAGAIN) {
 		// socket is busy, send later
-		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Socket is busy and send later\n");
+		// purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Socket is busy and send later\n");
 		ret = 0;
 	} else if (ret <= 0) {
 		// TODO: what to do here - do we really have to disconnect?
-		purple_debug(PURPLE_DEBUG_ERROR, "TCP_SEND_OUT", "Send failed: %d, %s\n", errno, g_strerror(errno));
+		purple_debug(PURPLE_DEBUG_ERROR, "TCP_SEND_OUT",
+			"Send to socket %d failed: %d, %s\n", qd->fd, errno, g_strerror(errno));
 		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, g_strerror(errno));
 		return ret;
 	}
 
 	if (ret < data_len) {
-		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT", "Add %d bytes to buffer\n", data_len - ret);
+		purple_debug(PURPLE_DEBUG_INFO, "TCP_SEND_OUT",
+			"Add %d bytes to buffer\n", data_len - ret);
 		if (qd->tx_handler == 0) {
 			qd->tx_handler = purple_input_add(qd->fd, PURPLE_INPUT_WRITE, tcp_can_write, qd);
 		}
@@ -658,6 +654,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	gc = (PurpleConnection *) data;
 
 	if (!PURPLE_CONNECTION_IS_VALID(gc)) {
+		purple_debug(PURPLE_DEBUG_INFO, "QQ_CONN", "Invalid connection\n");
 		close(source);
 		return;
 	}
@@ -670,6 +667,7 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 	qd->connect_data = NULL;
 
 	if (source < 0) {	/* socket returns -1 */
+		purple_debug(PURPLE_DEBUG_INFO, "QQ_CONN", "Source is < 0\n");
 		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_message);
 		return;
 	}

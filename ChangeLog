@@ -1,3 +1,8 @@
+2008.05.14 - ccpaging <ecc_hy(at)hotmail.com>
+	* Move function for before login packets storing to sendqueue
+	* Use transaction data structure to store before login packets
+	* Rewrite tcp_pending and packet_process in qq_network.c
+
 2008.05.09 - ccpaging <ecc_hy(at)hotmail.com>
 	* Remove function _create_packet_head_seq in qq_network.c
 	* Create new function encap in qq_netowork.c

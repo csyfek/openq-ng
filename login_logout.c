@@ -417,7 +417,8 @@ void qq_process_request_login_token_reply(guint8 *buf, gint buf_len, PurpleConne
 			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
 			g_free(error_msg);
 		} else {
-			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Error requesting login token"));
+			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+				_("Error requesting login token"));
 		}
 	}
 }
