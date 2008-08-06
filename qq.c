@@ -175,6 +175,7 @@ static void qq_login(PurpleAccount *account)
 	} else {
 		qd->server_name = g_strdup(userserver);
 	}
+
 	purple_connection_update_progress(gc, _("Connecting"), 0, QQ_CONNECT_STEPS);
 
 	if(!purple_account_get_bool(account, "useproxy", FALSE)) {
@@ -198,18 +199,10 @@ static void qq_close(PurpleConnection *gc)
 
 	qd = gc->proto_data;
 
-	if (qd->query_data != NULL)
-		purple_dnsquery_destroy(qd->query_data);
-
 	if (qd->srv_query_data != NULL)
 		purple_srv_cancel(qd->srv_query_data);
 	
 	g_free(qd->server_name);
-	g_free(qd->inikey);
-	g_free(qd->pwkey);
-	g_free(qd->session_key);
-	g_free(qd->session_md5);
-	g_free(qd->my_ip);
 	g_free(qd);
 
 	gc->proto_data = NULL;
@@ -663,7 +656,7 @@ static GList *_qq_buddy_menu(PurpleBlistNode * node)
 }
 
 
-static void _qq_keep_alive(PurpleConnection *gc)
+static void qq_keep_alive(PurpleConnection *gc)
 {
 	qq_group *group;
 	qq_data *qd;
@@ -745,7 +738,7 @@ static PurplePluginProtocolInfo prpl_info	= {
 	NULL,							/* chat_leave */
 	NULL,							/* chat_whisper */
 	_qq_chat_send,						/* chat_send */
-	_qq_keep_alive,						/* keepalive */
+	qq_keep_alive,						/* keepalive */
 	NULL,							/* register_user */
 	_qq_get_chat_buddy_info,				/* get_cb_info	*/
 	NULL,							/* get_cb_away	*/

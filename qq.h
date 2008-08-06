@@ -28,6 +28,7 @@
 #include <glib.h>
 #include "internal.h"
 #include "ft.h"
+#include "circbuffer.h"
 #include "dnsquery.h"
 #include "dnssrv.h"
 #include "proxy.h"
@@ -70,10 +71,28 @@ struct _qq_buddy {
 struct _qq_data {
 	PurpleConnection *gc;
 	gchar *server_name;
-	PurpleDnsQueryData *query_data;
-	PurpleSrvQueryData *srv_query_data;
+
+	// common network resource
+	PurpleSrvQueryData *srv_query_data;	// srv resolve
+	gchar *real_hostname;	// from real connction
+	guint16 real_port;
+	gboolean use_tcp;		// network in tcp or udp
 	
-	gint fd;			/* socket file handler */
+	gint fd;				// socket file handler
+	gint tx_handle; 	// socket can_write handle
+
+	GList *transactions;	// check ack packet and resend
+	guint resend_timeout;
+
+	guint8 window[1 << 13];		/* check up for duplicated packet */
+	GQueue *before_login_packets;
+	
+	// tcp related
+	PurpleCircBuffer *tcp_txbuf;
+	
+	// udp related
+	PurpleDnsQueryData *udp_query_data;
+
 	guint32 uid;			/* QQ number */
 	guint8 *inikey;			/* initial key to encrypt login packet */
 	guint8 *pwkey;			/* password in md5 (or md5' md5) */
@@ -83,19 +102,10 @@ struct _qq_data {
 	guint16 send_seq;		/* send sequence number */
 	guint8 login_mode;		/* online of invisible */
 	gboolean logged_in;		/* used by qq-add_buddy */
-	gboolean use_tcp;		/* network in tcp or udp */
-
-	gint fd_udp_active; 	// socket file handle for active udp socket
-
-	PurpleProxyType proxy_type;
 
 	PurpleXfer *xfer;			/* file transfer handler */
 	struct sockaddr_in dest_sin;
 
-	/* from real connction */
-	gchar *real_hostname;
-	guint16 real_port;
-	
 	/* get from login reply packet */
 	time_t login_time;
 	time_t last_login_time;
@@ -108,9 +118,6 @@ struct _qq_data {
 	guint32 all_online;		/* the number of online QQ users */
 	time_t last_get_online;		/* last time send get_friends_online packet */
 
-	guint8 window[1 << 13];		/* check up for duplicated packet */
-	gint sendqueue_timeout;
-
 	PurpleRoomlist *roomlist;
 	gint channel;			/* the id for opened chat conversation */
 
@@ -121,10 +128,8 @@ struct _qq_data {
 	GList *buddies;
 	GList *contact_info_window;
 	GList *group_info_window;
-	GList *sendqueue;
 	GList *info_query;
 	GList *add_buddy_request;
-	GQueue *before_login_packets;
 
 	/* TODO pass qq_send_packet_get_info() a callback and use signals to get rid of these */
 	gboolean modifying_info;

@@ -1,3 +1,15 @@
+2008.05.09 - ccpaging <ecc_hy(at)hotmail.com>
+	* Clean code of packet_parse.c, enable PARSER_DEBUG
+	* Rewrite send_queue
+
+2008.05.08 - ccpaging <ecc_hy(at)hotmail.com>
+	* Rewrite qq_network
+	* Add srv resolve function when qq_login
+	* Merge function _qq_common_clean in qq_proxy.c to qq_disconnect
+	* Move orignal qq_disconnect to qq_close
+	* qq_data alloc in qq_open and release in qq_close
+	* Network connect of QQ is created in qq_connect, and release in qq_disconnect
+
 2008.05.05 - ccpaging <ecc_hy(at)hotmail.com>
 	* Merge function _qq_common_clean in qq_proxy.c to qq_disconnect
 	* Move orignal qq_disconnect to qq_close
