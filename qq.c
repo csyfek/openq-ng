@@ -550,7 +550,7 @@ static void _qq_menu_create_permanent_group(PurplePluginAction * action)
 			   _("Input Qun name here"),
 			   _("Only QQ members can create permanent Qun"),
 			   "OpenQ", FALSE, FALSE, NULL,
-			   _("Create"), G_CALLBACK(qq_group_create_with_name), _("Cancel"), NULL, gc);
+			   _("Create"), G_CALLBACK(qq_room_create_new), _("Cancel"), NULL, gc);
 }
 */
 

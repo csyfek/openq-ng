@@ -1,5 +1,5 @@
 /**
- * @file crypt.c
+ * @file qq_crypt.c
  *
  * purple
  *
@@ -43,6 +43,7 @@ the golden ratio: Sqrt(5/4) - 1/2 ~ 0.618034 multiplied by 2^32.
 #include <string.h>
 
 #include "debug.h"
+#include "qq_crypt.h"
 
 #if 0
 void show_binary(char *psztitle, const guint8 *const buffer, gint bytes)

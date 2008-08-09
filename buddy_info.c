@@ -990,6 +990,12 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 		purple_debug(PURPLE_DEBUG_INFO, "QQ_LEVEL", 
 				"%d, tmOnline: %d, level: %d, tmRemainder: %d\n", 
 				uid, onlineTime, level, timeRemainder);
+		if (uid == qd->uid) {
+			qd->my_level = level;
+			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Got my levels as %d\n", qd->my_level);
+			continue;
+		}
+
 		purple_name = uid_to_purple_name(uid);
 		if (purple_name == NULL) {
 			continue;
@@ -1005,12 +1011,7 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 		
 		if (q_bud == NULL) {
 			purple_debug(PURPLE_DEBUG_ERROR, "QQ", 
-					"Got an online buddy %d, but not in my buddy list\n", uid);
-			continue;
-		}
-
-		if (uid == qd->uid) {
-			qd->my_level = level;
+					"Got levels of %d not in my buddy list\n", uid);
 			continue;
 		}
 
