@@ -34,10 +34,10 @@
 #define PURPLE_GROUP_QQ_QUN         "QQ 群"
 
 typedef enum {
-	QQ_GROUP_MEMBER_STATUS_NOT_MEMBER = 0x00,	/* default 0x00 means not member */
-	QQ_GROUP_MEMBER_STATUS_IS_MEMBER,
-	QQ_GROUP_MEMBER_STATUS_APPLYING,
-	QQ_GROUP_MEMBER_STATUS_IS_ADMIN,
+	QQ_ROOM_MEMBER_STATUS_NOT_MEMBER = 0x00,	/* default 0x00 means not member */
+	QQ_ROOM_MEMBER_STATUS_IS_MEMBER,
+	QQ_ROOM_MEMBER_STATUS_APPLYING,
+	QQ_ROOM_MEMBER_STATUS_IS_ADMIN,
 } qq_group_member_status;
 
 typedef struct _qq_group {
@@ -48,10 +48,10 @@ typedef struct _qq_group {
 	guint32 ext_id;
 	guint8 type8;			/* permanent or temporory */
 	guint32 creator_uid;
-	guint32 group_category;
+	guint32 category;
 	guint8 auth_type;
-	gchar *group_name_utf8;
-	gchar *group_desc_utf8;
+	gchar *title_utf8;
+	gchar *desc_utf8;
 	/* all these will be loaded from the network */
 	gchar *notice_utf8;	/* group notice by admin */
 	GList *members;	

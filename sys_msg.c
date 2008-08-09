@@ -144,7 +144,7 @@ static void _qq_send_packet_ack_msg_sys(PurpleConnection *gc, guint8 code, guint
 	if (bytes == ack_len)	/* creation OK */
 		qq_send_cmd_detail(qd, QQ_CMD_ACK_SYS_MSG, 0, FALSE, ack, ack_len);
 	else
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
+		purple_debug_error("QQ",
 			   "Fail creating sys msg ACK, expect %d bytes, build %d bytes\n", ack_len, bytes);
 }
 
@@ -310,7 +310,7 @@ void qq_process_msg_sys(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 	_qq_send_packet_ack_msg_sys(gc, code[0], strtol(from, NULL, 10), seq);
 
 	if (strtol(to, NULL, 10) != qd->uid) {	/* not to me */
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Recv sys msg to [%s], not me!, discard\n", to);
+		purple_debug_error("QQ", "Recv sys msg to [%s], not me!, discard\n", to);
 		g_strfreev(segments);
 		return;
 	}
@@ -333,12 +333,12 @@ void qq_process_msg_sys(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 		_qq_process_msg_sys_notice(gc, from, to, msg_utf8);
 		break;
 	case QQ_MSG_SYS_NEW_VERSION:
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			   "QQ server says there is newer version than %s\n", qq_get_ver_desc(QQ_CLIENT));
 		break;
 	default:
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Recv unknown sys msg code: %s\n", code);
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "the msg is : %s\n", msg_utf8);
+		purple_debug_warning("QQ", "Recv unknown sys msg code: %s\n", code);
+		purple_debug_warning("QQ", "the msg is : %s\n", msg_utf8);
 	}
 	g_free(msg_utf8);
 	g_strfreev(segments);

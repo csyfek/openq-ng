@@ -102,7 +102,7 @@ void qq_proc_cmd_server(PurpleConnection *gc,
 	data = g_newa(guint8, rcved_len);
 	data_len = qq_decrypt(data, rcved, rcved_len, qd->session_key);
 	if (data_len < 0) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Can not decrypt server cmd by session key, [%05d], 0x%04X %s, len %d\n", 
 			seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
 		qq_show_packet("Can not decrypted", rcved, rcved_len);
@@ -110,7 +110,7 @@ void qq_proc_cmd_server(PurpleConnection *gc,
 	}
 
 	if (data_len <= 0) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Server cmd decrypted is empty, [%05d], 0x%04X %s, len %d\n", 
 			seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
 		return;
@@ -144,7 +144,7 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 
 	ret_8 = qq_process_login_reply(data, data_len, gc);
 	if (ret_8 == QQ_LOGIN_REPLY_OK) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Login repliess OK; everything is fine\n");
+		purple_debug_info("QQ", "Login repliess OK; everything is fine\n");
 
 		purple_connection_set_state(gc, PURPLE_CONNECTED);
 		qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
@@ -171,10 +171,9 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 	}
 
 	if (ret_8 == QQ_LOGIN_REPLY_REDIRECT) {
-		qd->is_redirect = TRUE;
 		/*
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
-			"Redirected to new server: %s:%d\n", qd->real_hostname, qd->real_port);
+		purple_debug_warning("QQ",
+			"Redirected to new server: %s:%d\n", inet_ntoa(qd->redirect_ip), qd->redirect_port);
 		*/
 		return;
 	}
@@ -239,7 +238,7 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 	data = g_newa(guint8, rcved_len);
 	data_len = qq_decrypt(data, rcved, rcved_len, qd->session_key);
 	if (data_len < 0) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Can not decrypt room cmd by session key, [%05d], 0x%02X %s for %d, len %d\n", 
 			seq, room_cmd, qq_get_room_cmd_desc(room_cmd), room_id, rcved_len);
 		qq_show_packet("Can not decrypted", rcved, rcved_len);
@@ -247,14 +246,14 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 	}
 
 	if (room_id <= 0) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Invaild room id, [%05d], 0x%02X %s for %d, len %d\n", 
 			seq, room_cmd, qq_get_room_cmd_desc(room_cmd), room_id, rcved_len);
 		return;
 	}
 
 	if (data_len <= 2) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Invaild len of room cmd decrypted, [%05d], 0x%02X %s for %d, len %d\n", 
 			seq, room_cmd, qq_get_room_cmd_desc(room_cmd), room_id, rcved_len);
 		return;
@@ -262,7 +261,7 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 	
 	group = qq_room_search_id(gc, room_id);
 	if (group == NULL) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Missing room id in [%05d], 0x%02X %s for %d, len %d\n", 
 			seq, room_cmd, qq_get_room_cmd_desc(room_cmd), room_id, rcved_len);
 	}
@@ -272,7 +271,7 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 	bytes += qq_get8(&reply, data + bytes);
 
 	if (reply_cmd != room_cmd) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Missing room cmd in reply 0x%02X %s, [%05d], 0x%02X %s for %d, len %d\n", 
 			reply_cmd, qq_get_room_cmd_desc(reply_cmd),
 			seq, room_cmd, qq_get_room_cmd_desc(room_cmd), room_id, rcved_len);
@@ -287,10 +286,9 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 		switch (reply) {	/* this should be all errors */
 		case QQ_ROOM_CMD_REPLY_NOT_MEMBER:
 			if (group != NULL) {
-				purple_debug(PURPLE_DEBUG_WARNING,
-					   "QQ",
-					   _("You are not a member of group \"%s\"\n"), group->group_name_utf8);
-				group->my_status = QQ_GROUP_MEMBER_STATUS_NOT_MEMBER;
+				purple_debug_warning("QQ",
+					   _("You are not a member of group \"%s\"\n"), group->title_utf8);
+				group->my_status = QQ_ROOM_MEMBER_STATUS_NOT_MEMBER;
 				qq_group_refresh(gc, group);
 			}
 			break;
@@ -352,7 +350,7 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 			qq_group_conv_refresh_online_member(gc, group);
 		break;
 	default:
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			   "Unknow room cmd 0x%02X %s\n", 
 			   reply_cmd, qq_get_room_cmd_desc(reply_cmd));
 	}
@@ -370,7 +368,6 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	guint8 ret_8 = 0;
 	guint16 ret_16 = 0;
 	guint32 ret_32 = 0;
-	gchar *error_msg = NULL;
 
 	g_return_if_fail(rcved_len > 0);
 
@@ -379,18 +376,20 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 
 	data = g_newa(guint8, rcved_len);
 	if (cmd == QQ_CMD_TOKEN) {
-		g_memmove(data, rcved, rcved_len);
-		data_len = rcved_len;
-	} else if (cmd == QQ_CMD_LOGIN) {
+		/* the command should be processed before */
+		return;
+	}
+
+	if (cmd == QQ_CMD_LOGIN) {
 		/* May use password_twice_md5 in the past version like QQ2005*/
 		data_len = qq_decrypt(data, rcved, rcved_len, qd->inikey);
 		if (data_len >= 0) {
-			purple_debug(PURPLE_DEBUG_WARNING, "QQ", 
+			purple_debug_warning("QQ", 
 					"Decrypt login reply packet with inikey, %d bytes\n", data_len);
 		} else {
 			data_len = qq_decrypt(data, rcved, rcved_len, qd->password_twice_md5);
 			if (data_len >= 0) {
-				purple_debug(PURPLE_DEBUG_WARNING, "QQ", 
+				purple_debug_warning("QQ", 
 					"Decrypt login reply packet with password_twice_md5, %d bytes\n", data_len);
 			} else {
 				purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, 
@@ -401,7 +400,7 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	} else {
 		data_len = qq_decrypt(data, rcved, rcved_len, qd->session_key);
 		if (data_len < 0) {
-			purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+			purple_debug_warning("QQ",
 				"Can not reply by session key, [%05d], 0x%04X %s, len %d\n", 
 				seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
 			qq_show_packet("Can not decrypted", rcved, rcved_len);
@@ -410,26 +409,13 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	}
 	
 	if (data_len <= 0) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+		purple_debug_warning("QQ",
 			"Reply decrypted is empty, [%05d], 0x%04X %s, len %d\n", 
 			seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
 		return;
 	}
 
 	switch (cmd) {
-		case QQ_CMD_TOKEN:
-			ret_8 = qq_process_token_reply(gc, error_msg, data, data_len);
-			if (ret_8 != QQ_TOKEN_REPLY_OK) {
-				if (error_msg == NULL) {
-					error_msg = g_strdup_printf( _("Invalid token reply code, 0x%02X"), ret_8);
-				}
-				purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
-				g_free(error_msg);
-				return;
-			}
-			
-			qq_send_packet_login(gc);
-			break;
 		case QQ_CMD_LOGIN:
 			process_cmd_login(gc, data, data_len);
 			break;
@@ -463,10 +449,10 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 		case QQ_CMD_GET_BUDDIES_ONLINE:
 			ret_8 = qq_process_get_buddies_online_reply(data, data_len, gc);
 			if (ret_8  > 0 && ret_8 < 0xff) {
-				purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more online buddies\n"); 
+				purple_debug_info("QQ", "Requesting for more online buddies\n"); 
 				qq_send_packet_get_buddies_online(gc, ret_8);
 			} else {
-				purple_debug(PURPLE_DEBUG_INFO, "QQ", "All online buddies received\n"); 
+				purple_debug_info("QQ", "All online buddies received\n"); 
 				/* Fixme: this should not be called once*/
 				qq_send_packet_get_buddies_levels(gc);
 
@@ -479,20 +465,20 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 		case QQ_CMD_GET_BUDDIES_LIST:
 			ret_16 = qq_process_get_buddies_list_reply(data, data_len, gc);
 			if (ret_16 > 0	&& ret_16 < 0xffff) { 
-				purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more buddies\n"); 
+				purple_debug_info("QQ", "Requesting for more buddies\n"); 
 				qq_send_packet_get_buddies_list(gc, ret_16);
 			} else {
-				purple_debug(PURPLE_DEBUG_INFO, "QQ", "All buddies received. Requesting buddies' levels\n");
+				purple_debug_info("QQ", "All buddies received. Requesting buddies' levels\n");
 				qq_send_packet_get_buddies_online(gc, 0);
 			}
 			break;
 		case QQ_CMD_GET_BUDDIES_AND_ROOMS:
 			ret_32 = qq_process_get_buddies_and_rooms(data, data_len, gc);
 			if (ret_32 > 0 && ret_32 < 0xffffffff) {
-				purple_debug(PURPLE_DEBUG_INFO, "QQ", "Requesting for more buddies and groups\n");
+				purple_debug_info("QQ", "Requesting for more buddies and groups\n");
 				qq_send_packet_get_buddies_and_rooms(gc, ret_32);
 			} else {
-				purple_debug(PURPLE_DEBUG_INFO, "QQ", "All buddies and groups received\n"); 
+				purple_debug_info("QQ", "All buddies and groups received\n"); 
 			}
 			break;
 		default:

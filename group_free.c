@@ -55,8 +55,8 @@ void qq_group_free(qq_group *group)
 	g_return_if_fail(group != NULL);
 	qq_group_free_member(group);
 	g_free(group->my_status_desc);
-	g_free(group->group_name_utf8);
-	g_free(group->group_desc_utf8);
+	g_free(group->title_utf8);
+	g_free(group->desc_utf8);
 	g_free(group->notice_utf8);
 	g_free(group);
 }
@@ -75,5 +75,5 @@ void qq_group_free_all(qq_data *qd)
 		qq_group_free(group);
 	}
 
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "%d groups are freed\n", i);
+	purple_debug_info("QQ", "%d groups are freed\n", i);
 }

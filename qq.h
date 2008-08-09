@@ -41,16 +41,15 @@ const char *qq_win32_buddy_icon_dir(void);
 #define QQ_BUDDY_ICON_DIR qq_win32_buddy_icon_dir()
 #endif
 
-typedef struct _qq_data qq_data;
-typedef struct _qq_buddy qq_buddy;
-typedef struct _qq_interval qq_interval;
 
+typedef struct _qq_interval qq_interval;
 struct _qq_interval {
 	gint resend;
 	gint keep_alive;
 	gint update; 
 };
 
+typedef struct _qq_buddy qq_buddy;
 struct _qq_buddy {
 	guint32 uid;
 	guint16 face;		/* index: 0 - 299 */
@@ -73,39 +72,48 @@ struct _qq_buddy {
 	gint8  role;		/* role in group, used only in group->members list */
 };
 
-struct _qq_data {
-	PurpleConnection *gc;
-
-	/* common network resource */
-	GList *servers;
-	gchar *user_server;
-	gint user_port;
-	gboolean use_tcp;		/* network in tcp or udp */
-	
-	gchar *server_name;
-	gboolean is_redirect;
-	gchar *real_hostname;	/* from real connction */
-	guint16 real_port;
-	guint reconnect_timeout;
-	gint reconnect_times;
-
+typedef struct _qq_connection qq_connection;
+struct _qq_connection {
 	PurpleProxyConnectData *connect_data;
-	gint fd;				/* socket file handler */
-	gint tx_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
+	gboolean is_tcp;
 
-	qq_interval itv_config;
-	qq_interval itv_count;
-	guint network_timeout;
-	
-	GList *transactions;	/* check ack packet and resend */
+	int fd;				/* socket file handler */
+	int input_handler;
+
+	int can_write_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
 
 	/* tcp related */
 	PurpleCircBuffer *tcp_txbuf;
 	guint8 *tcp_rxqueue;
 	int tcp_rxlen;
+};
+
+typedef struct _qq_data qq_data;
+struct _qq_data {
+	PurpleConnection *gc;
+
+	/* common network resource */
+	GSList *openconns;
+	qq_connection *conn;
 	
-	/* udp related */
-	PurpleDnsQueryData *udp_query_data;
+	gboolean use_tcp;		/* network in tcp or udp */
+	gint default_port;
+	GList *servers;
+
+	gchar *server_name;
+	guint16 server_port;
+
+	struct in_addr redirect_ip;
+	guint16 redirect_port;
+	
+	guint reconn_watcher;
+	gint reconn_times;
+
+	qq_interval itv_config;
+	qq_interval itv_count;
+	guint network_watcher;
+	
+	GList *transactions;	/* check ack packet and resend */
 
 	guint32 uid;			/* QQ number */
 	guint8 *token;		/* get from server*/
