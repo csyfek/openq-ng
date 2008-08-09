@@ -69,32 +69,25 @@ static void server_list_create(PurpleAccount *account) {
 	PurpleConnection *gc;
 	qq_data *qd;
 	const gchar *user_server;
-	int port;
 
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "Create server list\n");
+	purple_debug_info("QQ", "Create server list\n");
 	gc = purple_account_get_connection(account);
 	g_return_if_fail(gc != NULL  && gc->proto_data != NULL);
 	qd = gc->proto_data;
 
 	qd->use_tcp = purple_account_get_bool(account, "use_tcp", TRUE);
-	port = purple_account_get_int(account, "port", 0);
-	if (port == 0) {
+	qd->default_port = purple_account_get_int(account, "port", 0);
+	if (qd->default_port == 0) {
 		if (qd->use_tcp) {
-			port = QQ_TCP_PORT;
+			qd->default_port = QQ_TCP_PORT;
 		} else {
-			port = QQ_UDP_PORT;
+			qd->default_port = QQ_UDP_PORT;
 		}
 	}
-	qd->user_port = port;
 
- 	g_return_if_fail(qd->user_server == NULL);
 	user_server = purple_account_get_string(account, "server", NULL);
 	if (user_server != NULL && strlen(user_server) > 0) {
-		qd->user_server = g_strdup(user_server);
-	}
-
-	if (qd->user_server != NULL) {
-		qd->servers = g_list_append(qd->servers, qd->user_server);
+		qd->servers = g_list_append(qd->servers, g_strdup(user_server));
 		return;
 	}
 	if (qd->use_tcp) {
@@ -121,19 +114,13 @@ static void server_list_create(PurpleAccount *account) {
 static void server_list_remove_all(qq_data *qd) {
  	g_return_if_fail(qd != NULL);
 
-	if (qd->real_hostname) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free real_hostname\n");
-		g_free(qd->real_hostname);
-		qd->real_hostname = NULL;
-	}
-	
-	if (qd->user_server != NULL) {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "free user_server\n");
-		g_free(qd->user_server);
-		qd->user_server = NULL;
+	if (qd->server_name != NULL) {
+		purple_debug_info("QQ", "free server_name\n");
+		g_free(qd->server_name);
+		qd->server_name = NULL;
 	}
 
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "free server list\n");
+	purple_debug_info("QQ", "free server list\n");
  	g_list_free(qd->servers);
 }
 
@@ -165,8 +152,7 @@ static void qq_login(PurpleAccount *account)
 	}
 
 	server_list_create(account);
-	purple_debug(PURPLE_DEBUG_INFO, "QQ",
-		"Server list has %d\n", g_list_length(qd->servers));
+	purple_debug_info("QQ", "Server list has %d\n", g_list_length(qd->servers));
 
 	qq_connect(account);
 }
@@ -444,7 +430,7 @@ static void _qq_get_info(PurpleConnection *gc, const gchar *who)
 	uid = purple_name_to_uid(who);
 
 	if (uid <= 0) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Not valid QQid: %s\n", who);
+		purple_debug_error("QQ", "Not valid QQid: %s\n", who);
 		purple_notify_error(gc, NULL, _("Invalid name"), NULL);
 		return;
 	}
@@ -516,9 +502,8 @@ static void _qq_menu_show_login_info(PurplePluginAction *action)
 
 	g_string_append(info, "<hr>\n");
 
-	g_string_append_printf(info, _("<b>Server</b>: %s: %d<br>\n"), qd->server_name, qd->real_port);
+	g_string_append_printf(info, _("<b>Server</b>: %s: %d<br>\n"), qd->server_name, qd->server_port);
 	g_string_append_printf(info, _("<b>Connection Mode</b>: %s<br>\n"), qd->use_tcp ? "TCP" : "UDP");
-	g_string_append_printf(info, _("<b>Real hostname</b>: %s: %d<br>\n"), qd->real_hostname, qd->real_port);
 	g_string_append_printf(info, _("<b>My Public IP</b>: %s<br>\n"), inet_ntoa(qd->my_ip));
 
 	g_string_append(info, "<hr>\n");

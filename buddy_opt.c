@@ -261,7 +261,7 @@ void qq_process_add_buddy_auth_reply(guint8 *data, gint data_len, PurpleConnecti
 	qd = (qq_data *) gc->proto_data;
 
 	if (data[0] != QQ_ADD_BUDDY_AUTH_REPLY_OK) {
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Add buddy with auth request failed\n");
+		purple_debug_warning("QQ", "Add buddy with auth request failed\n");
 		if (NULL == (segments = split_data(data, data_len, "\x1f", 2))) {
 			return;
 		}
@@ -269,7 +269,7 @@ void qq_process_add_buddy_auth_reply(guint8 *data, gint data_len, PurpleConnecti
 		purple_notify_error(gc, NULL, _("Add buddy with auth request failed"), msg_utf8);
 		g_free(msg_utf8);
 	} else {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Add buddy with auth request OK\n");
+		purple_debug_info("QQ", "Add buddy with auth request OK\n");
 	}
 }
 
@@ -284,9 +284,9 @@ void qq_process_remove_buddy_reply(guint8 *data, gint data_len, PurpleConnection
 
 	if (data[0] != QQ_REMOVE_BUDDY_REPLY_OK) {
 		/* there is no reason return from server */
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Remove buddy fails\n");
+		purple_debug_warning("QQ", "Remove buddy fails\n");
 	} else {		/* if reply */
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Remove buddy OK\n");
+		purple_debug_info("QQ", "Remove buddy OK\n");
 		/* TODO: We don't really need to notify the user about this, do we? */
 		purple_notify_info(gc, NULL, _("You have successfully removed a buddy"), NULL);
 	}
@@ -303,9 +303,9 @@ void qq_process_remove_self_reply(guint8 *data, gint data_len, PurpleConnection 
 
 	if (data[0] != QQ_REMOVE_SELF_REPLY_OK) {
 		/* there is no reason return from server */
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Remove self fails\n");
+		purple_debug_warning("QQ", "Remove self fails\n");
 	} else {		/* if reply */
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Remove self from a buddy OK\n");
+		purple_debug_info("QQ", "Remove self from a buddy OK\n");
 		/* TODO: Does the user really need to be notified about this? */
 		purple_notify_info(gc, NULL, _("You have successfully removed yourself from your friend's buddy list"), NULL);
 	}
@@ -340,10 +340,10 @@ void qq_process_add_buddy_reply(guint8 *data, gint data_len, guint16 seq, Purple
 	}
 
 	if (for_uid == 0) {	/* we have no record for this */
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "We have no record for add buddy reply [%d], discard\n", seq);
+		purple_debug_error("QQ", "We have no record for add buddy reply [%d], discard\n", seq);
 		return;
 	} else {
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Add buddy reply [%d] is for id [%d]\n", seq, for_uid);
+		purple_debug_info("QQ", "Add buddy reply [%d] is for id [%d]\n", seq, for_uid);
 	}
 
 	if (NULL == (segments = split_data(data, data_len, "\x1f", 2)))
@@ -352,13 +352,13 @@ void qq_process_add_buddy_reply(guint8 *data, gint data_len, guint16 seq, Purple
 	uid = segments[0];
 	reply = segments[1];
 	if (strtol(uid, NULL, 10) != qd->uid) {	/* should not happen */
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Add buddy reply is to [%s], not me!", uid);
+		purple_debug_error("QQ", "Add buddy reply is to [%s], not me!", uid);
 		g_strfreev(segments);
 		return;
 	}
 
 	if (strtol(reply, NULL, 10) > 0) {	/* need auth */
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Add buddy attempt fails, need authentication\n");
+		purple_debug_warning("QQ", "Add buddy attempt fails, need authentication\n");
 		nombre = uid_to_purple_name(for_uid);
 		b = purple_find_buddy(gc->account, nombre);
 		if (b != NULL)
@@ -397,7 +397,7 @@ PurpleGroup *qq_get_purple_group(const gchar *group_name)
 	if (g == NULL) {
 		g = purple_group_new(group_name);
 		purple_blist_add_group(g, NULL);
-		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Add new group: %s\n", group_name);
+		purple_debug_warning("QQ", "Add new group: %s\n", group_name);
 	}
 
 	return g;
@@ -444,7 +444,7 @@ PurpleBuddy *qq_add_buddy_by_recv_packet(PurpleConnection *gc, guint32 uid, gboo
 	}
 
 	purple_blist_add_buddy(b, NULL, g, NULL);
-	purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Add new buddy: [%s]\n", name);
+	purple_debug_warning("QQ", "Add new buddy: [%s]\n", name);
 
 	g_free(name);
 	g_free(group_name);
@@ -502,7 +502,7 @@ void qq_remove_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *grou
 		if (q_bud != NULL)
 			qd->buddies = g_list_remove(qd->buddies, q_bud);
 		else
-			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "We have no qq_buddy record for %s\n", buddy->name);
+			purple_debug_warning("QQ", "We have no qq_buddy record for %s\n", buddy->name);
 		/* remove buddy on blist, this does not trigger qq_remove_buddy again
 		 * do this only if the request comes from block request,
 		 * otherwise purple segmentation fault */
@@ -524,7 +524,7 @@ void qq_add_buddy_request_free(qq_data *qd)
 		g_free(p);
 		i++;
 	}
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "%d add buddy requests are freed!\n", i);
+	purple_debug_info("QQ", "%d add buddy requests are freed!\n", i);
 }
 
 /* free up all qq_buddy */
@@ -544,11 +544,11 @@ void qq_buddies_list_free(PurpleAccount *account, qq_data *qd)
 		if(b != NULL) 
 			b->proto_data = NULL;
 		else
-			purple_debug(PURPLE_DEBUG_INFO, "QQ", "qq_buddy %s not found in purple proto_data\n", name);
+			purple_debug_info("QQ", "qq_buddy %s not found in purple proto_data\n", name);
 		g_free(name);
 
 		g_free(p);
 		i++;
 	}
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "%d qq_buddy structures are freed!\n", i);
+	purple_debug_info("QQ", "%d qq_buddy structures are freed!\n", i);
 }

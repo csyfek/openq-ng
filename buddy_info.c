@@ -697,7 +697,7 @@ void qq_process_modify_info_reply(guint8 *data, gint data_len, PurpleConnection 
 
 	data[data_len] = '\0';
 	if (qd->uid == atoi((gchar *) data)) {	/* return should be my uid */
-		purple_debug(PURPLE_DEBUG_INFO, "QQ", "Update info ACK OK\n");
+		purple_debug_info("QQ", "Update info ACK OK\n");
 		purple_notify_info(gc, NULL, _("Your information has been updated"), NULL);
 	}
 }
@@ -762,7 +762,7 @@ void qq_set_my_buddy_icon(PurpleConnection *gc, PurpleStoredImage *img)
 				&& g_ascii_strncasecmp(icon_path + dir_len + 1 + prefix_len + icon_len, QQ_ICON_SUFFIX, suffix_len) == 0
 				&& icon_len <= 3)) {
 		if (icon_global)
-			purple_debug(PURPLE_DEBUG_ERROR, "QQ", "%s\n", errmsg);
+			purple_debug_error("QQ", "%s\n", errmsg);
 		else
 			purple_notify_error(gc, _("Invalid QQ Face"), errmsg, NULL);
 		g_free(errmsg);
@@ -775,7 +775,7 @@ void qq_set_my_buddy_icon(PurpleConnection *gc, PurpleStoredImage *img)
 	/* ensure face number in proper range */
 	if (icon_num > QQ_FACES) {
 		if (icon_global)
-			purple_debug(PURPLE_DEBUG_ERROR, "QQ", "%s\n", errmsg);
+			purple_debug_error("QQ", "%s\n", errmsg);
 		else
 			purple_notify_error(gc, _("Invalid QQ Face"), errmsg, NULL);
 		g_free(errmsg);
@@ -914,7 +914,7 @@ void qq_info_query_free(qq_data *qd)
 		g_free(p);
 		i++;
 	}
-	purple_debug(PURPLE_DEBUG_INFO, "QQ", "%d info queries are freed!\n", i);
+	purple_debug_info("QQ", "%d info queries are freed!\n", i);
 }
 
 void qq_send_packet_get_level(PurpleConnection *gc, guint32 uid)
@@ -972,7 +972,7 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 
 	decr_len--; 
 	if (decr_len % 12 != 0) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", 
+		purple_debug_error("QQ", 
 				"Get levels list of abnormal length. Truncating last %d bytes.\n", decr_len % 12);
 		decr_len -= (decr_len % 12);
 	}
@@ -980,19 +980,18 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 	bytes += 1;
 	/* this byte seems random */
 	/*
-	   purple_debug(PURPLE_DEBUG_INFO, "QQ", "Byte one of get_level packet: %d\n", buf[0]);
+	   purple_debug_info("QQ", "Byte one of get_level packet: %d\n", buf[0]);
 	   */
 	for (i = 0; i < decr_len; i += 12) {
 		bytes += qq_get32(&uid, decr_buf + bytes);
 		bytes += qq_get32(&onlineTime, decr_buf + bytes);
 		bytes += qq_get16(&level, decr_buf + bytes);
 		bytes += qq_get16(&timeRemainder, decr_buf + bytes);
-		purple_debug(PURPLE_DEBUG_INFO, "QQ_LEVEL", 
-				"%d, tmOnline: %d, level: %d, tmRemainder: %d\n", 
+		purple_debug_info("QQ_LEVEL", "%d, tmOnline: %d, level: %d, tmRemainder: %d\n", 
 				uid, onlineTime, level, timeRemainder);
 		if (uid == qd->uid) {
 			qd->my_level = level;
-			purple_debug(PURPLE_DEBUG_WARNING, "QQ", "Got my levels as %d\n", qd->my_level);
+			purple_debug_warning("QQ", "Got my levels as %d\n", qd->my_level);
 			continue;
 		}
 
@@ -1010,8 +1009,7 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 		}
 		
 		if (q_bud == NULL) {
-			purple_debug(PURPLE_DEBUG_ERROR, "QQ", 
-					"Got levels of %d not in my buddy list\n", uid);
+			purple_debug_error("QQ", "Got levels of %d not in my buddy list\n", uid);
 			continue;
 		}
 

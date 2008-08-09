@@ -47,7 +47,7 @@ typedef struct _qq_transaction {
 	guint8 *data;
 	gint data_len;
 
-	gint fd;
+	int fd;
 	gint send_retries;
 	gint rcved_times;
 	gint scan_times;
@@ -59,9 +59,9 @@ gboolean qq_trans_is_dup(qq_transaction *trans);
 guint8 qq_trans_get_room_cmd(qq_transaction *trans);
 guint32 qq_trans_get_room_id(qq_transaction *trans);
 
-void qq_trans_add_client_cmd(qq_data *qd, guint16 cmd, guint16 seq, guint8 *data, gint data_len);
-void qq_trans_add_server_cmd(qq_data *qd, guint16 cmd, guint16 seq, guint8 *data, gint data_len);
-void qq_trans_add_room_cmd(qq_data *qd, guint16 seq, guint8 room_cmd, guint32 room_id,
+void qq_trans_add_client_cmd(qq_data *qd, int fd, guint16 cmd, guint16 seq, guint8 *data, gint data_len);
+void qq_trans_add_server_cmd(qq_data *qd, int fd, guint16 cmd, guint16 seq, guint8 *data, gint data_len);
+void qq_trans_add_room_cmd(qq_data *qd, int fd, guint16 seq, guint8 room_cmd, guint32 room_id,
 	guint8 *data, gint data_len);
 
 void qq_trans_process_before_login(qq_data *qd);

@@ -85,7 +85,7 @@ void qq_send_packet_group_im(PurpleConnection *gc, qq_group *group, const gchar 
 	if (bytes == data_len)	/* create OK */
 		qq_send_room_cmd(gc, QQ_ROOM_CMD_SEND_MSG, group->id, raw_data, data_len);
 	else
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ",
+		purple_debug_error("QQ",
 				"Fail creating group_im packet, expect %d bytes, build %d bytes\n", data_len, bytes);
 }
 
@@ -177,7 +177,7 @@ void qq_process_recv_group_im_been_rejected(guint8 *data, gint len, guint32 id, 
 
 	group = qq_room_search_id(gc, id);
 	if (group != NULL) {
-		group->my_status = QQ_GROUP_MEMBER_STATUS_NOT_MEMBER;
+		group->my_status = QQ_ROOM_MEMBER_STATUS_NOT_MEMBER;
 		qq_group_refresh(gc, group);
 	}
 
@@ -214,7 +214,7 @@ void qq_process_recv_group_im_been_approved(guint8 *data, gint len, guint32 id, 
 
 	group = qq_room_search_id(gc, id);
 	if (group != NULL) {
-		group->my_status = QQ_GROUP_MEMBER_STATUS_IS_MEMBER;
+		group->my_status = QQ_ROOM_MEMBER_STATUS_IS_MEMBER;
 		qq_group_refresh(gc, group);
 	}
 
@@ -246,7 +246,7 @@ void qq_process_recv_group_im_been_removed(guint8 *data, gint len, guint32 id, P
 
 	group = qq_room_search_id(gc, id);
 	if (group != NULL) {
-		group->my_status = QQ_GROUP_MEMBER_STATUS_NOT_MEMBER;
+		group->my_status = QQ_ROOM_MEMBER_STATUS_NOT_MEMBER;
 		qq_group_refresh(gc, group);
 	}
 
@@ -277,11 +277,11 @@ void qq_process_recv_group_im_been_added(guint8 *data, gint len, guint32 id, Pur
 
 	group = qq_room_search_id(gc, id);
 	if (group != NULL) {
-		group->my_status = QQ_GROUP_MEMBER_STATUS_IS_MEMBER;
+		group->my_status = QQ_ROOM_MEMBER_STATUS_IS_MEMBER;
 		qq_group_refresh(gc, group);
 	} else {		/* no such group, try to create a dummy first, and then update */
 		group = qq_group_create_internal_record(gc, id, ext_id, NULL);
-		group->my_status = QQ_GROUP_MEMBER_STATUS_IS_MEMBER;
+		group->my_status = QQ_ROOM_MEMBER_STATUS_IS_MEMBER;
 		qq_group_refresh(gc, group);
 		qq_send_room_cmd_only(gc, QQ_ROOM_CMD_GET_INFO, group->id);
 		/* the return of this cmd will automatically update the group in blist */
@@ -374,13 +374,13 @@ void qq_process_recv_group_im(guint8 *data, gint data_len, guint32 id, PurpleCon
 	group = qq_room_search_id(gc, id);
 	g_return_if_fail(group != NULL);
 
-	conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->group_name_utf8, purple_connection_get_account(gc));
+	conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->title_utf8, purple_connection_get_account(gc));
 	if (conv == NULL && purple_prefs_get_bool("/plugins/prpl/qq/prompt_group_msg_on_recv")) {
 		/* New conv should open, get group info*/
 		qq_send_room_cmd_only(gc, QQ_ROOM_CMD_GET_INFO, group->id);
 		
-		serv_got_joined_chat(gc, qd->channel++, group->group_name_utf8);
-		conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->group_name_utf8, purple_connection_get_account(gc));
+		serv_got_joined_chat(gc, qd->channel++, group->title_utf8);
+		conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->title_utf8, purple_connection_get_account(gc));
 	}
 
 	if (conv != NULL) {
