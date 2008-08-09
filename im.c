@@ -619,40 +619,40 @@ void qq_process_recv_im(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 		case QQ_RECV_IM_TEMP_QUN_IM:
 		case QQ_RECV_IM_QUN_IM:
 			purple_debug(PURPLE_DEBUG_INFO, "QQ", "IM from group, internal_id [%d]\n", im_header->sender_uid);
-			/* sender_uid is in fact internal_group_id */
+			/* sender_uid is in fact id */
 			qq_process_recv_group_im(data + bytes, data_len - bytes, im_header->sender_uid, gc, im_header->im_type);
 			break;
 		case QQ_RECV_IM_ADD_TO_QUN:
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
 					"IM from group, added by group internal_id [%d]\n", im_header->sender_uid);
-			/* sender_uid is in fact internal_group_id
+			/* sender_uid is group id
 			 * we need this to create a dummy group and add to blist */
 			qq_process_recv_group_im_been_added(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_DEL_FROM_QUN:
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
 					"IM from group, removed by group internal_ID [%d]\n", im_header->sender_uid);
-			/* sender_uid is in fact internal_group_id */
+			/* sender_uid is group id */
 			qq_process_recv_group_im_been_removed(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_APPLY_ADD_TO_QUN:
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
 					"IM from group, apply to join group internal_ID [%d]\n", im_header->sender_uid);
-			/* sender_uid is in fact internal_group_id */
+			/* sender_uid is group id */
 			qq_process_recv_group_im_apply_join(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_APPROVE_APPLY_ADD_TO_QUN:
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
 					"IM for group system info, approved by group internal_id [%d]\n",
 					im_header->sender_uid);
-			/* sender_uid is in fact internal_group_id */
+			/* sender_uid is group id */
 			qq_process_recv_group_im_been_approved(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_REJCT_APPLY_ADD_TO_QUN:
 			purple_debug(PURPLE_DEBUG_INFO, "QQ",
 					"IM for group system info, rejected by group internal_id [%d]\n",
 					im_header->sender_uid);
-			/* sender_uid is in fact internal_group_id */
+			/* sender_uid is group id */
 			qq_process_recv_group_im_been_rejected(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_SYS_NOTIFICATION:

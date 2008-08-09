@@ -304,7 +304,7 @@ void qq_send_packet_login(PurpleConnection *gc)
 	memset(qd->inikey, 0x01, sizeof(qd->inikey));
 #else
 	for (bytes = 0; bytes < sizeof(qd->inikey); bytes++)	{
-		qd->inikey[bytes] = (guint8) (g_random_int_range(0, 255) % 256);
+		qd->inikey[bytes] = (guint8) (rand() & 0xff);
 	}
 #endif
 

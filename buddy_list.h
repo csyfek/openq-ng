@@ -54,8 +54,8 @@ guint8 qq_process_get_buddies_online_reply(guint8 *data, gint data_len, PurpleCo
 void qq_send_packet_get_buddies_list(PurpleConnection *gc, guint16 position);
 guint16 qq_process_get_buddies_list_reply(guint8 *data, gint data_len, PurpleConnection *gc);
 
-void qq_send_packet_get_all_list_with_group(PurpleConnection *gc, guint32 position);
-guint32 qq_process_get_all_list_with_group_reply(guint8 *data, gint data_len, PurpleConnection *gc);
+void qq_send_packet_get_buddies_and_rooms(PurpleConnection *gc, guint32 position);
+guint32 qq_process_get_buddies_and_rooms(guint8 *data, gint data_len, PurpleConnection *gc);
 
 void qq_refresh_all_buddy_status(PurpleConnection *gc);
 
