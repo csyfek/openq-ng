@@ -12,8 +12,8 @@ QQSOURCES = \
 	buddy_opt.h \
 	char_conv.c \
 	char_conv.h \
-	crypt.c \
-	crypt.h \
+	qq_crypt.c \
+	qq_crypt.h \
 	file_trans.c \
 	file_trans.h \
 	group.c \

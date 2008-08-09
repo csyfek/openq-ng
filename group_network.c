@@ -28,7 +28,6 @@
 #include "notify.h"
 
 #include "char_conv.h"
-#include "crypt.h"
 #include "group_conv.h"
 #include "group_find.h"
 #include "group_internal.h"
@@ -153,32 +152,25 @@ void qq_send_group_cmd(PurpleConnection *gc, qq_group *group, guint8 *raw_data, 
 }
 
 /* the main entry of group cmd processing, called by qq_recv_core.c */
-void qq_process_group_cmd_reply(guint8 *buf, gint buf_len, guint16 seq, PurpleConnection *gc)
+void qq_process_group_cmd_reply(guint8 *data, gint data_len, guint16 seq, PurpleConnection *gc)
 {
 	qq_group *group;
 	qq_data *qd;
-	gint len, bytes;
+	gint bytes;
 	guint32 internal_group_id;
-	guint8 *data, sub_cmd, reply;
+	guint8 sub_cmd, reply;
 
-	g_return_if_fail(buf != NULL && buf_len != 0);
+	g_return_if_fail(data != NULL && data_len != 0);
 
 	qd = (qq_data *) gc->proto_data;
-	len = buf_len;
-	data = g_newa(guint8, len);
 
 	if (!qq_group_find_internal_group_id_by_seq(gc, seq, &internal_group_id)) {
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ", "We have no record of group cmd, seq [%d]\n", seq);
 		return;
 	}
 
-	if ( !qq_decrypt(buf, buf_len, qd->session_key, data, &len) ) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Error decrypt group cmd reply\n");
-		return;
-	}
-
-	if (len <= 2) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Group cmd reply is too short, only %d bytes\n", len);
+	if (data_len <= 2) {
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Group cmd reply is too short, only %d bytes\n", data_len);
 		return;
 	}
 
@@ -210,10 +202,10 @@ void qq_process_group_cmd_reply(guint8 *buf, gint buf_len, guint16 seq, PurpleCo
 				if (purple_roomlist_get_in_progress(qd->roomlist))
 					purple_roomlist_set_in_progress(qd->roomlist, FALSE);
 			}
-			_qq_process_group_cmd_reply_error_default(reply, data + bytes, len - bytes, gc);
+			_qq_process_group_cmd_reply_error_default(reply, data + bytes, data_len - bytes, gc);
 			break;
 		default:
-			_qq_process_group_cmd_reply_error_default(reply, data + bytes, len - bytes, gc);
+			_qq_process_group_cmd_reply_error_default(reply, data + bytes, data_len - bytes, gc);
 		}
 		return;
 	}
@@ -221,52 +213,52 @@ void qq_process_group_cmd_reply(guint8 *buf, gint buf_len, guint16 seq, PurpleCo
 	/* seems ok so far, so we process the reply according to sub_cmd */
 	switch (sub_cmd) {
 	case QQ_GROUP_CMD_GET_GROUP_INFO:
-		qq_process_group_cmd_get_group_info(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_get_group_info(data + bytes, data_len - bytes, gc);
 		if (group != NULL) {
 			qq_send_cmd_group_get_members_info(gc, group);
 			qq_send_cmd_group_get_online_members(gc, group);
 		}
 		break;
 	case QQ_GROUP_CMD_CREATE_GROUP:
-		qq_group_process_create_group_reply(data + bytes, len - bytes, gc);
+		qq_group_process_create_group_reply(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_MODIFY_GROUP_INFO:
-		qq_group_process_modify_info_reply(data + bytes, len - bytes, gc);
+		qq_group_process_modify_info_reply(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_MEMBER_OPT:
-		qq_group_process_modify_members_reply(data + bytes, len - bytes, gc);
+		qq_group_process_modify_members_reply(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_ACTIVATE_GROUP:
-		qq_group_process_activate_group_reply(data + bytes, len - bytes, gc);
+		qq_group_process_activate_group_reply(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_SEARCH_GROUP:
-		qq_process_group_cmd_search_group(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_search_group(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_JOIN_GROUP:
-		qq_process_group_cmd_join_group(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_join_group(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_JOIN_GROUP_AUTH:
-		qq_process_group_cmd_join_group_auth(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_join_group_auth(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_EXIT_GROUP:
-		qq_process_group_cmd_exit_group(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_exit_group(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_SEND_MSG:
-		qq_process_group_cmd_im(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_im(data + bytes, data_len - bytes, gc);
 		break;
 	case QQ_GROUP_CMD_GET_ONLINE_MEMBER:
-		qq_process_group_cmd_get_online_members(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_get_online_members(data + bytes, data_len - bytes, gc);
 		if (group != NULL)
 			qq_group_conv_refresh_online_member(gc, group);
 		break;
 	case QQ_GROUP_CMD_GET_MEMBER_INFO:
-		qq_process_group_cmd_get_members_info(data + bytes, len - bytes, gc);
+		qq_process_group_cmd_get_members_info(data + bytes, data_len - bytes, gc);
 		if (group != NULL)
 			qq_group_conv_refresh_online_member(gc, group);
 		break;
 	default:
 		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
 			   "Group cmd %s is processed by default\n", qq_group_cmd_get_desc(sub_cmd));
-		_qq_process_group_cmd_reply_default(data + bytes, len, gc);
+		_qq_process_group_cmd_reply_default(data + bytes, data_len, gc);
 	}
 }

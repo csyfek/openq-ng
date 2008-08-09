@@ -42,7 +42,6 @@
 #include "buddy_opt.h"
 #include "buddy_list.h"
 #include "char_conv.h"
-#include "crypt.h"
 #include "group.h"
 #include "group_find.h"
 #include "group_im.h"

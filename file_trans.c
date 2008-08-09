@@ -32,7 +32,7 @@
 #include "ft.h"
 #include "cipher.h"
 
-#include "crypt.h"
+#include "qq_crypt.h"
 #include "file_trans.h"
 #include "header_info.h"
 #include "im.h"
@@ -338,9 +338,8 @@ void qq_send_file_ctl_packet(PurpleConnection *gc, guint16 packet_type, guint32 
 		raw_data, bytes,
 		"sending packet[%s]:", qq_get_file_cmd_desc(packet_type));
 
-	encrypted_len = bytes + 16;
-	encrypted_data = g_newa(guint8, encrypted_len);
-	qq_encrypt(raw_data, bytes, info->file_session_key, encrypted_data, &encrypted_len);
+	encrypted_data = g_newa(guint8, bytes + 16);
+	encrypted_len = qq_encrypt(encrypted_data, raw_data, bytes, info->file_session_key);
 	/*debug: try to decrypt it */
 	/*
 	   if (QQ_DEBUG) {
@@ -498,7 +497,7 @@ static void _qq_send_file_data_packet(PurpleConnection *gc, guint16 packet_type,
  */
 
 
-static void _qq_process_recv_file_ctl_packet(PurpleConnection *gc, guint8 *data, gint len)
+static void _qq_process_recv_file_ctl_packet(PurpleConnection *gc, guint8 *data, gint data_len)
 {
 	gint bytes ;
 	gint decryped_bytes;
@@ -514,10 +513,9 @@ static void _qq_process_recv_file_ctl_packet(PurpleConnection *gc, guint8 *data,
 	bytes = 0;
 	bytes += _qq_get_file_header(&fh, data + bytes);
 
-	decrypted_data = g_newa(guint8, len);
-	decrypted_len = len;
-
-	if ( !qq_decrypt(data, len, qd->session_md5, decrypted_data, &decrypted_len) ) {
+	decrypted_data = g_newa(guint8, data_len);
+	decrypted_len = qq_decrypt(decrypted_data, data, data_len, qd->session_md5);
+	if ( decrypted_len <= 0 ) {
 		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Error decrypt rcv file ctrl packet\n");
 		return;
 	}

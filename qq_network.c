@@ -34,7 +34,7 @@
 #include "buddy_info.h"
 #include "group_info.h"
 #include "group_free.h"
-#include "crypt.h"
+#include "qq_crypt.h"
 #include "header_info.h"
 #include "qq_base.h"
 #include "buddy_list.h"
@@ -1026,11 +1026,22 @@ gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack
 	g_return_val_if_fail(qd != NULL, -1);
 	g_return_val_if_fail(data != NULL && data_len > 0, -1);
 
-	encrypted_len = data_len + 16;	/* at most 16 bytes more */
-	encrypted_data = g_newa(guint8, encrypted_len);
+	/* at most 16 bytes more */
+	encrypted_data = g_newa(guint8, data_len + 16);
+	purple_debug(PURPLE_DEBUG_INFO, "QQ_ENCRYPT",
+			"Before %d: [%05d] 0x%04X %s\n",
+			data_len, seq, cmd, qq_get_cmd_desc(cmd));
+	encrypted_len = qq_encrypt(encrypted_data, data, data_len, qd->session_key);
+	if (encrypted_len < 16) {
+		purple_debug(PURPLE_DEBUG_ERROR, "QQ_ENCRYPT",
+				"Error len %d: [%05d] 0x%04X %s\n",
+				encrypted_len, seq, cmd, qq_get_cmd_desc(cmd));
+		return -1;
+	}
 
-	qq_encrypt(data, data_len, qd->session_key, encrypted_data, &encrypted_len);
-
+	purple_debug(PURPLE_DEBUG_INFO, "QQ_ENCRYPT",
+			"After %d: [%05d] 0x%04X %s\n",
+			encrypted_len, seq, cmd, qq_get_cmd_desc(cmd));
 	return qq_send_data(qd, cmd, seq, need_ack, encrypted_data, encrypted_len);
 }
 

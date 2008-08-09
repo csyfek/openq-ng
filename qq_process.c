@@ -37,7 +37,7 @@
 #include "group_info.h"
 #include "group_free.h"
 #include "char_conv.h"
-#include "crypt.h"
+#include "qq_crypt.h"
 #include "group_network.h"
 #include "header_info.h"
 #include "qq_base.h"
@@ -50,27 +50,17 @@
 #include "utils.h"
 
 /* default process, decrypt and dump */
-static void process_cmd_unknow(PurpleConnection *gc,gchar *title, guint8 *buf, gint buf_len, guint16 cmd, guint16 seq)
+static void process_cmd_unknow(PurpleConnection *gc,gchar *title, guint8 *data, gint data_len, guint16 cmd, guint16 seq)
 {
 	qq_data *qd;
-	guint8 *data;
-	gint data_len;
 	gchar *msg_utf8 = NULL;
 
-	g_return_if_fail(buf != NULL && buf_len != 0);
+	g_return_if_fail(data != NULL && data_len != 0);
 
-	qq_show_packet(title, buf, buf_len);
+	qq_show_packet(title, data, data_len);
 
 	qd = (qq_data *) gc->proto_data;
 
-	data_len = buf_len;
-	data = g_newa(guint8, data_len);
-	memset(data, 0, data_len);
-	if ( !qq_decrypt(buf, buf_len, qd->session_key, data, &data_len )) {
-		purple_debug(PURPLE_DEBUG_ERROR, "QQ", "Fail decrypt packet with default process\n");
-		return;
-	}
-	
 	qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
 			data, data_len,
 			">>> [%d] %s -> [default] decrypt and dump",
@@ -78,13 +68,39 @@ static void process_cmd_unknow(PurpleConnection *gc,gchar *title, guint8 *buf, g
 
 	msg_utf8 = try_dump_as_gbk(data, data_len);
 	if (msg_utf8) {
+		purple_notify_info(gc, NULL, msg_utf8, NULL);
 		g_free(msg_utf8);
 	}
 }
 
 void qq_proc_cmd_server(PurpleConnection *gc,
-	guint16 cmd, guint16 seq, guint8 *data, gint data_len)
+	guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len)
 {
+	qq_data *qd;
+
+	guint8 *data;
+	gint data_len;
+
+	g_return_if_fail (gc != NULL && gc->proto_data != NULL);
+	qd = (qq_data *) gc->proto_data;
+
+	data = g_newa(guint8, rcved_len);
+	data_len = qq_decrypt(data, rcved, rcved_len, qd->session_key);
+	if (data_len < 0) {
+		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+			"Can not decrypt server cmd by session key, [%05d], 0x%04X %s, len %d\n", 
+			seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
+		qq_show_packet("Can not decrypted", rcved, rcved_len);
+		return;
+	}
+
+	if (data_len <= 0) {
+		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+			"Server cmd decrypted is empty, [%05d], 0x%04X %s, len %d\n", 
+			seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
+		return;
+	}
+	
 	/* now process the packet */
 	switch (cmd) {
 		case QQ_CMD_RECV_IM:
@@ -169,13 +185,62 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 }
 
 void qq_proc_cmd_reply(PurpleConnection *gc,
-	guint16 cmd, guint16 seq, guint8 *data, gint data_len)
+	guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len)
 {
+	qq_data *qd;
+
+	guint8 *data;
+	gint data_len;
+
 	gboolean ret_bool = FALSE;
 	guint8 ret_8 = 0;
 	guint16 ret_16 = 0;
 	guint32 ret_32 = 0;
 	gchar *error_msg = NULL;
+
+	g_return_if_fail(rcved_len > 0);
+
+	g_return_if_fail (gc != NULL && gc->proto_data != NULL);
+	qd = (qq_data *) gc->proto_data;
+
+	data = g_newa(guint8, rcved_len);
+	if (cmd == QQ_CMD_TOKEN) {
+		g_memmove(data, rcved, rcved_len);
+		data_len = rcved_len;
+	} else if (cmd == QQ_CMD_LOGIN) {
+		/* May use password_twice_md5 in the past version like QQ2005*/
+		data_len = qq_decrypt(data, rcved, rcved_len, qd->inikey);
+		if (data_len >= 0) {
+			purple_debug(PURPLE_DEBUG_WARNING, "QQ", 
+					"Decrypt login reply packet with inikey, %d bytes\n", data_len);
+		} else {
+			data_len = qq_decrypt(data, rcved, rcved_len, qd->password_twice_md5);
+			if (data_len >= 0) {
+				purple_debug(PURPLE_DEBUG_WARNING, "QQ", 
+					"Decrypt login reply packet with password_twice_md5, %d bytes\n", data_len);
+			} else {
+				purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, 
+					_("Can not decrypt login reply"));
+				return;
+			}
+		}
+	} else {
+		data_len = qq_decrypt(data, rcved, rcved_len, qd->session_key);
+		if (data_len < 0) {
+			purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+				"Can not reply by session key, [%05d], 0x%04X %s, len %d\n", 
+				seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
+			qq_show_packet("Can not decrypted", rcved, rcved_len);
+			return;
+		}
+	}
+	
+	if (data_len <= 0) {
+		purple_debug(PURPLE_DEBUG_WARNING, "QQ",
+			"Reply decrypted is empty, [%05d], 0x%04X %s, len %d\n", 
+			seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
+		return;
+	}
 
 	switch (cmd) {
 		case QQ_CMD_TOKEN:

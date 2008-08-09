@@ -31,8 +31,8 @@
 #include "qq.h"
 
 void qq_proc_cmd_reply(PurpleConnection *gc,
-		guint16 cmd, guint16 seq, guint8 *data, gint data_len);
+		guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len);
 void qq_proc_cmd_server(PurpleConnection *gc,
-	guint16 cmd, guint16 seq, guint8 *data, gint data_len);
+	guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len);
 #endif
 
