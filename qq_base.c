@@ -332,11 +332,12 @@ void qq_send_packet_login(PurpleConnection *gc)
 	qq_send_data(gc, QQ_CMD_LOGIN, qd->send_seq, TRUE, buf, bytes);
 }
 
-guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *buf, gint buf_len)
+guint8 qq_process_token_reply(PurpleConnection *gc, guint8 *buf, gint buf_len)
 {
 	qq_data *qd;
 	guint8 ret;
 	int token_len;
+	gchar *error_msg;
 
 	g_return_val_if_fail(buf != NULL && buf_len != 0, -1);
 
@@ -351,12 +352,19 @@ guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *bu
 				buf, buf_len,
 				">>> [default] decrypt and dump");
 		error_msg = try_dump_as_gbk(buf, buf_len);
+		if (error_msg == NULL) {
+				error_msg = g_strdup_printf( _("Invalid token reply code, 0x%02X"), ret);
+		}
+		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
+		g_free(error_msg);
 		return ret;
 	}
 	
 	token_len = buf_len-2;
 	if (token_len <= 0) {
 		error_msg = g_strdup_printf( _("Invalid token len, %d"), token_len);
+		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
+		g_free(error_msg);
 		return -1;
 	}
 	

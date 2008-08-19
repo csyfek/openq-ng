@@ -32,9 +32,8 @@
 
 #define QQ_CONNECT_STEPS    3	/* steps in connection */
 
-void qq_connect(PurpleAccount *account);
+gboolean qq_connect_later(gpointer data);
 void qq_disconnect(PurpleConnection *gc);
-void qq_connect_later(PurpleConnection *gc);
 
 gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, guint8 *data, gint datalen);
 gint qq_send_data(PurpleConnection *gc, guint16 cmd, guint16 seq, gboolean need_ack,
