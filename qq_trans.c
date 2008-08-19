@@ -37,8 +37,26 @@
 
 #define QQ_RESEND_MAX               3	/* max resend per packet */
 
-qq_transaction *qq_trans_find_rcved(qq_data *qd, guint16 cmd, guint16 seq)
+struct _qq_transaction {
+	guint8 flag;
+	guint16 seq;
+	guint16 cmd;
+
+	guint8 room_cmd;
+	guint32 room_id;
+	
+	guint8 *data;
+	gint data_len;
+
+	int fd;
+	gint send_retries;
+	gint rcved_times;
+	gint scan_times;
+};
+
+qq_transaction *qq_trans_find_rcved(PurpleConnection *gc, int fd, guint16 cmd, guint16 seq)
 {
+	qq_data *qd = (qq_data *)gc->proto_data;
 	GList *curr;
 	GList *next;
 	qq_transaction *trans;
@@ -52,7 +70,7 @@ qq_transaction *qq_trans_find_rcved(qq_data *qd, guint16 cmd, guint16 seq)
 		next = curr->next;
 		
 		trans = (qq_transaction *) (curr->data);
-		if(trans->cmd == cmd && trans->seq == seq) {
+		if(trans->fd == fd && trans->cmd == cmd && trans->seq == seq) {
 			if (trans->rcved_times == 0) {
 				trans->scan_times = 0;
 			}
@@ -60,7 +78,7 @@ qq_transaction *qq_trans_find_rcved(qq_data *qd, guint16 cmd, guint16 seq)
 			if (qq_trans_is_server(trans) && qq_trans_is_dup(trans)) {
 				/* server may not get our confirm reply before, send reply again*/
 				if (trans->data != NULL && trans->data_len > 0) {
-					qq_send_data(qd, trans->fd, trans->cmd, trans->seq, FALSE, trans->data, trans->data_len);
+					qq_send_data(gc, trans->fd, trans->cmd, trans->seq, FALSE, trans->data, trans->data_len);
 				}
 			}
 			return trans;
@@ -103,24 +121,27 @@ guint32 qq_trans_get_room_id(qq_transaction *trans)
 }
 
 /* Remove a packet with seq from send trans */
-static void trans_remove(qq_data *qd, qq_transaction *trans) 
+static void trans_remove(PurpleConnection *gc, qq_transaction *trans) 
 {
+	qq_data *qd = (qq_data *)gc->proto_data;
 	g_return_if_fail(qd != NULL && trans != NULL);
 	
+#if 0
 	purple_debug_info("QQ_TRANS",
 				"Remove [%s%05d] retry %d rcved %d scan %d %s\n",
 				(trans->flag & QQ_TRANS_IS_SERVER) ? "SRV-" : "",
 				trans->seq,
 				trans->send_retries, trans->rcved_times, trans->scan_times,
 				qq_get_cmd_desc(trans->cmd));
-
+#endif
 	if (trans->data)	g_free(trans->data);
 	qd->transactions = g_list_remove(qd->transactions, trans);
 	g_free(trans);
 }
 
-void qq_trans_add_client_cmd(qq_data *qd, int fd, guint16 cmd, guint16 seq, guint8 *data, gint data_len)
+void qq_trans_add_client_cmd(PurpleConnection *gc, int fd, guint16 cmd, guint16 seq, guint8 *data, gint data_len)
 {
+	qq_data *qd = (qq_data *)gc->proto_data;
 	qq_transaction *trans = g_new0(qq_transaction, 1);
 
 	g_return_if_fail(trans != NULL);
@@ -144,15 +165,18 @@ void qq_trans_add_client_cmd(qq_data *qd, int fd, guint16 cmd, guint16 seq, guin
 		trans->data = g_memdup(data, data_len);	/* don't use g_strdup, may have 0x00 */
 		trans->data_len = data_len;
 	}
+#if 0
 	purple_debug_info("QQ_TRANS",
 			"Add client cmd, seq = %d, data = %p, len = %d\n",
 			trans->seq, trans->data, trans->data_len);
+#endif
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
-void qq_trans_add_room_cmd(qq_data *qd, int fd, guint16 seq, guint8 room_cmd, guint32 room_id,
+void qq_trans_add_room_cmd(PurpleConnection *gc, int fd, guint16 seq, guint8 room_cmd, guint32 room_id,
 		guint8 *data, gint data_len)
 {
+	qq_data *qd = (qq_data *)gc->proto_data;
 	qq_transaction *trans = g_new0(qq_transaction, 1);
 
 	g_return_if_fail(trans != NULL);
@@ -173,14 +197,17 @@ void qq_trans_add_room_cmd(qq_data *qd, int fd, guint16 seq, guint8 room_cmd, gu
 		trans->data = g_memdup(data, data_len);	/* don't use g_strdup, may have 0x00 */
 		trans->data_len = data_len;
 	}
+#if 0
 	purple_debug_info("QQ_TRANS",
 			"Add room cmd, seq = %d, data = %p, len = %d\n",
 			trans->seq, trans->data, trans->data_len);
+#endif
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
-void qq_trans_add_server_cmd(qq_data *qd, int fd, guint16 cmd, guint16 seq, guint8 *data, gint data_len)
+void qq_trans_add_server_cmd(PurpleConnection *gc, int fd, guint16 cmd, guint16 seq, guint8 *data, gint data_len)
 {
+	qq_data *qd = (qq_data *)gc->proto_data;
 	qq_transaction *trans = g_new0(qq_transaction, 1);
 
 	g_return_if_fail(trans != NULL);
@@ -203,14 +230,17 @@ void qq_trans_add_server_cmd(qq_data *qd, int fd, guint16 cmd, guint16 seq, guin
 		trans->data = g_memdup(data, data_len);	/* don't use g_strdup, may have 0x00 */
 		trans->data_len = data_len;
 	}
+#if 0
 	purple_debug_info("QQ_TRANS",
 			"Add server cmd, seq = %d, data = %p, len = %d\n",
 			trans->seq, trans->data, trans->data_len);
+#endif
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
-void qq_trans_process_before_login(qq_data *qd)
+void qq_trans_process_before_login(PurpleConnection *gc)
 {
+	qq_data *qd = (qq_data *)gc->proto_data;
 	GList *curr;
 	GList *next;
 	qq_transaction *trans;
@@ -243,8 +273,9 @@ void qq_trans_process_before_login(qq_data *qd)
 	return;
 }
 
-gboolean qq_trans_scan(qq_data *qd)
+gboolean qq_trans_scan(PurpleConnection *gc)
 {
+	qq_data *qd = (qq_data *)gc->proto_data;
 	GList *curr;
 	GList *next;
 	qq_transaction *trans;
@@ -270,7 +301,7 @@ gboolean qq_trans_scan(qq_data *qd)
 
 		if (trans->rcved_times > 0) {
 			/* Has been received */
-			trans_remove(qd, trans);
+			trans_remove(gc, trans);
 			continue;
 		}
 
@@ -292,7 +323,7 @@ gboolean qq_trans_scan(qq_data *qd)
 				"Lost [%d] %s, data %p, len %d, retries %d\n",
 				trans->seq, qq_get_cmd_desc(trans->cmd),
 				trans->data, trans->data_len, trans->send_retries);
-			trans_remove(qd, trans);
+			trans_remove(gc, trans);
 			continue;
 		}
 
@@ -300,7 +331,7 @@ gboolean qq_trans_scan(qq_data *qd)
 				"Resend [%d] %s data %p, len %d, send_retries %d\n",
 				trans->seq, qq_get_cmd_desc(trans->cmd),
 				trans->data, trans->data_len, trans->send_retries);
-		qq_send_data(qd, trans->fd, trans->cmd, trans->seq, FALSE, trans->data, trans->data_len);
+		qq_send_data(gc, trans->fd, trans->cmd, trans->seq, FALSE, trans->data, trans->data_len);
 	}
 
 	/* purple_debug_info("QQ_TRANS", "Scan finished\n"); */
@@ -308,29 +339,23 @@ gboolean qq_trans_scan(qq_data *qd)
 }
 
 /* clean up send trans and free all contents */
-void qq_trans_remove_all(qq_data *qd)
+void qq_trans_remove_all(PurpleConnection *gc)
 {
-	GList *curr;
-	GList *next;
+	qq_data *qd = (qq_data *)gc->proto_data;
 	qq_transaction *trans;
 	gint count = 0;
 
-	curr = qd->transactions;
-	while(curr) {
-		next = curr->next;
-		
-		trans = (qq_transaction *) (curr->data);
+	while(qd->transactions != NULL) {
+		trans = (qq_transaction *) (qd->transactions->data);
+		qd->transactions = g_list_remove(qd->transactions, trans);
 		/*
 		purple_debug_error("QQ_TRANS",
-			"Remove to transaction, seq = %d, buf = %p, len = %d\n",
-			trans->seq, trans->buf, trans->len);
+			"Remove transaction, seq = %d, buf = %p, len = %d\n",
+			trans->seq, trans->data, trans->data_len);
 		*/
-		trans_remove(qd, trans);
-
+		if (trans->data)	g_free(trans->data);
+		g_free(trans);
 		count++;
-		curr = next;
 	}
-	g_list_free(qd->transactions);
-
 	purple_debug_info("QQ_TRANS", "Free all %d packets\n", count);
 }

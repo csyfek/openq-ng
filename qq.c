@@ -138,6 +138,8 @@ static void qq_login(PurpleAccount *account)
 	gc->flags |= PURPLE_CONNECTION_HTML | PURPLE_CONNECTION_NO_BGCOLOR | PURPLE_CONNECTION_AUTO_RESP;
 
 	qd = g_new0(qq_data, 1);
+	memset(qd, 0, sizeof(qq_data));
+	
 	qd->gc = gc;
 	gc->proto_data = qd;
 
@@ -154,7 +156,27 @@ static void qq_login(PurpleAccount *account)
 	server_list_create(account);
 	purple_debug_info("QQ", "Server list has %d\n", g_list_length(qd->servers));
 
-	qq_connect(account);
+	qd->itv_config.resend = purple_account_get_int(account, "resend_interval", 10);
+	if (qd->itv_config.resend <= 0) qd->itv_config.resend = 10;
+
+	qd->itv_config.keep_alive = purple_account_get_int(account, "keep_alive_interval", 60);
+	if (qd->itv_config.keep_alive < 30) qd->itv_config.keep_alive = 30;
+	qd->itv_config.keep_alive /= qd->itv_config.resend;
+	qd->itv_count.keep_alive = qd->itv_config.keep_alive;
+
+	qd->itv_config.update = purple_account_get_int(account, "update_interval", 300);
+	if (qd->itv_config.update > 0) {
+		if (qd->itv_config.update < qd->itv_config.keep_alive) {
+			qd->itv_config.update = qd->itv_config.keep_alive;
+		}
+		qd->itv_config.update /= qd->itv_config.resend;
+		qd->itv_count.update = qd->itv_config.update;
+	} else {
+		qd->itv_config.update = 0;
+	}
+	
+	qd->conn = NULL;
+	qq_connect_express(account);
 }
 
 /* clean up the given QQ connection and free all resources */
@@ -179,7 +201,6 @@ static const gchar *_qq_list_icon(PurpleAccount *a, PurpleBuddy *b)
 {
 	return "qq";
 }
-
 
 /* a short status text beside buddy icon*/
 static gchar *_qq_status_text(PurpleBuddy *b)

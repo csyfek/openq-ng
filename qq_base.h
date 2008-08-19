@@ -47,7 +47,7 @@ void qq_send_packet_token(PurpleConnection *gc, int fd);
 guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *buf, gint buf_len);
 
 void qq_send_packet_login(PurpleConnection *gc);
-guint8 qq_process_login_reply(guint8 *data, gint data_len, PurpleConnection *gc);
+guint8 qq_process_login_reply( PurpleConnection *gc, guint8 *data, gint data_len);
 
 void qq_send_packet_logout(PurpleConnection *gc);
 

@@ -32,16 +32,15 @@
 
 #define QQ_CONNECT_STEPS    3	/* steps in connection */
 
-void qq_connect_all(PurpleAccount *account);
+void qq_connect_express(PurpleAccount *account);
 void qq_connect(PurpleAccount *account);
 void qq_disconnect(PurpleConnection *gc);
-void qq_connect_later(PurpleConnection *gc);
 
-gint qq_send_data(qq_data *qd, int fd, guint16 cmd, guint16 seq, gboolean need_ack,
+gint qq_send_data(PurpleConnection *gc, int fd, guint16 cmd, guint16 seq, gboolean need_ack, 
 	guint8 *data, gint data_len);
 	
-gint qq_send_cmd(qq_data *qd, guint16 cmd, guint8 *data, gint datalen);
-gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack,
+gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, guint8 *data, gint datalen);
+gint qq_send_cmd_detail(PurpleConnection *gc, guint16 cmd, guint16 seq, gboolean need_ack,
 	guint8 *data, gint data_len);
 
 gint qq_send_room_cmd(PurpleConnection *gc, guint8 room_cmd, guint32 room_id,
