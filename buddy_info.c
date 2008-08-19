@@ -901,19 +901,21 @@ void qq_process_get_info_reply(guint8 *data, gint data_len, PurpleConnection *gc
 
 void qq_info_query_free(qq_data *qd)
 {
-	gint i;
+	gint count;
 	qq_info_query *p;
 
 	g_return_if_fail(qd != NULL);
 
-	i = 0;
+	count = 0;
 	while (qd->info_query != NULL) {
 		p = (qq_info_query *) (qd->info_query->data);
 		qd->info_query = g_list_remove(qd->info_query, p);
 		g_free(p);
-		i++;
+		count++;
 	}
-	purple_debug_info("QQ", "%d info queries are freed!\n", i);
+	if (count > 0) {
+		purple_debug_info("QQ", "%d info queries are freed!\n", count);
+	}
 }
 
 void qq_send_packet_get_level(PurpleConnection *gc, guint32 uid)

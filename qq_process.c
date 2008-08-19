@@ -88,8 +88,7 @@ static void process_cmd_unknow(PurpleConnection *gc,gchar *title, guint8 *data, 
 	}
 }
 
-void qq_proc_cmd_server(PurpleConnection *gc,
-	guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len)
+void qq_proc_cmd_server(PurpleConnection *gc, guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len)
 {
 	qq_data *qd;
 
@@ -131,46 +130,6 @@ void qq_proc_cmd_server(PurpleConnection *gc,
 			process_cmd_unknow(gc, "Unknow SERVER CMD", data, data_len, cmd, seq);
 			break;
 	}
-}
-
-static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
-{
-	qq_data *qd;
-	guint ret_8;
-
-	g_return_if_fail (gc != NULL && gc->proto_data != NULL);
-	
-	qd = (qq_data *) gc->proto_data;
-
-	ret_8 = qq_process_login_reply(gc, data, data_len);
-	if (ret_8 != QQ_LOGIN_REPLY_OK) {
-		return;
-	}
-	
-	purple_debug_info("QQ", "Login repliess OK; everything is fine\n");
-
-	purple_connection_set_state(gc, PURPLE_CONNECTED);
-	qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
-
-	/* now initiate QQ Qun, do it first as it may take longer to finish */
-	qq_group_init(gc);
-
-	/* Now goes on updating my icon/nickname, not showing info_window */
-	qd->modifying_face = FALSE;
-
-	qq_send_packet_get_info(gc, qd->uid, FALSE);
-	/* grab my level */
-	qq_send_packet_get_level(gc, qd->uid);
-
-	qq_send_packet_change_status(gc);
-
-	/* refresh buddies */
-	qq_send_packet_get_buddies_list(gc, 0);
-
-	/* refresh groups */
-	qq_send_packet_get_buddies_and_rooms(gc, 0);
-
-	return;
 }
 
 static void process_room_cmd_notify(PurpleConnection *gc, 
@@ -326,19 +285,74 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 	}
 }
 
-void qq_proc_cmd_reply(PurpleConnection *gc,
-	guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len)
+void qq_proc_cmd_login(PurpleConnection *gc, guint8 *rcved, gint rcved_len)
+{
+	qq_data *qd;
+	guint8 *data;
+	gint data_len;
+	guint ret_8;
+
+	g_return_if_fail (gc != NULL && gc->proto_data != NULL);
+	qd = (qq_data *) gc->proto_data;
+
+	data = g_newa(guint8, rcved_len);
+	/* May use password_twice_md5 in the past version like QQ2005*/
+	data_len = qq_decrypt(data, rcved, rcved_len, qd->inikey);
+	if (data_len >= 0) {
+		purple_debug_warning("QQ", 
+				"Decrypt login reply packet with inikey, %d bytes\n", data_len);
+	} else {
+		data_len = qq_decrypt(data, rcved, rcved_len, qd->password_twice_md5);
+		if (data_len >= 0) {
+			purple_debug_warning("QQ", 
+				"Decrypt login reply packet with password_twice_md5, %d bytes\n", data_len);
+		} else {
+			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, 
+				_("Can not decrypt login reply"));
+			return;
+		}
+	}
+
+	ret_8 = qq_process_login_reply(gc, data, data_len);
+	if (ret_8 != QQ_LOGIN_REPLY_OK) {
+		return;
+	}
+	
+	purple_debug_info("QQ", "Login repliess OK; everything is fine\n");
+
+	purple_connection_set_state(gc, PURPLE_CONNECTED);
+	qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
+
+	/* now initiate QQ Qun, do it first as it may take longer to finish */
+	qq_group_init(gc);
+
+	/* Now goes on updating my icon/nickname, not showing info_window */
+	qd->modifying_face = FALSE;
+
+	qq_send_packet_get_info(gc, qd->uid, FALSE);
+	/* grab my level */
+	qq_send_packet_get_level(gc, qd->uid);
+
+	qq_send_packet_change_status(gc);
+
+	/* refresh buddies */
+	qq_send_packet_get_buddies_list(gc, 0);
+
+	/* refresh groups */
+	qq_send_packet_get_buddies_and_rooms(gc, 0);
+	return;
+}
+
+void qq_proc_cmd_reply(PurpleConnection *gc, guint16 cmd, guint16 seq, guint8 *rcved, gint rcved_len)
 {
 	qq_data *qd;
 
 	guint8 *data;
 	gint data_len;
 
-	gboolean ret_bool = FALSE;
 	guint8 ret_8 = 0;
 	guint16 ret_16 = 0;
 	guint32 ret_32 = 0;
-	gchar *error_msg = NULL;
 
 	g_return_if_fail(rcved_len > 0);
 
@@ -346,35 +360,13 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	qd = (qq_data *) gc->proto_data;
 
 	data = g_newa(guint8, rcved_len);
-	if (cmd == QQ_CMD_TOKEN) {
-		g_memmove(data, rcved, rcved_len);
-		data_len = rcved_len;
-	} else if (cmd == QQ_CMD_LOGIN) {
-		/* May use password_twice_md5 in the past version like QQ2005*/
-		data_len = qq_decrypt(data, rcved, rcved_len, qd->inikey);
-		if (data_len >= 0) {
-			purple_debug_warning("QQ", 
-					"Decrypt login reply packet with inikey, %d bytes\n", data_len);
-		} else {
-			data_len = qq_decrypt(data, rcved, rcved_len, qd->password_twice_md5);
-			if (data_len >= 0) {
-				purple_debug_warning("QQ", 
-					"Decrypt login reply packet with password_twice_md5, %d bytes\n", data_len);
-			} else {
-				purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, 
-					_("Can not decrypt login reply"));
-				return;
-			}
-		}
-	} else {
-		data_len = qq_decrypt(data, rcved, rcved_len, qd->session_key);
-		if (data_len < 0) {
-			purple_debug_warning("QQ",
-				"Can not reply by session key, [%05d], 0x%04X %s, len %d\n", 
-				seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
-			qq_show_packet("Can not decrypted", rcved, rcved_len);
-			return;
-		}
+	data_len = qq_decrypt(data, rcved, rcved_len, qd->session_key);
+	if (data_len < 0) {
+		purple_debug_warning("QQ",
+			"Reply can not be decrypted by session key, [%05d], 0x%04X %s, len %d\n", 
+			seq, cmd, qq_get_cmd_desc(cmd), rcved_len);
+		qq_show_packet("Can not decrypted", rcved, rcved_len);
+		return;
 	}
 	
 	if (data_len <= 0) {
@@ -385,22 +377,6 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	}
 
 	switch (cmd) {
-		case QQ_CMD_TOKEN:
-			ret_8 = qq_process_token_reply(gc, error_msg, data, data_len);
-			if (ret_8 != QQ_TOKEN_REPLY_OK) {
-				if (error_msg == NULL) {
-					error_msg = g_strdup_printf( _("Invalid token reply code, 0x%02X"), ret_8);
-				}
-				purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
-				g_free(error_msg);
-				return;
-			}
-			
-			qq_send_packet_login(gc);
-			break;
-		case QQ_CMD_LOGIN:
-			process_cmd_login(gc, data, data_len);
-			break;
 		case QQ_CMD_UPDATE_INFO:
 			qq_process_modify_info_reply(data, data_len, gc);
 			break;

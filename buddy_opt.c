@@ -511,28 +511,30 @@ void qq_remove_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *grou
 /* free add buddy request queue */
 void qq_add_buddy_request_free(qq_data *qd)
 {
-	gint i;
+	gint count;
 	qq_add_buddy_request *p;
 
-	i = 0;
+	count = 0;
 	while (qd->add_buddy_request != NULL) {
 		p = (qq_add_buddy_request *) (qd->add_buddy_request->data);
 		qd->add_buddy_request = g_list_remove(qd->add_buddy_request, p);
 		g_free(p);
-		i++;
+		count++;
 	}
-	purple_debug_info("QQ", "%d add buddy requests are freed!\n", i);
+	if (count > 0) {
+		purple_debug_info("QQ", "%d add buddy requests are freed!\n", count);
+	}
 }
 
 /* free up all qq_buddy */
 void qq_buddies_list_free(PurpleAccount *account, qq_data *qd)
 {
-	gint i;
+	gint count;
 	qq_buddy *p;
 	gchar *name;
 	PurpleBuddy *b;
 
-	i = 0;
+	count = 0;
 	while (qd->buddies) {
 		p = (qq_buddy *) (qd->buddies->data);
 		qd->buddies = g_list_remove(qd->buddies, p);
@@ -545,7 +547,9 @@ void qq_buddies_list_free(PurpleAccount *account, qq_data *qd)
 		g_free(name);
 
 		g_free(p);
-		i++;
+		count++;
 	}
-	purple_debug_info("QQ", "%d qq_buddy structures are freed!\n", i);
+	if (count > 0) {
+		purple_debug_info("QQ", "%d qq_buddy structures are freed!\n", count);
+	}
 }
