@@ -822,10 +822,10 @@ static void init_plugin(PurplePlugin *plugin)
 	option = purple_account_option_bool_new(_("Connect using TCP"), "use_tcp", TRUE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
-	option = purple_account_option_int_new(_("Show server notice"), "show_notice", TRUE);
+	option = purple_account_option_bool_new(_("Show server notice"), "show_notice", TRUE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
-	option = purple_account_option_int_new(_("Show server news"), "show_news", TRUE);
+	option = purple_account_option_bool_new(_("Show server news"), "show_news", TRUE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	option = purple_account_option_int_new(_("Resend interval(s)"), "resend_interval", 10);
