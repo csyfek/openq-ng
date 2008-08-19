@@ -346,7 +346,7 @@ guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *bu
 	ret = buf[0];
 	
 	if (ret != QQ_TOKEN_REPLY_OK) {
-		purple_debug_error("QQ", "Unknown request login token reply code : %d\n", buf[0]);
+		purple_debug_error("QQ", "Failed to request token: %d\n", buf[0]);
 		qq_hex_dump(PURPLE_DEBUG_WARNING, "QQ",
 				buf, buf_len,
 				">>> [default] decrypt and dump");

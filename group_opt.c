@@ -111,11 +111,11 @@ void qq_group_reject_application_with_struct(group_member_opt *g)
 	g_return_if_fail(g != NULL && g->gc != NULL && g->member > 0);
 
 	msg1 = g_strdup_printf(_("You rejected %d's request"), g->member);
-	msg2 = g_strdup(_("Enter your reason:"));
+	msg2 = g_strdup(_("Message:"));
 
 	nombre = uid_to_purple_name(g->member);
 	purple_request_input(g->gc, /* title */ NULL, msg1, msg2,
-			   _("Sorry, you are not my type..."), /* multiline */ TRUE, /* masked */ FALSE,
+			   _("Sorry, you are not my style..."), /* multiline */ TRUE, /* masked */ FALSE,
 			   /* hint */ NULL,
 			   _("Send"), G_CALLBACK(_qq_group_reject_application_real),
 			   _("Cancel"), G_CALLBACK(_qq_group_do_nothing_with_struct),
@@ -209,9 +209,9 @@ void qq_group_process_modify_members_reply(guint8 *data, gint len, PurpleConnect
 	group = qq_room_search_id(gc, id);
 	g_return_if_fail(group != NULL);
 
-	purple_debug_info("QQ", "Succeed in modify members for Qun %d\n", group->ext_id);
+	purple_debug_info("QQ", "Succeed in modify members for room %d\n", group->ext_id);
 
-	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully modified Qun member"), NULL);
+	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully modified QQ Qun member"), NULL);
 }
 
 void qq_room_change_info(PurpleConnection *gc, qq_group *group)
@@ -366,9 +366,9 @@ void qq_group_process_create_group_reply(guint8 *data, gint len, PurpleConnectio
 	g->uid = id;
 
 	purple_request_action(gc, _("QQ Qun Operation"),
-			    _("You have successfully created a Qun"),
+			    _("You have successfully created a QQ Qun"),
 			    _
-			    ("Would you like to set up the Qun details now?"),
+			    ("Would you like to set up the QQ Qun details now?"),
 			    1,
 				purple_connection_get_account(gc), NULL, NULL,
 				g, 2,

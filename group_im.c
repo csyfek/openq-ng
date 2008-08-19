@@ -98,7 +98,7 @@ void qq_process_group_cmd_im(guint8 *data, gint len, PurpleConnection *gc)
 }
 
 /* receive an application to join the group */
-void qq_process_recv_group_im_apply_join(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
+void qq_process_room_msg_apply_join(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
 {
 	guint32 ext_id, user_uid;
 	guint8 type8;
@@ -119,8 +119,8 @@ void qq_process_recv_group_im_apply_join(guint8 *data, gint len, guint32 id, Pur
 
 	bytes += convert_as_pascal_string(data + bytes, &reason_utf8, QQ_CHARSET_DEFAULT);
 
-	msg = g_strdup_printf(_("User %d requested to join group %d"), user_uid, ext_id);
-	reason = g_strdup_printf(_("Reason: %s"), reason_utf8);
+	msg = g_strdup_printf(_("%d requested to join QQ Qun %d"), user_uid, ext_id);
+	reason = g_strdup_printf(_("Message: %s"), reason_utf8);
 
 	g = g_new0(group_member_opt, 1);
 	g->gc = gc;
@@ -149,7 +149,7 @@ void qq_process_recv_group_im_apply_join(guint8 *data, gint len, guint32 id, Pur
 }
 
 /* the request to join a group is rejected */
-void qq_process_recv_group_im_been_rejected(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
+void qq_process_room_msg_been_rejected(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
 {
 	guint32 ext_id, admin_uid;
 	guint8 type8;
@@ -170,8 +170,8 @@ void qq_process_recv_group_im_been_rejected(guint8 *data, gint len, guint32 id, 
 	bytes += convert_as_pascal_string(data + bytes, &reason_utf8, QQ_CHARSET_DEFAULT);
 
 	msg = g_strdup_printf
-		(_("Your request to join group %d has been rejected by admin %d"), ext_id, admin_uid);
-	reason = g_strdup_printf(_("Reason: %s"), reason_utf8);
+		(_("Your request to join QQ Qun %d has been rejected by admin %d"), ext_id, admin_uid);
+	reason = g_strdup_printf(_("Message: %s"), reason_utf8);
 
 	purple_notify_warning(gc, _("QQ Qun Operation"), msg, reason);
 
@@ -187,7 +187,7 @@ void qq_process_recv_group_im_been_rejected(guint8 *data, gint len, guint32 id, 
 }
 
 /* the request to join a group is approved */
-void qq_process_recv_group_im_been_approved(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
+void qq_process_room_msg_been_approved(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
 {
 	guint32 ext_id, admin_uid;
 	guint8 type8;
@@ -208,7 +208,7 @@ void qq_process_recv_group_im_been_approved(guint8 *data, gint len, guint32 id, 
 	bytes += convert_as_pascal_string(data + bytes, &reason_utf8, QQ_CHARSET_DEFAULT);
 
 	msg = g_strdup_printf
-		(_("Your request to join group %d has been approved by admin %d"), ext_id, admin_uid);
+		(_("Your request to join QQ Qun %d has been approved by admin %d"), ext_id, admin_uid);
 
 	purple_notify_warning(gc, _("QQ Qun Operation"), msg, NULL);
 
@@ -223,7 +223,7 @@ void qq_process_recv_group_im_been_approved(guint8 *data, gint len, guint32 id, 
 }
 
 /* process the packet when removed from a group */
-void qq_process_recv_group_im_been_removed(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
+void qq_process_room_msg_been_removed(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
 {
 	guint32 ext_id, uid;
 	guint8 type8;
@@ -241,7 +241,7 @@ void qq_process_recv_group_im_been_removed(guint8 *data, gint len, guint32 id, P
 
 	g_return_if_fail(ext_id > 0 && uid > 0);
 
-	msg = g_strdup_printf(_("You [%d] have left group \"%d\""), uid, ext_id);
+	msg = g_strdup_printf(_("You [%d] have left QQ Qun \"%d\""), uid, ext_id);
 	purple_notify_info(gc, _("QQ Qun Operation"), msg, NULL);
 
 	group = qq_room_search_id(gc, id);
@@ -254,7 +254,7 @@ void qq_process_recv_group_im_been_removed(guint8 *data, gint len, guint32 id, P
 }
 
 /* process the packet when added to a group */
-void qq_process_recv_group_im_been_added(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
+void qq_process_room_msg_been_added(guint8 *data, gint len, guint32 id, PurpleConnection *gc)
 {
 	guint32 ext_id, uid;
 	guint8 type8;
@@ -272,8 +272,8 @@ void qq_process_recv_group_im_been_added(guint8 *data, gint len, guint32 id, Pur
 
 	g_return_if_fail(ext_id > 0 && uid > 0);
 
-	msg = g_strdup_printf(_("You [%d] have been added to group \"%d\""), uid, ext_id);
-	purple_notify_info(gc, _("QQ Qun Operation"), msg, _("This group has been added to your buddy list"));
+	msg = g_strdup_printf(_("You [%d] have been added to QQ Qun \"%d\""), uid, ext_id);
+	purple_notify_info(gc, _("QQ Qun Operation"), msg, _("This QQ Qun has been added to your buddy list"));
 
 	group = qq_room_search_id(gc, id);
 	if (group != NULL) {
@@ -291,7 +291,7 @@ void qq_process_recv_group_im_been_added(guint8 *data, gint len, guint32 id, Pur
 }
 
 /* recv an IM from a group chat */
-void qq_process_recv_group_im(guint8 *data, gint data_len, guint32 id, PurpleConnection *gc, guint16 im_type)
+void qq_process_room_msg_normal(guint8 *data, gint data_len, guint32 id, PurpleConnection *gc, guint16 im_type)
 {
 	gchar *msg_with_purple_smiley, *msg_utf8_encoded, *im_src_name;
 	guint16 unknown;

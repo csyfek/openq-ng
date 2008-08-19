@@ -68,6 +68,7 @@
 static void server_list_create(PurpleAccount *account) {
 	PurpleConnection *gc;
 	qq_data *qd;
+	PurpleProxyInfo *gpi;
 	const gchar *user_server;
 	int port;
 
@@ -75,6 +76,8 @@ static void server_list_create(PurpleAccount *account) {
 	gc = purple_account_get_connection(account);
 	g_return_if_fail(gc != NULL  && gc->proto_data != NULL);
 	qd = gc->proto_data;
+
+	gpi = purple_proxy_get_setup(account);
 
 	qd->use_tcp = purple_account_get_bool(account, "use_tcp", TRUE);
 	port = purple_account_get_int(account, "port", 0);
@@ -316,8 +319,8 @@ static void _qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gb
 		g_string_append( str, _(" Video") );
 	}
 
-	if (q_bud->ext_flag & QQ_EXT_FLAG_SPACE) {
-		g_string_append( str, _(" Space") );
+	if (q_bud->ext_flag & QQ_EXT_FLAG_ZONE) {
+		g_string_append( str, _(" Zone") );
 	}
 	purple_notify_user_info_add_pair(user_info, _("Flag"), str->str);
 
