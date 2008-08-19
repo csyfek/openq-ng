@@ -430,10 +430,10 @@ static gint udp_send_out(qq_data *qd, guint8 *data, gint data_len)
 
 	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
 
-	/*
+#if 0
 	purple_debug_info("UDP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
-	*/
-	
+#endif
+
 	errno = 0;
 	ret = send(qd->fd, data, data_len, 0);
 	if (ret < 0 && errno == EAGAIN) {
@@ -482,9 +482,9 @@ static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 
 	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
 
-	/*
+#if 1
 	purple_debug_info("TCP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
-	 */
+#endif
 
 	if (qd->tx_handler == 0) {
 		ret = write(qd->fd, data, data_len);
@@ -610,13 +610,20 @@ static void do_request_token(PurpleConnection *gc)
 
 /* the callback function after socket is built
  * we setup the qq protocol related configuration here */
-static void qq_connect_cb(gpointer data, gint source, const gchar *error_message)
+static void connect_cb(gpointer data, gint source, const gchar *error_message)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
 	PurpleAccount *account ;
 
 	gc = (PurpleConnection *) data;
+	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
+
+	qd = (qq_data *) gc->proto_data;
+	account = purple_connection_get_account(gc);
+
+	/* PurpleProxyConnectData should be destory by connect_cb*/
+	qd->connect_data = NULL;
 
 	if (!PURPLE_CONNECTION_IS_VALID(gc)) {
 		purple_debug_info("QQ_CONN", "Invalid connection\n");
@@ -624,16 +631,10 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 		return;
 	}
 
-	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
-
-	qd = (qq_data *) gc->proto_data;
-	account = purple_connection_get_account(gc);
-
-	/* Connect is now complete; clear the PurpleProxyConnectData */
-	qd->connect_data = NULL;
-
 	if (source < 0) {	/* socket returns -1 */
-		purple_debug_info("QQ_CONN", "Invalid connection, source is < 0\n");
+		purple_debug_info("QQ_CONN",
+				"Could not establish a connection with the server:\n%s\n",
+				error_message);
 		qq_disconnect(gc);
 		reconnect_later(gc);
 		return;
@@ -685,11 +686,11 @@ static void udp_can_write(gpointer data, gint source, PurpleInputCondition cond)
 
 		purple_debug_error("proxy", "getsockopt SO_ERROR check: %s\n", g_strerror(error));
 
-		qq_connect_cb(gc, -1, _("Unable to connect"));
+		connect_cb(gc, -1, _("Unable to connect"));
 		return;
 	}
 
-	qq_connect_cb(gc, source, NULL);
+	connect_cb(gc, source, NULL);
 }
 
 static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_message) {
@@ -754,7 +755,7 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 		purple_debug_info("QQ", "Connected.\n");
 		flags = fcntl(fd, F_GETFL);
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-		qq_connect_cb(gc, fd, NULL);
+		connect_cb(gc, fd, NULL);
 		return;
 	}
 	
@@ -802,7 +803,7 @@ gboolean connect_to_server(PurpleConnection *gc, gchar *server, gint port)
 	if(qd->use_tcp) {
    		purple_debug_info("QQ", "TCP Connect to %s:%d\n", server, port);
 
-		if ( purple_proxy_connect(NULL, account, server, port, qq_connect_cb, gc) == NULL ) {
+		if ( purple_proxy_connect(gc, account, server, port, connect_cb, gc) == NULL ) {
 			purple_debug_error("QQ", "Unable to connect.");
 			return FALSE;
 		}
@@ -1109,8 +1110,8 @@ gint qq_send_room_cmd(PurpleConnection *gc, guint8 room_cmd, guint32 room_id,
 	encrypted_len = qq_encrypt(encrypted_data, buf, buf_len, qd->session_key);
 	if (encrypted_len < 16) {
 		purple_debug_error("QQ_ENCRYPT",
-				"Error len %d: [%05d] QQ_CMD_ROOM.(0x%02X %s)\n",
-				encrypted_len, seq, room_cmd, qq_get_room_cmd_desc(room_cmd));
+				"Error len %d: [%05d] %s (0x%02X)\n",
+				encrypted_len, seq, qq_get_room_cmd_desc(room_cmd), room_cmd);
 		return -1;
 	}
 
@@ -1131,8 +1132,8 @@ gint qq_send_room_cmd(PurpleConnection *gc, guint8 room_cmd, guint32 room_id,
 #if 1
 		/* qq_show_packet("QQ_SEND_DATA", buf, buf_len); */
 		purple_debug_info("QQ",
-				"<== [%05d], QQ_CMD_ROOM.(0x%02X %s) to room %d, total %d bytes is sent %d\n", 
-				seq, room_cmd, qq_get_room_cmd_desc(room_cmd), room_id,
+				"<== [%05d], %s (0x%02X) to room %d, total %d bytes is sent %d\n", 
+				seq, qq_get_room_cmd_desc(room_cmd), room_cmd, room_id, 
 				buf_len, bytes_sent);
 #endif
 	return bytes_sent;

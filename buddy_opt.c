@@ -201,11 +201,11 @@ void qq_reject_add_request_with_gc_and_uid(gc_and_uid *g)
 	g2->uid = uid;
 
 	msg1 = g_strdup_printf(_("You rejected %d's request"), uid);
-	msg2 = g_strdup(_("Input your reason:"));
+	msg2 = g_strdup(_("Message:"));
 
 	nombre = uid_to_purple_name(uid);
 	purple_request_input(gc, _("Reject request"), msg1, msg2,
-			_("Sorry, you are not my type..."), TRUE, FALSE,
+			_("Sorry, you are not my style..."), TRUE, FALSE,
 			NULL, _("Reject"), G_CALLBACK(_qq_reject_add_request_real), _("Cancel"), NULL,
 			purple_connection_get_account(gc), nombre, NULL,
 			g2);
@@ -363,7 +363,7 @@ void qq_process_add_buddy_reply(guint8 *data, gint data_len, guint16 seq, Purple
 		g = g_new0(gc_and_uid, 1);
 		g->gc = gc;
 		g->uid = for_uid;
-		msg = g_strdup_printf(_("User %d needs authentication"), for_uid);
+		msg = g_strdup_printf(_("%d needs authentication"), for_uid);
 		purple_request_input(gc, NULL, msg,
 				_("Input request here"), /* TODO: Awkward string to fix post string freeze - standardize auth dialogues? -evands */
 				_("Would you be my friend?"),
@@ -471,8 +471,8 @@ void qq_add_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *group)
 		if (b != NULL)
 			purple_blist_remove_buddy(b);
 		purple_notify_error(gc, NULL,
-				_("QQid Error"),
-				_("Invalid QQid"));
+				_("QQ Number Error"),
+				_("Invalid QQ Number"));
 	}
 }
 

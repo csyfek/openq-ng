@@ -195,7 +195,7 @@ static void _qq_process_msg_sys_add_contact_rejected(PurpleConnection *gc, gchar
 	g_return_if_fail(from != NULL && to != NULL);
 
 	message = g_strdup_printf(_("User %s rejected your request"), from);
-	reason = g_strdup_printf(_("Reason: %s"), msg_utf8);
+	reason = g_strdup_printf(_("Message: %s"), msg_utf8);
 	_qq_sys_msg_log_write(gc, message, from);
 
 	purple_notify_info(gc, NULL, message, reason);
@@ -284,7 +284,7 @@ static void _qq_process_msg_sys_notice(PurpleConnection *gc, gchar *from, gchar 
 
 	g_return_if_fail(from != NULL && to != NULL);
 
-	title = g_strdup_printf(_("Notice from %s:"), from);
+	title = g_strdup_printf(_("QQ Server Notice from %s:"), from);
 	content = g_strdup_printf(_("%s"), msg_utf8);
 
 	if (qd->is_show_notice) {
@@ -321,6 +321,13 @@ void qq_process_msg_sys(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 	}
 
 	msg_utf8 = qq_to_utf8(msg, QQ_CHARSET_DEFAULT);
+	if (from == NULL && msg_utf8) {
+		purple_debug_error("QQ", "Recv NULL sys msg to [%s], discard\n", to);
+		g_strfreev(segments);
+		g_free(msg_utf8);
+		return;
+	}
+
 	switch (strtol(code, NULL, 10)) {
 	case QQ_MSG_SYS_BEING_ADDED:
 		_qq_process_msg_sys_being_added(gc, from, to, msg_utf8);

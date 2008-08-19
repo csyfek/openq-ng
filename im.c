@@ -276,13 +276,13 @@ static void _qq_process_recv_news(guint8 *data, gint data_len, PurpleConnection 
 	bytes += qq_getdata(temp, temp_len, data+bytes);
 	url = g_strndup((gchar *)temp, temp_len);
 
-	content = g_strdup_printf(_("Title: %s\nBrief: %s\n%s"), title, brief, url);
+	content = g_strdup_printf(_("Title: %s\nBrief: %s\n\n%s"), title, brief, url);
 	content_utf8 = qq_to_utf8(content, QQ_CHARSET_DEFAULT);
 
 	if (qd->is_show_news) {
-		purple_notify_info(gc, NULL, _("QQ Server News:"), content_utf8);
+		purple_notify_info(gc, NULL, _("QQ Server News"), content_utf8);
 	} else {
-		purple_debug_info("QQ", "Server news:\n%s", content_utf8);
+		purple_debug_info("QQ", "QQ Server news:\n%s", content_utf8);
 	}
 	g_free(title);
 	g_free(brief);
@@ -646,7 +646,7 @@ void qq_process_recv_im(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 	qd = (qq_data *) gc->proto_data;
 
 	if (data_len < 16) {	/* we need to ack with the first 16 bytes */
-		purple_debug_error("QQ", "IM is too short\n");
+		purple_debug_error("QQ", "MSG is too short\n");
 		return;
 	} else {
 		/* when we receive a message,
@@ -656,8 +656,7 @@ void qq_process_recv_im(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 
 	/* check len first */
 	if (data_len < 20) {	/* length of im_header */
-		purple_debug_error("QQ",
-				"Fail read recv IM header, len should longer than 20 bytes, read %d bytes\n", data_len);
+		purple_debug_error("QQ", "Invald MSG header, len %d < 20\n", data_len);
 		return;
 	}
 
@@ -673,13 +672,13 @@ void qq_process_recv_im(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 	/* im_header prepared */
 
 	if (im_header->receiver_uid != qd->uid) {	/* should not happen */
-		purple_debug_error("QQ", "IM to [%d], NOT me\n", im_header->receiver_uid);
+		purple_debug_error("QQ", "MSG to [%d], NOT me\n", im_header->receiver_uid);
 		return;
 	}
 
 	/* check bytes */
 	if (bytes >= data_len - 1) {
-		purple_debug_warning("QQ", "Received IM is empty\n");
+		purple_debug_warning("QQ", "Empty MSG\n");
 		return;
 	}
 
@@ -691,60 +690,53 @@ void qq_process_recv_im(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 		case QQ_RECV_IM_FROM_UNKNOWN_2006:
 		case QQ_RECV_IM_TO_UNKNOWN:
 		case QQ_RECV_IM_TO_BUDDY:
-			purple_debug_info("QQ", "Msg from buddy [%d]\n", im_header->sender_uid);
+			purple_debug_info("QQ", "MSG from buddy [%d]\n", im_header->sender_uid);
 			_qq_process_recv_normal_im(data + bytes, data_len - bytes, gc);
 			break;
 		case QQ_RECV_IM_UNKNOWN_QUN_IM:
 		case QQ_RECV_IM_TEMP_QUN_IM:
 		case QQ_RECV_IM_QUN_IM:
-			purple_debug_info("QQ", "IM from group, internal_id [%d]\n", im_header->sender_uid);
+			purple_debug_info("QQ", "MSG from room [%d]\n", im_header->sender_uid);
 			/* sender_uid is in fact id */
-			qq_process_recv_group_im(data + bytes, data_len - bytes, im_header->sender_uid, gc, im_header->im_type);
+			qq_process_room_msg_normal(data + bytes, data_len - bytes, im_header->sender_uid, gc, im_header->im_type);
 			break;
 		case QQ_RECV_IM_ADD_TO_QUN:
-			purple_debug_info("QQ",
-					"IM from group, added by group internal_id [%d]\n", im_header->sender_uid);
+			purple_debug_info("QQ", "Notice from [%d], Added\n", im_header->sender_uid);
 			/* sender_uid is group id
 			 * we need this to create a dummy group and add to blist */
-			qq_process_recv_group_im_been_added(data + bytes, data_len - bytes, im_header->sender_uid, gc);
+			qq_process_room_msg_been_added(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_DEL_FROM_QUN:
-			purple_debug_info("QQ",
-					"IM from group, removed by group internal_ID [%d]\n", im_header->sender_uid);
+			purple_debug_info("QQ", "Notice from room [%d], Removed\n", im_header->sender_uid);
 			/* sender_uid is group id */
-			qq_process_recv_group_im_been_removed(data + bytes, data_len - bytes, im_header->sender_uid, gc);
+			qq_process_room_msg_been_removed(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_APPLY_ADD_TO_QUN:
-			purple_debug_info("QQ",
-					"IM from group, apply to join group internal_ID [%d]\n", im_header->sender_uid);
+			purple_debug_info("QQ", "Notice from room [%d], Joined\n", im_header->sender_uid);
 			/* sender_uid is group id */
-			qq_process_recv_group_im_apply_join(data + bytes, data_len - bytes, im_header->sender_uid, gc);
+			qq_process_room_msg_apply_join(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_APPROVE_APPLY_ADD_TO_QUN:
-			purple_debug_info("QQ",
-					"IM for group system info, approved by group internal_id [%d]\n",
+			purple_debug_info("QQ", "Notice from room [%d], Confirm add in\n",
 					im_header->sender_uid);
 			/* sender_uid is group id */
-			qq_process_recv_group_im_been_approved(data + bytes, data_len - bytes, im_header->sender_uid, gc);
+			qq_process_room_msg_been_approved(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_REJCT_APPLY_ADD_TO_QUN:
-			purple_debug_info("QQ",
-					"IM for group system info, rejected by group internal_id [%d]\n",
+			purple_debug_info("QQ", "Notice from room [%d], Refuse add in\n",
 					im_header->sender_uid);
 			/* sender_uid is group id */
-			qq_process_recv_group_im_been_rejected(data + bytes, data_len - bytes, im_header->sender_uid, gc);
+			qq_process_room_msg_been_rejected(data + bytes, data_len - bytes, im_header->sender_uid, gc);
 			break;
 		case QQ_RECV_IM_SYS_NOTIFICATION:
-			purple_debug_info("QQ",
-					"IM from [%d], should be a system administrator\n", im_header->sender_uid);
+			purple_debug_info("QQ", "Admin notice from [%d]\n", im_header->sender_uid);
 			_qq_process_recv_sys_im(data + bytes, data_len - bytes, gc);
 			break;
 		default:
-			purple_debug_warning("QQ",
-					"IM from [%d], [0x%02x] %s is not processed\n",
-					im_header->sender_uid,
-					im_header->im_type, qq_get_recv_im_type_str(im_header->im_type));
-			qq_show_packet("Unknown IM type", data, data_len);
+			purple_debug_warning("QQ", "MSG from [%d], unknown type %s [0x%02x]\n",
+					im_header->sender_uid, qq_get_recv_im_type_str(im_header->im_type),
+					im_header->im_type);
+			qq_show_packet("Unknown MSG type", data, data_len);
 	}
 }
 

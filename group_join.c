@@ -78,10 +78,10 @@ void qq_send_cmd_group_join_group(PurpleConnection *gc, qq_group *group)
 	case QQ_ROOM_AUTH_TYPE_NEED_AUTH:
 		break;
 	case QQ_ROOM_AUTH_TYPE_NO_ADD:
-		purple_notify_warning(gc, NULL, _("This group does not allow others to join"), NULL);
+		purple_notify_warning(gc, NULL, _("This QQ Qun does not allow others to join"), NULL);
 		return;
 	default:
-		purple_debug_error("QQ", "Unknown group auth type: %d\n", group->auth_type);
+		purple_debug_error("QQ", "Unknown room auth type: %d\n", group->auth_type);
 		break;
 	}
 
@@ -187,7 +187,7 @@ void qq_process_group_cmd_exit_group(guint8 *data, gint len, PurpleConnection *g
 			purple_blist_remove_chat(chat);
 		qq_group_delete_internal_record(qd, id);
 	}
-	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully left the group"), NULL);
+	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully left the QQ Qun"), NULL);
 }
 
 /* Process the reply to group_auth subcmd */
@@ -202,14 +202,14 @@ void qq_process_group_cmd_join_group_auth(guint8 *data, gint len, PurpleConnecti
 
 	if (len < 4) {
 		purple_debug_error("QQ",
-			"Invalid join group reply, expect %d bytes, read %d bytes\n", 4, len);
+			"Invalid join room reply, expect %d bytes, read %d bytes\n", 4, len);
 		return;
 	}
 	bytes = 0;
 	bytes += qq_get32(&id, data + bytes);
 	g_return_if_fail(id > 0);
 
-	purple_notify_info(gc, _("QQ Group Auth"),
+	purple_notify_info(gc, _("QQ Qun Auth"),
 		     _("Your authorization request has been accepted by the QQ server"), NULL);
 }
 

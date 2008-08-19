@@ -143,32 +143,34 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 	qd = (qq_data *) gc->proto_data;
 
 	ret_8 = qq_process_login_reply(gc, data, data_len);
-	if (ret_8 == QQ_LOGIN_REPLY_OK) {
-		purple_debug_info("QQ", "Login repliess OK; everything is fine\n");
-
-		purple_connection_set_state(gc, PURPLE_CONNECTED);
-		qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
-
-		/* now initiate QQ Qun, do it first as it may take longer to finish */
-		qq_group_init(gc);
-
-		/* Now goes on updating my icon/nickname, not showing info_window */
-		qd->modifying_face = FALSE;
-
-		qq_send_packet_get_info(gc, qd->uid, FALSE);
-		/* grab my level */
-		qq_send_packet_get_level(gc, qd->uid);
-
-		qq_send_packet_change_status(gc);
-
-		/* refresh buddies */
-		qq_send_packet_get_buddies_list(gc, 0);
-
-		/* refresh groups */
-		qq_send_packet_get_buddies_and_rooms(gc, 0);
-
+	if (ret_8 != QQ_LOGIN_REPLY_OK) {
 		return;
 	}
+	
+	purple_debug_info("QQ", "Login repliess OK; everything is fine\n");
+
+	purple_connection_set_state(gc, PURPLE_CONNECTED);
+	qd->logged_in = TRUE;	/* must be defined after sev_finish_login */
+
+	/* now initiate QQ Qun, do it first as it may take longer to finish */
+	qq_group_init(gc);
+
+	/* Now goes on updating my icon/nickname, not showing info_window */
+	qd->modifying_face = FALSE;
+
+	qq_send_packet_get_info(gc, qd->uid, FALSE);
+	/* grab my level */
+	qq_send_packet_get_level(gc, qd->uid);
+
+	qq_send_packet_change_status(gc);
+
+	/* refresh buddies */
+	qq_send_packet_get_buddies_list(gc, 0);
+
+	/* refresh groups */
+	qq_send_packet_get_buddies_and_rooms(gc, 0);
+
+	return;
 }
 
 static void process_room_cmd_notify(PurpleConnection *gc, 
@@ -255,7 +257,7 @@ void qq_proc_room_cmd_reply(PurpleConnection *gc,
 		case QQ_ROOM_CMD_REPLY_NOT_MEMBER:
 			if (group != NULL) {
 				purple_debug_warning("QQ",
-					   _("You are not a member of group \"%s\"\n"), group->title_utf8);
+					   _("You are not a member of QQ Qun \"%s\"\n"), group->title_utf8);
 				group->my_status = QQ_ROOM_MEMBER_STATUS_NOT_MEMBER;
 				qq_group_refresh(gc, group);
 			}

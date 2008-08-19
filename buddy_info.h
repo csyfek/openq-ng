@@ -58,7 +58,7 @@
 #define QQ_COMM_FLAG_BIND_MOBILE	0x40
 #define QQ_COMM_FLAG_VIDEO          	0x80
 
-#define QQ_EXT_FLAG_SPACE				0x02
+#define QQ_EXT_FLAG_ZONE				0x02
 
 #define QQ_BUDDY_GENDER_GG          0x00
 #define QQ_BUDDY_GENDER_MM          0x01
