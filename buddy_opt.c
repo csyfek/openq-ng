@@ -515,7 +515,7 @@ void qq_add_buddy_request_free(qq_data *qd)
 	qq_add_buddy_request *p;
 
 	i = 0;
-	while (qd->add_buddy_request) {
+	while (qd->add_buddy_request != NULL) {
 		p = (qq_add_buddy_request *) (qd->add_buddy_request->data);
 		qd->add_buddy_request = g_list_remove(qd->add_buddy_request, p);
 		g_free(p);

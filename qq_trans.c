@@ -277,7 +277,7 @@ void qq_trans_process_before_login(PurpleConnection *gc)
 				"Process server cmd before login, seq %d, data %p, len %d, send_retries %d\n",
 				trans->seq, trans->data, trans->data_len, trans->send_retries);
 
-		qq_proc_cmd_reply(qd->gc, trans->seq, trans->cmd, trans->data, trans->data_len);
+		qq_proc_cmd_reply(gc, trans->seq, trans->cmd, trans->data, trans->data_len);
 	}
 
 	/* purple_debug_info("QQ_TRANS", "Scan finished\n"); */
@@ -359,13 +359,10 @@ void qq_trans_remove_all(PurpleConnection *gc)
 	while(qd->transactions != NULL) {
 		trans = (qq_transaction *) (qd->transactions->data);
 		qd->transactions = g_list_remove(qd->transactions, trans);
-		/*
-		purple_debug_error("QQ_TRANS",
-			"Remove transaction, seq = %d, buf = %p, len = %d\n",
-			trans->seq, trans->data, trans->data_len);
-		*/
+
 		if (trans->data)	g_free(trans->data);
 		g_free(trans);
+
 		count++;
 	}
 	purple_debug_info("QQ_TRANS", "Free all %d packets\n", count);

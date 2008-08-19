@@ -73,13 +73,27 @@ struct _qq_buddy {
 	gint8  role;		/* role in group, used only in group->members list */
 };
 
+typedef struct _qq_connection qq_connection;
+struct _qq_connection {
+	int fd;				/* socket file handler */
+	int input_handler;
+
+	/* tcp related */
+	int can_write_handler; 	/* use in tcp_send_out */
+	PurpleCircBuffer *tcp_txbuf;
+	guint8 *tcp_rxqueue;
+	int tcp_rxlen;
+};
+
 struct _qq_data {
 	PurpleConnection *gc;
 
-	/* common network resource */
+	GSList *openconns;
+	gboolean use_tcp;		/* network in tcp or udp */
+	gint fd;				/* socket file handler */
+
 	GList *servers;
 	gint default_port;
-	gboolean use_tcp;		/* network in tcp or udp */
 	
 	gchar *server_name;
 	guint16 server_port;
@@ -88,23 +102,11 @@ struct _qq_data {
 	guint reconnect_watcher;
 	gint reconnect_times;
 
-	PurpleProxyConnectData *connect_data;
-	gint fd;				/* socket file handler */
-	gint tx_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
-
 	qq_interval itv_config;
 	qq_interval itv_count;
 	guint network_watcher;
 	
 	GList *transactions;	/* check ack packet and resend */
-
-	/* tcp related */
-	PurpleCircBuffer *tcp_txbuf;
-	guint8 *tcp_rxqueue;
-	int tcp_rxlen;
-	
-	/* udp related */
-	PurpleDnsQueryData *udp_query_data;
 
 	guint32 uid;			/* QQ number */
 	guint8 *token;		/* get from server*/

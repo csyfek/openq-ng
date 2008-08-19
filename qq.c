@@ -79,14 +79,13 @@ static void server_list_create(PurpleAccount *account) {
 
 	gpi = purple_proxy_get_setup(account);
 
-	qd->use_tcp = purple_account_get_bool(account, "use_tcp", TRUE);
+	qd->use_tcp  = TRUE;
+	if (purple_proxy_info_get_type(gpi) == PURPLE_PROXY_UDP) {
+		qd->use_tcp  = FALSE;
+	}
 	port = purple_account_get_int(account, "port", 0);
 	if (port == 0) {
-		if (qd->use_tcp) {
-			port = QQ_TCP_PORT;
-		} else {
-			port = QQ_UDP_PORT;
-		}
+		port = qd->use_tcp ? QQ_TCP_PORT : QQ_UDP_PORT;
 	}
 	qd->default_port = port;
 
@@ -820,9 +819,6 @@ static void init_plugin(PurplePlugin *plugin)
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	option = purple_account_option_int_new(_("Port"), "port", 0);
-	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
-
-	option = purple_account_option_bool_new(_("Connect using TCP"), "use_tcp", TRUE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	option = purple_account_option_bool_new(_("Show server notice"), "show_notice", TRUE);
