@@ -69,10 +69,10 @@ void qq_group_free_all(qq_data *qd)
 
 	i = 0;
 	while (qd->groups != NULL) {
-		i++;
 		group = (qq_group *) qd->groups->data;
 		qd->groups = g_list_remove(qd->groups, group);
 		qq_group_free(group);
+		i++;
 	}
 
 	purple_debug_info("QQ", "%d rooms are freed\n", i);
