@@ -90,7 +90,8 @@ struct _qq_data {
 
 	GSList *openconns;
 	gboolean use_tcp;		/* network in tcp or udp */
-	gint fd;				/* socket file handler */
+	PurpleProxyConnectData *conn_data;
+	gint fd;							/* socket file handler */
 
 	GList *servers;
 	gint default_port;
@@ -99,8 +100,9 @@ struct _qq_data {
 	guint16 server_port;
 	struct in_addr redirect_ip;
 	guint16 redirect_port;
-	guint reconnect_watcher;
-	gint reconnect_times;
+	guint check_watcher;
+	guint connect_watcher;
+	gint connect_retry;
 
 	qq_interval itv_config;
 	qq_interval itv_count;

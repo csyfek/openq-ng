@@ -183,7 +183,7 @@ static void qq_login(PurpleAccount *account)
 		qd->itv_config.update = 0;
 	}
 
-	qd->reconnect_watcher = purple_timeout_add(0, qq_connect_later, gc);
+	qd->connect_watcher = purple_timeout_add_seconds(0, qq_connect_later, gc);
 }
 
 /* clean up the given QQ connection and free all resources */
