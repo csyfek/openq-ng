@@ -44,11 +44,12 @@
 #include "utils.h"
 #include "qq_process.h"
 
-/* set QQ_RECONNECT_MAX to 1, when test reconnecting */
-#define QQ_RECONNECT_MAX					4
-#define QQ_RECONNECT_INTERVAL		2000
-#define QQ_KEEP_ALIVE_INTERVAL		60000
-#define QQ_TRANS_INTERVAL				10000
+/* set QQ_CONNECT_MAX to 1, when test reconnecting */
+#define QQ_CONNECT_MAX						3
+#define QQ_CONNECT_INTERVAL			2
+#define QQ_CONNECT_CHECK					5
+#define QQ_KEEP_ALIVE_INTERVAL		60
+#define QQ_TRANS_INTERVAL				10
 
 gboolean connect_to_server(PurpleConnection *gc, gchar *server, gint port);
 
@@ -136,7 +137,6 @@ static gboolean set_new_server(qq_data *qd)
 
 	qd->server_name = g_strdup(it->data);
 	qd->server_port = qd->default_port;
- 	qd->reconnect_times = QQ_RECONNECT_MAX;
 
 	purple_debug_info("QQ",
 		"set new server to %s:%d\n", qd->server_name, qd->server_port);
@@ -154,15 +154,31 @@ static gint packet_get_header(guint8 *header_tag,  guint16 *source_tag,
 	return bytes;
 }
 
+static gboolean connect_check(gpointer data)
+{
+	PurpleConnection *gc = (PurpleConnection *) data;
+	qq_data *qd;
+
+	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, FALSE);
+	qd = (qq_data *) gc->proto_data;
+
+	if (qd->fd >= 0 && qd->token != NULL && qd->token_len >= 0) {
+		purple_debug_info("QQ", "Connect ok\n");
+		return FALSE;
+	}
+
+	qd->connect_watcher = purple_timeout_add_seconds(0, qq_connect_later, gc);
+	return FALSE;
+}
+
 /* Warning: qq_connect_later destory all connection
  *  Any function should be care of use qq_data after call this function
  *  Please conside tcp_pending and udp_pending */
 gboolean qq_connect_later(gpointer data)
 {
-	PurpleConnection *gc;
+	PurpleConnection *gc = (PurpleConnection *) data;
 	qq_data *qd;
 
-	gc = (PurpleConnection *) data;
 	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, FALSE);
 	qd = (qq_data *) gc->proto_data;
 
@@ -177,22 +193,25 @@ gboolean qq_connect_later(gpointer data)
 		qd->server_port = qd->redirect_port;
 		qd->redirect_ip.s_addr = 0;
 		qd->redirect_port = 0;
-		qd->reconnect_times = QQ_RECONNECT_MAX;
+		qd->connect_retry = QQ_CONNECT_MAX;
 	}
-	if (qd->server_name == NULL || qd->reconnect_times <= 0) {
+
+	if (qd->server_name == NULL || qd->connect_retry <= 0) {
 		if ( set_new_server(qd) != TRUE) {
 			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 					_("Failed to connect all servers"));
 			return FALSE;
 		}
-		qd->reconnect_times = QQ_RECONNECT_MAX;
+		qd->connect_retry = QQ_CONNECT_MAX;
 	}
-	
-	qd->reconnect_times--;
+
+	qd->connect_retry--;
 	if ( !connect_to_server(gc, qd->server_name, qd->server_port) ) {
 			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 				_("Unable to connect."));
 	}
+
+	qd->check_watcher = purple_timeout_add_seconds(QQ_CONNECT_CHECK, connect_check, gc);
 	return FALSE;	/* timeout callback stops */
 }
 
@@ -264,7 +283,7 @@ static gboolean packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 			qq_proc_cmd_login(gc, buf + bytes, bytes_not_read);
 			/* check is redirect or not, and do it now */
 			if (qd->redirect_ip.s_addr != 0) {
-				qd->reconnect_watcher = purple_timeout_add(QQ_RECONNECT_INTERVAL, qq_connect_later, gc);
+				qd->connect_watcher = purple_timeout_add_seconds(QQ_CONNECT_INTERVAL, qq_connect_later, gc);
 				return FALSE;	// do nothing after this function and return now
 			}
 			if (prev_login_status != qd->logged_in && qd->logged_in == TRUE) {
@@ -651,7 +670,7 @@ static void do_request_token(PurpleConnection *gc)
 		qd->password_twice_md5, sizeof(qd->password_twice_md5));
 
 	g_return_if_fail(qd->network_watcher == 0);
-	qd->network_watcher = purple_timeout_add(qd->itv_config.resend *1000, network_timeout, gc);
+	qd->network_watcher = purple_timeout_add_seconds(qd->itv_config.resend, network_timeout, gc);
 	
 	/* Update the login progress status display */
 	conn_msg = g_strdup_printf(_("Request token"));
@@ -676,6 +695,8 @@ static void connect_cb(gpointer data, gint source, const gchar *error_message)
 	qd = (qq_data *) gc->proto_data;
 	account = purple_connection_get_account(gc);
 
+	qd->conn_data = NULL;
+	
 	if (!PURPLE_CONNECTION_IS_VALID(gc)) {
 		purple_debug_info("QQ_CONN", "Invalid connection\n");
 		close(source);
@@ -686,7 +707,7 @@ static void connect_cb(gpointer data, gint source, const gchar *error_message)
 		purple_debug_info("QQ_CONN",
 				"Could not establish a connection with the server:\n%s\n",
 				error_message);
-		qd->reconnect_watcher = purple_timeout_add(QQ_RECONNECT_INTERVAL, qq_connect_later, gc);
+		qd->connect_watcher = purple_timeout_add_seconds(QQ_CONNECT_INTERVAL, qq_connect_later, gc);
 		return;
 	}
 
@@ -724,7 +745,11 @@ gboolean connect_to_server(PurpleConnection *gc, gchar *server, gint port)
 
 	purple_debug_info("QQ", "Connect to %s:%d\n", server, port);
 
-	if ( purple_proxy_connect(gc, account, server, port, connect_cb, gc) == NULL ) {
+	if (qd->conn_data != NULL) {
+		purple_proxy_connect_cancel(qd->conn_data);
+	}
+	qd->conn_data = purple_proxy_connect(gc, account, server, port, connect_cb, gc);
+	if ( qd->conn_data == NULL ) {
 		purple_debug_error("QQ", _("Couldn't create socket"));
 		return FALSE;
 	}
@@ -742,9 +767,14 @@ void qq_disconnect(PurpleConnection *gc)
 
 	purple_debug_info("QQ", "Disconnecting ...\n");
 
-	if (qd->reconnect_watcher > 0) {
-		purple_timeout_remove(qd->reconnect_watcher);
-		qd->reconnect_watcher = 0;
+	if (qd->check_watcher > 0) {
+		purple_timeout_remove(qd->check_watcher);
+		qd->check_watcher = 0;
+	}
+
+	if (qd->connect_watcher > 0) {
+		purple_timeout_remove(qd->connect_watcher);
+		qd->connect_watcher = 0;
 	}
 
 	if (qd->network_watcher > 0) {
@@ -757,6 +787,10 @@ void qq_disconnect(PurpleConnection *gc)
 		qq_send_packet_logout(gc);
 	}
 
+	if (qd->conn_data != NULL) {
+		purple_proxy_connect_cancel(qd->conn_data);
+		qd->conn_data = NULL;
+	}
 	connection_free_all(qd);
 	qd->fd = -1;
 

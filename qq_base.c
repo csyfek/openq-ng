@@ -465,10 +465,9 @@ guint8 qq_process_login_reply( PurpleConnection *gc, guint8 *data, gint data_len
 			break;
 	}
 
-	purple_connection_error_reason(gc,
+	purple_connection_error_reason(gc, 
 		PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
 	g_free(error_msg);
-
 	return ret;
 }
 
