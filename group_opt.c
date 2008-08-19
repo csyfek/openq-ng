@@ -211,7 +211,8 @@ void qq_group_process_modify_members_reply(guint8 *data, gint len, PurpleConnect
 
 	purple_debug_info("QQ", "Succeed in modify members for room %d\n", group->ext_id);
 
-	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully modified QQ Qun member"), NULL);
+	purple_notify_info(gc, _("QQ Qun Operation"),
+			_("You have successfully modified Qun member"), NULL);
 }
 
 void qq_room_change_info(PurpleConnection *gc, qq_group *group)
@@ -366,9 +367,9 @@ void qq_group_process_create_group_reply(guint8 *data, gint len, PurpleConnectio
 	g->uid = id;
 
 	purple_request_action(gc, _("QQ Qun Operation"),
-			    _("You have successfully created a QQ Qun"),
+			    _("You have successfully created a Qun"),
 			    _
-			    ("Would you like to set up the QQ Qun details now?"),
+			    ("Would you like to set up the detail information now?"),
 			    1,
 				purple_connection_get_account(gc), NULL, NULL,
 				g, 2,

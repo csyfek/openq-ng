@@ -94,10 +94,8 @@ struct _qq_data {
 	gint fd;							/* socket file handler */
 
 	GList *servers;
-	gint default_port;
+	gchar *curr_server;		/* point to servers->data, do not free*/
 	
-	gchar *server_name;
-	guint16 server_port;
 	struct in_addr redirect_ip;
 	guint16 redirect_port;
 	guint check_watcher;

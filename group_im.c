@@ -119,7 +119,7 @@ void qq_process_room_msg_apply_join(guint8 *data, gint len, guint32 id, PurpleCo
 
 	bytes += convert_as_pascal_string(data + bytes, &reason_utf8, QQ_CHARSET_DEFAULT);
 
-	msg = g_strdup_printf(_("%d requested to join QQ Qun %d"), user_uid, ext_id);
+	msg = g_strdup_printf(_("%d requested to join Qun %d"), user_uid, ext_id);
 	reason = g_strdup_printf(_("Message: %s"), reason_utf8);
 
 	g = g_new0(group_member_opt, 1);
@@ -170,7 +170,7 @@ void qq_process_room_msg_been_rejected(guint8 *data, gint len, guint32 id, Purpl
 	bytes += convert_as_pascal_string(data + bytes, &reason_utf8, QQ_CHARSET_DEFAULT);
 
 	msg = g_strdup_printf
-		(_("Your request to join QQ Qun %d has been rejected by admin %d"), ext_id, admin_uid);
+		(_("Your request to join Qun %d has been rejected by admin %d"), ext_id, admin_uid);
 	reason = g_strdup_printf(_("Message: %s"), reason_utf8);
 
 	purple_notify_warning(gc, _("QQ Qun Operation"), msg, reason);
@@ -208,7 +208,7 @@ void qq_process_room_msg_been_approved(guint8 *data, gint len, guint32 id, Purpl
 	bytes += convert_as_pascal_string(data + bytes, &reason_utf8, QQ_CHARSET_DEFAULT);
 
 	msg = g_strdup_printf
-		(_("Your request to join QQ Qun %d has been approved by admin %d"), ext_id, admin_uid);
+		(_("Your request to join Qun %d has been approved by admin %d"), ext_id, admin_uid);
 
 	purple_notify_warning(gc, _("QQ Qun Operation"), msg, NULL);
 
@@ -241,7 +241,7 @@ void qq_process_room_msg_been_removed(guint8 *data, gint len, guint32 id, Purple
 
 	g_return_if_fail(ext_id > 0 && uid > 0);
 
-	msg = g_strdup_printf(_("You [%d] have left QQ Qun \"%d\""), uid, ext_id);
+	msg = g_strdup_printf(_("You [%d] have left Qun \"%d\""), uid, ext_id);
 	purple_notify_info(gc, _("QQ Qun Operation"), msg, NULL);
 
 	group = qq_room_search_id(gc, id);
@@ -272,8 +272,8 @@ void qq_process_room_msg_been_added(guint8 *data, gint len, guint32 id, PurpleCo
 
 	g_return_if_fail(ext_id > 0 && uid > 0);
 
-	msg = g_strdup_printf(_("You [%d] have been added to QQ Qun \"%d\""), uid, ext_id);
-	purple_notify_info(gc, _("QQ Qun Operation"), msg, _("This QQ Qun has been added to your buddy list"));
+	msg = g_strdup_printf(_("[%d] added to Qun \"%d\""), uid, ext_id);
+	purple_notify_info(gc, _("QQ Qun Operation"), msg, _("Qun is in buddy list"));
 
 	group = qq_room_search_id(gc, id);
 	if (group != NULL) {
