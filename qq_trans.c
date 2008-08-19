@@ -109,13 +109,14 @@ static void trans_remove(PurpleConnection *gc, qq_transaction *trans)
 	qq_data *qd = (qq_data *)gc->proto_data;
 	g_return_if_fail(qd != NULL && trans != NULL);
 	
+#if 0
 	purple_debug_info("QQ_TRANS",
 				"Remove [%s%05d] retry %d rcved %d scan %d %s\n",
 				(trans->flag & QQ_TRANS_IS_SERVER) ? "SRV-" : "",
 				trans->seq,
 				trans->send_retries, trans->rcved_times, trans->scan_times,
 				qq_get_cmd_desc(trans->cmd));
-
+#endif
 	if (trans->data)	g_free(trans->data);
 	qd->transactions = g_list_remove(qd->transactions, trans);
 	g_free(trans);
@@ -147,9 +148,11 @@ void qq_trans_add_client_cmd(PurpleConnection *gc, guint16 cmd, guint16 seq, gui
 		trans->data = g_memdup(data, data_len);	/* don't use g_strdup, may have 0x00 */
 		trans->data_len = data_len;
 	}
+#if 0
 	purple_debug_info("QQ_TRANS",
 			"Add client cmd, seq = %d, data = %p, len = %d\n",
 			trans->seq, trans->data, trans->data_len);
+#endif			
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
@@ -177,9 +180,11 @@ void qq_trans_add_room_cmd(PurpleConnection *gc, guint16 seq, guint8 room_cmd, g
 		trans->data = g_memdup(data, data_len);	/* don't use g_strdup, may have 0x00 */
 		trans->data_len = data_len;
 	}
+#if 0
 	purple_debug_info("QQ_TRANS",
 			"Add room cmd, seq = %d, data = %p, len = %d\n",
 			trans->seq, trans->data, trans->data_len);
+#endif
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
@@ -208,9 +213,11 @@ void qq_trans_add_server_cmd(PurpleConnection *gc, guint16 cmd, guint16 seq, gui
 		trans->data = g_memdup(data, data_len);	/* don't use g_strdup, may have 0x00 */
 		trans->data_len = data_len;
 	}
+#if 0
 	purple_debug_info("QQ_TRANS",
 			"Add server cmd, seq = %d, data = %p, len = %d\n",
 			trans->seq, trans->data, trans->data_len);
+#endif			
 	qd->transactions = g_list_append(qd->transactions, trans);
 }
 
