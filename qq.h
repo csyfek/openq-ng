@@ -74,8 +74,11 @@ struct _qq_buddy {
 
 typedef struct _qq_connection qq_connection;
 struct _qq_connection {
-	PurpleProxyConnectData *connect_data;
+	PurpleConnection *gc;
 	gboolean is_tcp;
+
+	PurpleProxyConnectData *conn_data;
+	PurpleDnsQueryData *dns_data;
 
 	int fd;				/* socket file handler */
 	int input_handler;
@@ -93,7 +96,7 @@ struct _qq_data {
 	PurpleConnection *gc;
 
 	/* common network resource */
-	GSList *openconns;
+	GList *openconns;
 	qq_connection *conn;
 	
 	gboolean use_tcp;		/* network in tcp or udp */

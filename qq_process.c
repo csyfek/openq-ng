@@ -139,10 +139,9 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 	guint ret_8;
 
 	g_return_if_fail (gc != NULL && gc->proto_data != NULL);
-	
 	qd = (qq_data *) gc->proto_data;
 
-	ret_8 = qq_process_login_reply(data, data_len, gc);
+	ret_8 = qq_process_login_reply(gc, data, data_len);
 	if (ret_8 == QQ_LOGIN_REPLY_OK) {
 		purple_debug_info("QQ", "Login repliess OK; everything is fine\n");
 
@@ -167,33 +166,6 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 		/* refresh groups */
 		qq_send_packet_get_buddies_and_rooms(gc, 0);
 
-		return;
-	}
-
-	if (ret_8 == QQ_LOGIN_REPLY_REDIRECT) {
-		/*
-		purple_debug_warning("QQ",
-			"Redirected to new server: %s:%d\n", inet_ntoa(qd->redirect_ip), qd->redirect_port);
-		*/
-		return;
-	}
-
-	if (ret_8 == QQ_LOGIN_REPLY_ERR_PWD) {
-		if (!purple_account_get_remember_password(gc->account)) {
-			purple_account_set_password(gc->account, NULL);
-		}
-		purple_connection_error_reason(gc,
-			PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED, _("Incorrect password."));
-		return;
-	}
-
-	if (ret_8 == QQ_LOGIN_REPLY_ERR_MISC) {
-		if (purple_debug_is_enabled())
-			purple_connection_error_reason(gc,
-				PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Unable to login. Check debug log."));
-		else
-			purple_connection_error_reason(gc,
-				PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Unable to login"));
 		return;
 	}
 }

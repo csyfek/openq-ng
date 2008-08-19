@@ -284,7 +284,7 @@ void qq_send_packet_get_info(PurpleConnection *gc, guint32 uid, gboolean show_wi
 
 	qd = (qq_data *) gc->proto_data;
 	g_snprintf(uid_str, sizeof(uid_str), "%d", uid);
-	qq_send_cmd(qd, QQ_CMD_GET_USER_INFO, (guint8 *) uid_str, strlen(uid_str));
+	qq_send_cmd(gc, QQ_CMD_GET_USER_INFO, (guint8 *) uid_str, strlen(uid_str));
 
 	query = g_new0(qq_info_query, 1);
 	query->uid = uid;
@@ -314,7 +314,6 @@ void qq_prepare_modify_info(PurpleConnection *gc)
 /* send packet to modify personal information */
 static void qq_send_packet_modify_info(PurpleConnection *gc, contact_info *info)
 {
-	qq_data *qd = (qq_data *) gc->proto_data;
 	gint bytes = 0;
 	guint8 raw_data[MAX_PACKET_SIZE - 128] = {0};
 	guint8 bar;
@@ -446,7 +445,7 @@ static void qq_send_packet_modify_info(PurpleConnection *gc, contact_info *info)
 
 	bytes += qq_put8(raw_data + bytes, bar);
 
-	qq_send_cmd(qd, QQ_CMD_UPDATE_INFO, raw_data, bytes);
+	qq_send_cmd(gc, QQ_CMD_UPDATE_INFO, raw_data, bytes);
 
 }
 
@@ -927,7 +926,7 @@ void qq_send_packet_get_level(PurpleConnection *gc, guint32 uid)
 	bytes += qq_put32(buf + bytes, uid);
 
 	qd = (qq_data *) gc->proto_data;
-	qq_send_cmd(qd, QQ_CMD_GET_LEVEL, buf, bytes);
+	qq_send_cmd(gc, QQ_CMD_GET_LEVEL, buf, bytes);
 }
 
 void qq_send_packet_get_buddies_levels(PurpleConnection *gc)
@@ -955,7 +954,7 @@ void qq_send_packet_get_buddies_levels(PurpleConnection *gc)
 		}
 		node = node->next;
 	}
-	qq_send_cmd(qd, QQ_CMD_GET_LEVEL, buf, size);
+	qq_send_cmd(gc, QQ_CMD_GET_LEVEL, buf, size);
 }
 
 void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnection *gc)
