@@ -122,7 +122,7 @@ const gchar *qq_get_ver_desc(gint source)
 	case QQ_SERVER_0100:
 		return "QQ Server 0100";
 	default:
-		return "Unknown";
+		return "Unknown Version";
 	}
 }
 
@@ -175,7 +175,7 @@ const gchar *qq_get_cmd_desc(gint cmd)
 	case QQ_CMD_RECV_MSG_BUDDY_CHANGE_STATUS:
 		return "QQ_CMD_RECV_MSG_BUDDY_CHANGE_STATUS";
 	default:
-		return "Unknown";
+		return "Unknown CMD";
 	}
 }
 
@@ -231,6 +231,6 @@ const gchar *qq_get_room_cmd_desc(gint room_cmd)
 	case QQ_ROOM_CMD_TEMP_GET_MEMBERS:
 		return "QQ_ROOM_CMD_TEMP_GET_MEMBERS";
 	default:
-		return "Unknown QQ Room Command";
+		return "Unknown Room Command";
 	}
 }

@@ -69,6 +69,7 @@ static void server_list_create(PurpleAccount *account) {
 	PurpleConnection *gc;
 	qq_data *qd;
 	const gchar *user_server;
+	int port;
 
 	purple_debug_info("QQ", "Create server list\n");
 	gc = purple_account_get_connection(account);
@@ -76,20 +77,22 @@ static void server_list_create(PurpleAccount *account) {
 	qd = gc->proto_data;
 
 	qd->use_tcp = purple_account_get_bool(account, "use_tcp", TRUE);
-	qd->default_port = purple_account_get_int(account, "port", 0);
-	if (qd->default_port == 0) {
+	port = purple_account_get_int(account, "port", 0);
+	if (port == 0) {
 		if (qd->use_tcp) {
-			qd->default_port = QQ_TCP_PORT;
+			port = QQ_TCP_PORT;
 		} else {
-			qd->default_port = QQ_UDP_PORT;
+			port = QQ_UDP_PORT;
 		}
 	}
+	qd->default_port = port;
 
 	user_server = purple_account_get_string(account, "server", NULL);
 	if (user_server != NULL && strlen(user_server) > 0) {
 		qd->servers = g_list_append(qd->servers, g_strdup(user_server));
 		return;
 	}
+
 	if (qd->use_tcp) {
 		qd->servers = g_list_append(qd->servers, "tcpconn.tencent.com");
 		qd->servers = g_list_append(qd->servers, "tcpconn2.tencent.com");
@@ -111,7 +114,8 @@ static void server_list_create(PurpleAccount *account) {
 	qd->servers = g_list_append(qd->servers, "sz9.tencent.com");
 }
 
-static void server_list_remove_all(qq_data *qd) {
+static void server_list_remove_all(qq_data *qd)
+{
  	g_return_if_fail(qd != NULL);
 
 	if (qd->server_name != NULL) {
@@ -138,6 +142,7 @@ static void qq_login(PurpleAccount *account)
 	gc->flags |= PURPLE_CONNECTION_HTML | PURPLE_CONNECTION_NO_BGCOLOR | PURPLE_CONNECTION_AUTO_RESP;
 
 	qd = g_new0(qq_data, 1);
+	memset(qd, 0, sizeof(qq_data));
 	qd->gc = gc;
 	gc->proto_data = qd;
 
@@ -153,6 +158,28 @@ static void qq_login(PurpleAccount *account)
 
 	server_list_create(account);
 	purple_debug_info("QQ", "Server list has %d\n", g_list_length(qd->servers));
+
+	qd->is_show_notice = purple_account_get_bool(account, "show_notice", TRUE);
+	qd->is_show_news = purple_account_get_bool(account, "show_news", TRUE);
+
+	qd->itv_config.resend = purple_account_get_int(account, "resend_interval", 10);
+	if (qd->itv_config.resend <= 0) qd->itv_config.resend = 10;
+
+	qd->itv_config.keep_alive = purple_account_get_int(account, "keep_alive_interval", 60);
+	if (qd->itv_config.keep_alive < 30) qd->itv_config.keep_alive = 30;
+	qd->itv_config.keep_alive /= qd->itv_config.resend;
+	qd->itv_count.keep_alive = qd->itv_config.keep_alive;
+
+	qd->itv_config.update = purple_account_get_int(account, "update_interval", 300);
+	if (qd->itv_config.update > 0) {
+		if (qd->itv_config.update < qd->itv_config.keep_alive) {
+			qd->itv_config.update = qd->itv_config.keep_alive;
+		}
+		qd->itv_config.update /= qd->itv_config.resend;
+		qd->itv_count.update = qd->itv_config.update;
+	} else {
+		qd->itv_config.update = 0;
+	}
 
 	qq_connect(account);
 }
@@ -795,7 +822,13 @@ static void init_plugin(PurplePlugin *plugin)
 	option = purple_account_option_bool_new(_("Connect using TCP"), "use_tcp", TRUE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
-	option = purple_account_option_int_new(_("resend interval(s)"), "resend_interval", 10);
+	option = purple_account_option_int_new(_("Show server notice"), "show_notice", TRUE);
+	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
+	option = purple_account_option_int_new(_("Show server news"), "show_news", TRUE);
+	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
+	option = purple_account_option_int_new(_("Resend interval(s)"), "resend_interval", 10);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	option = purple_account_option_int_new(_("Keep alive interval(s)"), "keep_alive_interval", 60);

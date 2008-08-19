@@ -142,7 +142,7 @@ static void _qq_send_packet_ack_msg_sys(PurpleConnection *gc, guint8 code, guint
 	g_free(str);
 
 	if (bytes == ack_len)	/* creation OK */
-		qq_send_cmd_detail(qd, QQ_CMD_ACK_SYS_MSG, 0, FALSE, ack, ack_len);
+		qq_send_cmd_detail(gc, QQ_CMD_ACK_SYS_MSG, 0, FALSE, ack, ack_len);
 	else
 		purple_debug_error("QQ",
 			   "Fail creating sys msg ACK, expect %d bytes, build %d bytes\n", ack_len, bytes);
@@ -279,14 +279,19 @@ static void _qq_process_msg_sys_add_contact_request(PurpleConnection *gc, gchar 
 
 static void _qq_process_msg_sys_notice(PurpleConnection *gc, gchar *from, gchar *to, gchar *msg_utf8)
 {
+	qq_data *qd = (qq_data *) gc->proto_data;
 	gchar *title, *content;
 
 	g_return_if_fail(from != NULL && to != NULL);
 
-	title = g_strdup_printf(_("Notice from: %s"), from);
+	title = g_strdup_printf(_("Notice from %s:"), from);
 	content = g_strdup_printf(_("%s"), msg_utf8);
 
-	purple_notify_info(gc, NULL, title, content);
+	if (qd->is_show_notice) {
+		purple_notify_info(gc, NULL, title, content);
+	} else {
+		purple_debug_info("QQ", "Server notice from %s:\n%s", from, msg_utf8);
+}
 	g_free(title);
 	g_free(content);
 }

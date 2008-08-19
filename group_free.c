@@ -75,5 +75,5 @@ void qq_group_free_all(qq_data *qd)
 		qq_group_free(group);
 	}
 
-	purple_debug_info("QQ", "%d groups are freed\n", i);
+	purple_debug_info("QQ", "%d rooms are freed\n", i);
 }

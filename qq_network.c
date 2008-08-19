@@ -46,62 +46,11 @@
 
 /* set QQ_RECONNECT_MAX to 1, when test reconnecting */
 #define QQ_RECONNECT_MAX					4
-#define QQ_RECONNECT_INTERVAL		5000
+#define QQ_RECONNECT_INTERVAL		1000
 #define QQ_KEEP_ALIVE_INTERVAL		60000
 #define QQ_TRANS_INTERVAL				10000
 
-static qq_connection *connection_find(qq_data *qd, int fd) {
-	qq_connection *ret = NULL;
-	GSList *entry = qd->openconns;
-	while(entry) {
-		ret = entry->data;
-		if(ret->fd == fd) {
-			return ret;
-		}
-		entry = entry->next;
-	}
-	return NULL;
-}
-
-static qq_connection *connection_create(qq_data *qd, int fd) {
-	qq_connection *ret = g_new0(qq_connection, 1);
-	ret->fd = fd;
-	qd->openconns = g_slist_append(qd->openconns, ret);
-	return ret;
-}
-
-static void connection_remove(qq_data *qd, int fd) {
-	qq_connection *conn = connection_find(qd, fd);
-	qd->openconns = g_slist_remove(qd->openconns, conn);
-
-	if(conn->input_handler) purple_input_remove(conn->input_handler);
-	if(conn->can_write_handler) purple_input_remove(conn->can_write_handler);
-
-	if(conn->tcp_txbuf != NULL) {
-		purple_debug_info("QQ", "destroy tcp_txbuf on socket %d\n", fd);
-		purple_circ_buffer_destroy(conn->tcp_txbuf);
-		conn->tcp_txbuf = NULL;
-	}
-
-	if (conn->tcp_rxqueue != NULL) {
-		purple_debug_info("QQ", "destroy tcp_rxqueue on socket %d\n", fd);
-		g_free(conn->tcp_rxqueue);
-		conn->tcp_rxqueue = NULL;
-		conn->tcp_rxlen = 0;
-	}
-
-	g_free(conn);
-}
-
-static void connection_free_all(qq_data *qd) {
-	qq_connection *ret = NULL;
-	GSList *entry = qd->openconns;
-	while(entry) {
-		ret = entry->data;
-		connection_remove(qd, ret->fd);
-		entry = qd->openconns;
-	}
-}
+gboolean connect_to_server(PurpleConnection *gc, gchar *server, gint port);
 
 static gboolean set_new_server(qq_data *qd)
 {
@@ -118,9 +67,9 @@ static gboolean set_new_server(qq_data *qd)
 
 	/* remove server used before */
 	if (qd->server_name != NULL) {
-		purple_debug_info("QQ", "Remove previous server [%s]\n", qd->server_name);
+		purple_debug_info("QQ",
+			"Remove previous server [%s]\n", qd->server_name);
    		qd->servers = g_list_remove(qd->servers, qd->server_name);
-   		g_free(qd->server_name);
    		qd->server_name = NULL;
     }
 	
@@ -135,16 +84,18 @@ static gboolean set_new_server(qq_data *qd)
 	/* get new server */
 	index  = random() % count;
 	it = g_list_nth(qd->servers, index);
+    qd->server_name = it->data;		/* do not free server_name */
     if (it->data == NULL || strlen(it->data) <= 0 ) {
 		purple_debug_info("QQ", "Server name at %d is empty\n", index);
 		return FALSE;
 	}
-	
+
 	qd->server_name = g_strdup(it->data);
 	qd->server_port = qd->default_port;
- 	qd->reconn_times = QQ_RECONNECT_MAX;
+ 	qd->reconnect_times = QQ_RECONNECT_MAX;
 
-	purple_debug_info("QQ", "set new server to %s:%d\n", qd->server_name, qd->server_port);
+	purple_debug_info("QQ",
+		"set new server to %s:%d\n", qd->server_name, qd->server_port);
 	return TRUE;
 }
 
@@ -159,7 +110,7 @@ static gint packet_get_header(guint8 *header_tag,  guint16 *source_tag,
 	return bytes;
 }
 
-static gboolean connect_later_cb(gpointer data)
+static gboolean reconnect_later_cb(gpointer data)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
@@ -168,39 +119,41 @@ static gboolean connect_later_cb(gpointer data)
 	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, FALSE);
 	qd = (qq_data *) gc->proto_data;
 
-	qd->reconn_watcher = 0;
+	qd->network_watcher = 0;
 
-	qq_connect(gc->account);
+	if ( !connect_to_server(gc, qd->server_name, qd->server_port) ) {
+			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+				_("Unable to redirect server."));
+	}
 	return FALSE;	/* timeout callback stops */
 }
 
-static void connect_later(PurpleConnection *gc)
+static void reconnect_later(PurpleConnection *gc)
 {
 	qq_data *qd;
 
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 	qd = (qq_data *) gc->proto_data;
 
-	qd->reconn_times--;
-	if (qd->reconn_times < 0) {
-		if ( !set_new_server(qd) ) {
+	qd->reconnect_times--;
+	if (qd->reconnect_times < 0) {
+		if ( set_new_server(qd) != TRUE) {
 			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 					_("Failed to connect server"));
 			return;
 		}
-
-		purple_debug_info("QQ",
-			"Connect to new server %s:%d next retries %d in %d ms\n",
-			qd->server_name, qd->server_port,
-			qd->reconn_times, QQ_RECONNECT_INTERVAL);
 	}
 
-	qd->reconn_watcher = purple_timeout_add(QQ_RECONNECT_INTERVAL,
-		connect_later_cb, gc);
+	purple_debug_info("QQ",
+		"Reconnect to server %s:%d next retries %d in %d ms\n",
+		qd->server_name, qd->server_port, qd->reconnect_times, QQ_RECONNECT_INTERVAL);
+
+	qd->network_watcher = purple_timeout_add(QQ_RECONNECT_INTERVAL,
+		reconnect_later_cb, gc);
 }
 
 /* process the incoming packet from qq_pending */
-static void packet_process(PurpleConnection *gc, int fd, guint8 *buf, gint buf_len)
+static void packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 {
 	qq_data *qd;
 	gint bytes, bytes_not_read;
@@ -215,9 +168,6 @@ static void packet_process(PurpleConnection *gc, int fd, guint8 *buf, gint buf_l
 	guint8 room_cmd;
 	guint32 room_id;
 
-	guint8 ret_token;
-	gchar *error_msg = NULL;
-
 	qq_transaction *trans;
 
 	g_return_if_fail(buf != NULL && buf_len > 0);
@@ -231,17 +181,17 @@ static void packet_process(PurpleConnection *gc, int fd, guint8 *buf, gint buf_l
 	bytes += packet_get_header(&header_tag, &source_tag, &cmd, &seq, buf + bytes);
 
 #if 1
-		purple_debug_info("QQ", "==> [%05d] 0x%04X %s, from (0x%04X %s) len %d\n",
-				seq, cmd, qq_get_cmd_desc(cmd), source_tag, qq_get_ver_desc(source_tag), buf_len);
+		purple_debug_info("QQ", "==> [%05d] 0x%04X %s, source tag 0x%04X len %d\n",
+				seq, cmd, qq_get_cmd_desc(cmd), source_tag, buf_len);
 #endif	
 	bytes_not_read = buf_len - bytes - 1;
 
 	/* ack packet, we need to update send tranactions */
 	/* we do not check duplication for server ack */
-	trans = qq_trans_find_rcved(qd, cmd, seq);
+	trans = qq_trans_find_rcved(gc, cmd, seq);
 	if (trans == NULL) {
 		/* new server command */
-		qq_trans_add_server_cmd(qd, fd, cmd, seq, buf + bytes, bytes_not_read);
+		qq_trans_add_server_cmd(gc, cmd, seq, buf + bytes, bytes_not_read);
 		if ( qd->logged_in ) {
 			qq_proc_cmd_server(gc, cmd, seq, buf + bytes, bytes_not_read);
 		}
@@ -249,8 +199,7 @@ static void packet_process(PurpleConnection *gc, int fd, guint8 *buf, gint buf_l
 	}
 
 	if (qq_trans_is_dup(trans)) {
-		purple_debug(PURPLE_DEBUG_WARNING,
-				"QQ", "dup [%05d] %s, discard...\n", seq, qq_get_cmd_desc(cmd));
+		purple_debug_info("QQ", "dup [%05d] %s, discard...\n", seq, qq_get_cmd_desc(cmd));
 		return;
 	}
 
@@ -262,22 +211,11 @@ static void packet_process(PurpleConnection *gc, int fd, guint8 *buf, gint buf_l
 	}
 
 	/* this is the length of all the encrypted data (also remove tail tag */
-	if (cmd == QQ_CMD_TOKEN) {
-		ret_token = qq_process_token_reply(gc, error_msg, buf + bytes, bytes_not_read);
-		if (ret_token != QQ_TOKEN_REPLY_OK) {
-			if (error_msg == NULL) {
-				error_msg = g_strdup_printf( _("Invalid token reply code, 0x%02X"), ret_token);
-			}
-			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
-			g_free(error_msg);
-			return;
-		}
-		qq_send_packet_login(gc);
-	} else if (cmd == QQ_CMD_ROOM) {
+	if (cmd == QQ_CMD_ROOM) {
 		room_cmd = qq_trans_get_room_cmd(trans);
 		room_id = qq_trans_get_room_id(trans);
 #if 1
-		purple_debug_info("QQ", "%s (0x%02X ) for room %d, len %d\n",
+		purple_debug_info("QQ", "%s (0x%02X) for room %d, len %d\n",
 				qq_get_room_cmd_desc(room_cmd), room_cmd, room_id, buf_len);
 #endif	
 		qq_proc_room_cmd_reply(gc, seq, room_cmd, room_id, buf + bytes, bytes_not_read);
@@ -289,14 +227,21 @@ static void packet_process(PurpleConnection *gc, int fd, guint8 *buf, gint buf_l
 	if (qd->redirect_ip.s_addr != 0) {
 	 	/* free resource except real_hostname and port */
 		qq_disconnect(gc);
-	 	qd->reconn_times = QQ_RECONNECT_MAX;
-		connect_later(gc);
+		if (qd->server_name != NULL) {
+			g_free(qd->server_name);
+		}
+		qd->server_name = g_strdup(inet_ntoa(qd->redirect_ip));
+		qd->server_port = qd->redirect_port;
+		qd->redirect_ip.s_addr = 0;
+		qd->redirect_port = 0;
+	 	qd->reconnect_times = QQ_RECONNECT_MAX;
+		reconnect_later(gc);
 		return;
 	}
 
 	if (prev_login_status != qd->logged_in && qd->logged_in == TRUE) {
 		/* logged_in, but we have packets before login */
-		qq_trans_process_before_login(qd);
+		qq_trans_process_before_login(gc);
 	}
 }
 
@@ -304,7 +249,6 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
-	qq_connection *conn;
 	guint8 buf[1024];		/* set to 16 when test  tcp_rxqueue */
 	gint buf_len;
 	gint bytes;
@@ -326,11 +270,6 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	}
 
 	qd = (qq_data *) gc->proto_data;
-	conn = connection_find(qd, source);
-	if(!conn) {
-		purple_debug_error("TCP_CAN_WRITE", "Connection not found!\n");
-		return;
-	}
 	
 	/* test code, not using tcp_rxqueue
 	memset(pkt,0, sizeof(pkt));
@@ -341,7 +280,7 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	return;
 	*/
 	
-	buf_len = read(conn->fd, buf, sizeof(buf));
+	buf_len = read(qd->fd, buf, sizeof(buf));
 	if (buf_len < 0) {
 		if (errno == EAGAIN)
 			/* No worries */
@@ -365,19 +304,19 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	purple_debug_info("TCP_PENDING",
 			   "Read %d bytes from socket, rxlen is %d\n", buf_len, qd->tcp_rxlen);
 	*/
-	conn->tcp_rxqueue = g_realloc(conn->tcp_rxqueue, buf_len + conn->tcp_rxlen);
-	memcpy(conn->tcp_rxqueue + conn->tcp_rxlen, buf, buf_len);
-	conn->tcp_rxlen += buf_len;
+	qd->tcp_rxqueue = g_realloc(qd->tcp_rxqueue, buf_len + qd->tcp_rxlen);
+	memcpy(qd->tcp_rxqueue + qd->tcp_rxlen, buf, buf_len);
+	qd->tcp_rxlen += buf_len;
 	
 	pkt = g_newa(guint8, MAX_PACKET_SIZE);
 	while (1) {
-		if (conn->tcp_rxlen < QQ_TCP_HEADER_LENGTH) {
+		if (qd->tcp_rxlen < QQ_TCP_HEADER_LENGTH) {
 			break;
 		}
 		
 		bytes = 0;
-		bytes += qq_get16(&pkt_len, conn->tcp_rxqueue + bytes);
-		if (conn->tcp_rxlen < pkt_len) {
+		bytes += qq_get16(&pkt_len, qd->tcp_rxqueue + bytes);
+		if (qd->tcp_rxlen < pkt_len) {
 			break;
 		}
 
@@ -386,48 +325,48 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 				   "Packet len is %d bytes, rxlen is %d\n", pkt_len, qd->tcp_rxlen);
 		*/
 		if ( pkt_len < QQ_TCP_HEADER_LENGTH
-		    || *(conn->tcp_rxqueue + bytes) != QQ_PACKET_TAG
-			|| *(conn->tcp_rxqueue + pkt_len - 1) != QQ_PACKET_TAIL) {
+		    || *(qd->tcp_rxqueue + bytes) != QQ_PACKET_TAG
+			|| *(qd->tcp_rxqueue + pkt_len - 1) != QQ_PACKET_TAIL) {
 			/* HEY! This isn't even a QQ. What are you trying to pull? */
 
 			purple_debug_error("TCP_PENDING",
 				 "Packet error, failed to check header and tail tag\n");
 
-			jump = memchr(conn->tcp_rxqueue + 1, QQ_PACKET_TAIL, conn->tcp_rxlen - 1);
+			jump = memchr(qd->tcp_rxqueue + 1, QQ_PACKET_TAIL, qd->tcp_rxlen - 1);
 			if ( !jump ) {
 				purple_debug_info("TCP_PENDING",
 				 	"Failed to find next QQ_PACKET_TAIL, clear receive buffer\n");
-				g_free(conn->tcp_rxqueue);
-				conn->tcp_rxqueue = NULL;
-				conn->tcp_rxlen = 0;
+				g_free(qd->tcp_rxqueue);
+				qd->tcp_rxqueue = NULL;
+				qd->tcp_rxlen = 0;
 				return;
 			}
 
 			/* jump and over QQ_PACKET_TAIL */
-			jump_len = (jump - conn->tcp_rxqueue) + 1;
+			jump_len = (jump - qd->tcp_rxqueue) + 1;
 			purple_debug_info("TCP_PENDING",
 				"Find next QQ_PACKET_TAIL at %d, jump %d bytes\n", jump_len, jump_len + 1);
-			g_memmove(conn->tcp_rxqueue, jump, conn->tcp_rxlen - jump_len);
-			conn->tcp_rxlen -= jump_len;
+			g_memmove(qd->tcp_rxqueue, jump, qd->tcp_rxlen - jump_len);
+			qd->tcp_rxlen -= jump_len;
 			continue;
 		}
 
 		memset(pkt, 0, MAX_PACKET_SIZE);
-		g_memmove(pkt, conn->tcp_rxqueue + bytes, pkt_len - bytes);
+		g_memmove(pkt, qd->tcp_rxqueue + bytes, pkt_len - bytes);
 		
 		/* jump to next packet */
-		conn->tcp_rxlen -= pkt_len;
-		if (conn->tcp_rxlen) {
+		qd->tcp_rxlen -= pkt_len;
+		if (qd->tcp_rxlen) {
 			/*
 			purple_debug_error("TCP_PENDING", "shrink tcp_rxqueue to %d\n", qd->tcp_rxlen);		
 			*/
-			jump = g_memdup(conn->tcp_rxqueue + pkt_len, conn->tcp_rxlen);
-			g_free(conn->tcp_rxqueue);
-			conn->tcp_rxqueue = jump;
+			jump = g_memdup(qd->tcp_rxqueue + pkt_len, qd->tcp_rxlen);
+			g_free(qd->tcp_rxqueue);
+			qd->tcp_rxqueue = jump;
 		} else {
 			/* purple_debug_error("TCP_PENDING", "free tcp_rxqueue\n"); */
-			g_free(conn->tcp_rxqueue);
-			conn->tcp_rxqueue = NULL;
+			g_free(qd->tcp_rxqueue);
+			qd->tcp_rxqueue = NULL;
 		}
 
 		if (pkt == NULL) {
@@ -435,7 +374,7 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 		}
 		/* do not call packet_process before jump 
 		 * packet_process may call disconnect and destory tcp_rxqueue */
-		packet_process(gc, conn->fd, pkt, pkt_len - bytes);
+		packet_process(gc, pkt, pkt_len - bytes);
 	}
 }
 
@@ -443,7 +382,6 @@ static void udp_pending(gpointer data, gint source, PurpleInputCondition cond)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
-	qq_connection *conn;
 	guint8 *buf;
 	gint buf_len;
 
@@ -457,16 +395,12 @@ static void udp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	}
 
 	qd = (qq_data *) gc->proto_data;
-	conn = connection_find(qd, source);
-	if(!conn) {
-		purple_debug_error("TCP_CAN_WRITE", "Connection not found!\n");
-		return;
-	}
+	g_return_if_fail(qd->fd >= 0);
 	
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 
 	/* here we have UDP proxy suppport */
-	buf_len = read(conn->fd, buf, MAX_PACKET_SIZE);
+	buf_len = read(qd->fd, buf, MAX_PACKET_SIZE);
 	if (buf_len <= 0) {
 		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 				_("Unable to read from socket"));
@@ -487,23 +421,21 @@ static void udp_pending(gpointer data, gint source, PurpleInputCondition cond)
 		}
 	}
 	
-	packet_process(gc, conn->fd, buf, buf_len);
+	packet_process(gc, buf, buf_len);
 }
 
-static gint udp_send_out(qq_data *qd, int fd, guint8 *data, gint data_len)
+static gint udp_send_out(qq_data *qd, guint8 *data, gint data_len)
 {
 	gint ret;
 
-	g_return_val_if_fail(qd != NULL, -1);
-	g_return_val_if_fail(fd >= 0, -1);
-	g_return_val_if_fail(data != NULL && data_len > 0, -1);
+	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
 
 	/*
 	purple_debug_info("UDP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
 	*/
 	
 	errno = 0;
-	ret = send(fd, data, data_len, 0);
+	ret = send(qd->fd, data, data_len, 0);
 	if (ret < 0 && errno == EAGAIN) {
 		return ret;
 	}
@@ -520,30 +452,17 @@ static void tcp_can_write(gpointer data, gint source, PurpleInputCondition cond)
 {
 	qq_data *qd = data;
 	int ret, writelen;
-	qq_connection *conn;
 
-	g_return_if_fail(qd != NULL);
-	
-	conn = connection_find(qd, source);
-	if(!conn) {
-		purple_debug_error("TCP_CAN_WRITE", "Connection not found!\n");
-		return;
-	}
-
-	if (conn->tcp_txbuf == NULL) {
-		purple_debug_error("TCP_CAN_WRITE", "Nothing to write!\n");
-		return;
-	}
-
-	writelen = purple_circ_buffer_get_max_read(conn->tcp_txbuf);
+	writelen = purple_circ_buffer_get_max_read(qd->tcp_txbuf);
 	if (writelen == 0) {
-		purple_input_remove(conn->can_write_handler);
-		conn->can_write_handler = 0;
+		purple_input_remove(qd->tx_handler);
+		qd->tx_handler = 0;
 		return;
 	}
 
-	ret = write(conn->fd, conn->tcp_txbuf->outptr, writelen);
-	purple_debug_error("TCP_CAN_WRITE", "total %d bytes is sent %d\n", writelen, ret);
+	ret = write(qd->fd, qd->tcp_txbuf->outptr, writelen);
+	purple_debug_error("TCP_CAN_WRITE",
+		"total %d bytes is sent %d\n", writelen, ret);
 
 	if (ret < 0 && errno == EAGAIN)
 		return;
@@ -554,30 +473,21 @@ static void tcp_can_write(gpointer data, gint source, PurpleInputCondition cond)
 		return;
 	}
 
-	purple_circ_buffer_mark_read(conn->tcp_txbuf, ret);
+	purple_circ_buffer_mark_read(qd->tcp_txbuf, ret);
 }
 
-static gint tcp_send_out(qq_data *qd, int fd, guint8 *data, gint data_len)
+static gint tcp_send_out(qq_data *qd, guint8 *data, gint data_len)
 {
-	qq_connection *conn;
 	gint ret;
 
-	g_return_val_if_fail(qd != NULL, -1);
-	g_return_val_if_fail(fd >= 0, -1);
-	g_return_val_if_fail(data != NULL && data_len > 0, -1);
+	g_return_val_if_fail(qd != NULL && qd->fd >= 0 && data != NULL && data_len > 0, -1);
 
-	conn = connection_find(qd, fd);
-	if(!conn) {
-		purple_debug_error("TCP_SEND_OUT", "Connection not found!\n");
-		return -1;
-	}
-	
 	/*
 	purple_debug_info("TCP_SEND_OUT", "Send %d bytes to socket %d\n", data_len, qd->fd);
 	 */
 
-	if (conn->can_write_handler == 0) {
-		ret = write(conn->fd, data, data_len);
+	if (qd->tx_handler == 0) {
+		ret = write(qd->fd, data, data_len);
 	} else {
 		ret = -1;
 		errno = EAGAIN;
@@ -585,7 +495,7 @@ static gint tcp_send_out(qq_data *qd, int fd, guint8 *data, gint data_len)
 
 	/*
 	purple_debug_info("TCP_SEND_OUT",
-			"Socket %d, total %d bytes is sent %d\n", qd->fd, data_len, ret);
+		"Socket %d, total %d bytes is sent %d\n", qd->fd, data_len, ret);
 	*/
 	if (ret < 0 && errno == EAGAIN) {
 		/* socket is busy, send later */
@@ -594,7 +504,7 @@ static gint tcp_send_out(qq_data *qd, int fd, guint8 *data, gint data_len)
 	} else if (ret <= 0) {
 		/* TODO: what to do here - do we really have to disconnect? */
 		purple_debug_error("TCP_SEND_OUT",
-			"Send to socket %d failed: %d, %s\n", conn->fd, errno, g_strerror(errno));
+			"Send to socket %d failed: %d, %s\n", qd->fd, errno, g_strerror(errno));
 		purple_connection_error_reason(qd->gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, g_strerror(errno));
 		return ret;
 	}
@@ -602,15 +512,10 @@ static gint tcp_send_out(qq_data *qd, int fd, guint8 *data, gint data_len)
 	if (ret < data_len) {
 		purple_debug_info("TCP_SEND_OUT",
 			"Add %d bytes to buffer\n", data_len - ret);
-		if (conn->can_write_handler == 0) {
-			conn->can_write_handler = purple_input_add(conn->fd, PURPLE_INPUT_WRITE, tcp_can_write, qd);
+		if (qd->tx_handler == 0) {
+			qd->tx_handler = purple_input_add(qd->fd, PURPLE_INPUT_WRITE, tcp_can_write, qd);
 		}
-		if (conn->tcp_txbuf == NULL) {
-			/* TODO: is there a good default grow size? */
-			purple_debug_info("QQ", "Create tcp_txbuf\n");
-			conn->tcp_txbuf = purple_circ_buffer_new(0);
-		}
-		purple_circ_buffer_append(conn->tcp_txbuf, data + ret, data_len - ret);
+		purple_circ_buffer_append(qd->tcp_txbuf, data + ret, data_len - ret);
 	}
 	return ret;
 }
@@ -624,7 +529,7 @@ static gboolean network_timeout(gpointer data)
 	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, TRUE);
 	qd = (qq_data *) gc->proto_data;
 
-	is_lost_conn = qq_trans_scan(qd);
+	is_lost_conn = qq_trans_scan(gc);
 	if (is_lost_conn) {
 		purple_connection_error_reason(gc,
 			PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Connection lost"));
@@ -658,47 +563,20 @@ static gboolean network_timeout(gpointer data)
 	return TRUE;		/* if return FALSE, timeout callback stops */
 }
 
-/* the callback function after socket is built
- * we setup the qq protocol related configuration here */
-static void qq_connect_cb(gpointer data, gint source, const gchar *error_message)
+static void do_request_token(PurpleConnection *gc)
 {
-	PurpleConnection *gc;
 	qq_data *qd;
-	PurpleAccount *account ;
-	qq_connection *conn;
 	gchar *conn_msg;
 	const gchar *passwd;
 
-	gc = (PurpleConnection *) data;
-
-	if (!PURPLE_CONNECTION_IS_VALID(gc)) {
-		purple_debug_info("QQ_CONN", "Invalid connection\n");
-		close(source);
-		return;
-	}
+	/* _qq_show_socket("Got login socket", source); */
 
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
-
 	qd = (qq_data *) gc->proto_data;
-	account = purple_connection_get_account(gc);
-
-	if (source < 0) {	/* socket returns -1 */
-		purple_debug_info("QQ_CONN", "Invalid connection, source is < 0\n");
-		qq_disconnect(gc);
-		connect_later(gc);
-		return;
-	}
-
-	conn = connection_find(qd, source);
-	if (conn == NULL) {
-		/* Must be TCP connection */
-		conn = connection_create(qd, source);
-	}
-	/* _qq_show_socket("Got login socket", source); */
 
 	/* QQ use random seq, to minimize duplicated packets */
 	srandom(time(NULL));
-	qd->send_seq = random() & 0x0000ffff;
+	qd->send_seq = random() & 0xffff;
 
 	qd->logged_in = FALSE;
 	qd->channel = 1;
@@ -714,59 +592,72 @@ static void qq_connect_cb(gpointer data, gint source, const gchar *error_message
 		qd->password_twice_md5, sizeof(qd->password_twice_md5));
 
 	g_return_if_fail(qd->network_watcher == 0);
-	qd->itv_config.resend = purple_account_get_int(account, "resend_interval", 10);
-	if (qd->itv_config.resend <= 0) qd->itv_config.resend = 10;
-
-	qd->itv_config.keep_alive = purple_account_get_int(account, "keep_alive_interval", 60);
-	if (qd->itv_config.keep_alive < 30) qd->itv_config.keep_alive = 30;
-	qd->itv_config.keep_alive /= qd->itv_config.resend;
-	qd->itv_count.keep_alive = qd->itv_config.keep_alive;
-
-	qd->itv_config.update = purple_account_get_int(account, "update_interval", 300);
-	if (qd->itv_config.update > 0) {
-		if (qd->itv_config.update < qd->itv_config.keep_alive) {
-			qd->itv_config.update = qd->itv_config.keep_alive;
-		}
-		qd->itv_config.update /= qd->itv_config.resend;
-		qd->itv_count.update = qd->itv_config.update;
-	} else {
-		qd->itv_config.update = 0;
-	}
-
 	qd->network_watcher = purple_timeout_add(qd->itv_config.resend *1000, network_timeout, gc);
 	
-	if (qd->use_tcp)
-		conn->input_handler = purple_input_add(conn->fd, PURPLE_INPUT_READ, tcp_pending, gc);
-	else
-		conn->input_handler = purple_input_add(conn->fd, PURPLE_INPUT_READ, udp_pending, gc);
-
-	gc->inpa = conn->input_handler;
+	if (qd->use_tcp) {
+		gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, tcp_pending, gc);
+	} else {
+		gc->inpa = purple_input_add(qd->fd, PURPLE_INPUT_READ, udp_pending, gc);
+	}
 	
-	qd->conn = conn;
 	/* Update the login progress status display */
 	conn_msg = g_strdup_printf("Login as %d", qd->uid);
 	purple_connection_update_progress(gc, conn_msg, QQ_CONNECT_STEPS - 1, QQ_CONNECT_STEPS);
 	g_free(conn_msg);
 
-	qq_send_packet_token(gc, conn->fd);
+	qq_send_packet_token(gc);
+}
+
+/* the callback function after socket is built
+ * we setup the qq protocol related configuration here */
+static void qq_connect_cb(gpointer data, gint source, const gchar *error_message)
+{
+	PurpleConnection *gc;
+	qq_data *qd;
+	PurpleAccount *account ;
+
+	gc = (PurpleConnection *) data;
+
+	if (!PURPLE_CONNECTION_IS_VALID(gc)) {
+		purple_debug_info("QQ_CONN", "Invalid connection\n");
+		close(source);
+		return;
+	}
+
+	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
+
+	qd = (qq_data *) gc->proto_data;
+	account = purple_connection_get_account(gc);
+
+	/* Connect is now complete; clear the PurpleProxyConnectData */
+	qd->connect_data = NULL;
+
+	if (source < 0) {	/* socket returns -1 */
+		purple_debug_info("QQ_CONN", "Invalid connection, source is < 0\n");
+		qq_disconnect(gc);
+		reconnect_later(gc);
+		return;
+	}
+
+	/* _qq_show_socket("Got login socket", source); */
+	qd->fd = source;
+	do_request_token( gc );
 }
 
 static void udp_can_write(gpointer data, gint source, PurpleInputCondition cond)
 {
-	qq_data *qd = data;
-	qq_connection *conn;
+	PurpleConnection *gc;
+	qq_data *qd;
 	socklen_t len;
 	int error=0, ret;
 
-	g_return_if_fail(qd != NULL);
-	
-	conn = connection_find(qd, source);
-	if(!conn) {
-		purple_debug_error("UDP_CAN_WRITE", "Connection not found!\n");
-		return;
-	}
+	gc = (PurpleConnection *) data;
+	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 
-	purple_debug_info("UDP_CAN_WRITE", "Connected.\n");
+	qd = (qq_data *) gc->proto_data;
+
+
+	purple_debug_info("proxy", "Connected.\n");
 
 	/*
 	 * getsockopt after a non-blocking connect returns -1 if something is
@@ -784,21 +675,21 @@ static void udp_can_write(gpointer data, gint source, PurpleInputCondition cond)
 	if (ret == 0 && error == EINPROGRESS)
 		return; /* we'll be called again later */
 		
-	purple_input_remove(conn->can_write_handler);
-	conn->can_write_handler = 0;
+	purple_input_remove(qd->tx_handler);
+	qd->tx_handler = 0;
 	if (ret < 0 || error != 0) {
 		if(ret != 0) 
 			error = errno;
 
 		close(source);
 
-		purple_debug_error("UDP_CAN_WRITE", "getsockopt SO_ERROR check: %s\n", g_strerror(error));
+		purple_debug_error("proxy", "getsockopt SO_ERROR check: %s\n", g_strerror(error));
 
-		qq_connect_cb(qd->gc, -1, _("Unable to connect"));
+		qq_connect_cb(gc, -1, _("Unable to connect"));
 		return;
 	}
 
-	qq_connect_cb(qd->gc, source, NULL);
+	qq_connect_cb(gc, source, NULL);
 }
 
 static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_message) {
@@ -808,12 +699,15 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 	int addr_size;
 	gint fd = -1;
 	int flags;
-	qq_connection *conn;
 
 	gc = (PurpleConnection *) data;
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 
 	qd = (qq_data *) gc->proto_data;
+
+	/* udp_query_data must be set as NULL.
+	 * Otherwise purple_dnsquery_destroy in qq_disconnect cause glib double free error */
+	qd->udp_query_data = NULL;
 
 	if (!hosts || !hosts->data) {
 		purple_connection_error_reason(gc,
@@ -836,15 +730,14 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 
 	fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
-		purple_debug_error("QQ", "Unable to create socket: %s\n", g_strerror(errno));
+		purple_debug_error("QQ", 
+				"Unable to create socket: %s\n", g_strerror(errno));
 		return;
 	}
 
-	conn = connection_create(qd, fd);
-
 	/* we use non-blocking mode to speed up connection */
-	flags = fcntl(conn->fd, F_GETFL);
-	fcntl(conn->fd, F_SETFL, flags | O_NONBLOCK);
+	flags = fcntl(fd, F_GETFL);
+	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
 	/* From Unix-socket-FAQ: http://www.faqs.org/faqs/unix-faq/socket/
 	 *
@@ -857,11 +750,11 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 	 * means that send() or write() are now allowed; they use the destination
 	 * address and port given on the connect call as the destination of packets.
 	 */
-	if (connect(conn->fd, &server_addr, addr_size) >= 0) {
+	if (connect(fd, &server_addr, addr_size) >= 0) {
 		purple_debug_info("QQ", "Connected.\n");
-		flags = fcntl(conn->fd, F_GETFL);
-		fcntl(conn->fd, F_SETFL, flags & ~O_NONBLOCK);
-		qq_connect_cb(gc, conn->fd, NULL);
+		flags = fcntl(fd, F_GETFL);
+		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+		qq_connect_cb(gc, fd, NULL);
 		return;
 	}
 	
@@ -874,8 +767,8 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 	 *    The connection is established asynchronously.
 	 */
 	if ((errno == EINPROGRESS) || (errno == EINTR)) {
-			purple_debug_warning("QQ", "Connect in asynchronous mode.\n");
-			conn->can_write_handler = purple_input_add(fd, PURPLE_INPUT_WRITE, udp_can_write, qd);
+			purple_debug_warning( "QQ", "Connect in asynchronous mode.\n");
+			qd->tx_handler = purple_input_add(fd, PURPLE_INPUT_WRITE, udp_can_write, gc);
 			return;
 		}
 
@@ -883,8 +776,45 @@ static void udp_host_resolved(GSList *hosts, gpointer data, const char *error_me
 	close(fd);
 }
 
-void qq_connect_all(PurpleAccount *account)
+gboolean connect_to_server(PurpleConnection *gc, gchar *server, gint port)
 {
+	PurpleAccount *account ;
+	qq_data *qd;
+	gchar *conn_msg;
+	
+	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, FALSE);
+	account = purple_connection_get_account(gc);
+	qd = (qq_data *) gc->proto_data;
+
+	if (server == NULL || strlen(server) == 0 || port == 0) {
+		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+				_("Invalid server or port"));
+		return FALSE;
+	}
+
+	conn_msg = g_strdup_printf( _("Connecting server %s, retries %d"), server, port);
+	purple_connection_update_progress(gc, conn_msg, 1, QQ_CONNECT_STEPS);
+	g_free(conn_msg);
+
+	/* QQ connection via UDP/TCP. 
+	* Now use Purple proxy function to provide TCP proxy support,
+	* and qq_udp_proxy.c to add UDP proxy support (thanks henry) */
+	if(qd->use_tcp) {
+   		purple_debug_info("QQ", "TCP Connect to %s:%d\n", server, port);
+
+		if ( purple_proxy_connect(NULL, account, server, port, qq_connect_cb, gc) == NULL ) {
+			purple_debug_error("QQ", "Unable to connect.");
+			return FALSE;
+		}
+		return TRUE;
+	}
+	
+	purple_debug_info("QQ", "UDP Connect to %s:%d\n", server, port);
+	if ( purple_dnsquery_a(server, port, udp_host_resolved, gc) == NULL ) {
+		purple_debug_error("QQ", "Could not resolve hostname");
+		return FALSE;
+	}
+	return TRUE;
 }
 
 /* establish a generic QQ connection 
@@ -893,7 +823,6 @@ void qq_connect(PurpleAccount *account)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
-	gchar *conn_msg;
 
 	gc = purple_account_get_connection(account);
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
@@ -904,8 +833,8 @@ void qq_connect(PurpleAccount *account)
 	/* test set_new_server
 	while (set_new_server(qd)) {
    		purple_debug_info("QQ_TEST",
-   			"New server %s:%d  Redirect %s:%d\n",
-   			qd->server_name, qd->user_port, inet_ntoa(qd->redirect_ip, qd->redirect_ip);
+   			"New server %s:%d  Real server %s:%d\n",
+   			qd->server_name, qd->default_port, qd->real_hostname, qd->real_port);
 	}
 	purple_debug_info("QQ_TEST", "qd->servers %lu\n",
  			qd->servers);
@@ -913,54 +842,19 @@ void qq_connect(PurpleAccount *account)
 	*/
 	if (qd->server_name == NULL) {
 		/* must be first call this function */
-		set_new_server(qd);
-	} else {
-		if (qd->redirect_ip.s_addr != 0) {
-			g_free(qd->server_name);
-
-			qd->server_name = g_strdup( inet_ntoa(qd->redirect_ip) );
-			qd->server_port = qd->redirect_port;
-			
-   			purple_debug_info("QQ", "Redirect to %s:%d\n",
-   				qd->server_name, qd->server_port);
-   		}
-		qd->redirect_ip.s_addr = 0;
-	}
-
-	if (qd->server_name == NULL || qd->server_port == 0) {
-		purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-				_("Failed to connect server"));
-		return;
-	}
-
-	conn_msg = g_strdup_printf( _("Connecting server %s, retries %d"),
-		qd->server_name, qd->reconn_times);
-	purple_connection_update_progress(gc, conn_msg, 1, QQ_CONNECT_STEPS);
-	g_free(conn_msg);
-
-	/* QQ connection via UDP/TCP. 
-	* Now use Purple proxy function to provide TCP proxy support,
-	* and qq_udp_proxy.c to add UDP proxy support (thanks henry) */
-	if(qd->use_tcp) {
-   		purple_debug_info("QQ", "TCP Connect to %s:%d\n",
-   			qd->server_name, qd->server_port);
-
-		if ( purple_proxy_connect(NULL, account, qd->server_name, qd->server_port,
-				qq_connect_cb, gc) == NULL ) {
+		if ( set_new_server(qd) != TRUE) {
 			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-				_("Unable to connect."));
+					_("Failed to connect server"));
+			return;
 		}
-		return;
 	}
 	
-	purple_debug_info("QQ", "UDP Connect to %s:%d\n",
-		qd->server_name, qd->server_port);
-
-	if ( purple_dnsquery_a(qd->server_name, qd->server_port,
-			udp_host_resolved, gc) == NULL ){
-		purple_connection_error_reason(qd->gc,
-			PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-			_("Could not resolve hostname"));
+	qd->fd = -1;
+	qd->tx_handler = 0;
+	
+	if ( ! connect_to_server(gc, qd->server_name, qd->server_port) ) {
+			purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+				_("Unable to connect."));
 	}
 }
 
@@ -981,7 +875,7 @@ void qq_disconnect(PurpleConnection *gc)
 	}
 
 	/* finish  all I/O */
-	if (qd->conn->fd >= 0 && qd->logged_in) {
+	if (qd->fd >= 0 && qd->logged_in) {
 		qq_send_packet_logout(gc);
 	}
 
@@ -990,15 +884,45 @@ void qq_disconnect(PurpleConnection *gc)
 		gc->inpa = 0;
 	}
 
-	connection_free_all(qd);
-	qd->conn = NULL;
-
-	if (qd->reconn_watcher > 0) {
-		purple_timeout_remove(qd->reconn_watcher);
-		qd->reconn_watcher = 0;
+	if (qd->fd >= 0) {
+		close(qd->fd);
+		qd->fd = -1;
 	}
 
-	qq_trans_remove_all(qd);
+	if (qd->network_watcher > 0) {
+		purple_timeout_remove(qd->network_watcher);
+		qd->network_watcher = 0;
+	}
+
+	if (qd->connect_data != NULL) {
+		purple_debug_info("QQ", "Cancel connect_data\n");
+		purple_proxy_connect_cancel(qd->connect_data);
+	}
+	
+	if(qd->tcp_txbuf != NULL) {
+		purple_debug_info("QQ", "destroy tcp_txbuf\n");
+		purple_circ_buffer_destroy(qd->tcp_txbuf);
+		qd->tcp_txbuf = NULL;
+	}
+	
+	if (qd->tx_handler) {
+		purple_input_remove(qd->tx_handler);
+		qd->tx_handler = 0;
+	}
+	if (qd->tcp_rxqueue != NULL) {
+		purple_debug_info("QQ", "destroy tcp_rxqueue\n");
+		g_free(qd->tcp_rxqueue);
+		qd->tcp_rxqueue = NULL;
+		qd->tcp_rxlen = 0;
+	}
+	
+	if (qd->udp_query_data != NULL) {
+		purple_debug_info("QQ", "destroy udp_query_data\n");
+		purple_dnsquery_destroy(qd->udp_query_data);
+		qd->udp_query_data = NULL;
+	}
+
+	qq_trans_remove_all(gc);
 	
 	if (qd->token) {
 		purple_debug_info("QQ", "free token\n");
@@ -1051,14 +975,16 @@ static gint encap(qq_data *qd, guint8 *buf, gint maxlen, guint16 cmd, guint16 se
 }
 
 /* data has been encrypted before */
-gint qq_send_data(qq_data *qd, int fd, guint16 cmd, guint16 seq, gboolean need_ack,
+gint qq_send_data(PurpleConnection *gc, guint16 cmd, guint16 seq, gboolean need_ack,
 	guint8 *data, gint data_len)
 {
+	qq_data *qd;
 	guint8 *buf;
 	gint buf_len;
 	gint bytes_sent;
 
-	g_return_val_if_fail(qd != NULL, -1);
+	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, -1);
+	qd = (qq_data *)gc->proto_data;
 	g_return_val_if_fail(data != NULL && data_len > 0, -1);
 
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
@@ -1069,32 +995,34 @@ gint qq_send_data(qq_data *qd, int fd, guint16 cmd, guint16 seq, gboolean need_a
 	}
 
 	if (qd->use_tcp) {
-		bytes_sent = tcp_send_out(qd, fd, buf, buf_len);
+		bytes_sent = tcp_send_out(qd, buf, buf_len);
 	} else {
-		bytes_sent = udp_send_out(qd, fd, buf, buf_len);
+		bytes_sent = udp_send_out(qd, buf, buf_len);
 	}
 
 	if (need_ack)  {
-		qq_trans_add_client_cmd(qd, fd, cmd, seq, data, data_len);
+		qq_trans_add_client_cmd(gc, cmd, seq, data, data_len);
 	}
 	
 #if 1
 		/* qq_show_packet("QQ_SEND_DATA", buf, buf_len); */
-		purple_debug_info("QQ", "<== [%05d], 0x%04X %s, total %d bytes is sent %d\n", 
+		purple_debug_info("QQ",
+				"<== [%05d], 0x%04X %s, total %d bytes is sent %d\n", 
 				seq, cmd, qq_get_cmd_desc(cmd), buf_len, bytes_sent);
 #endif
 	return bytes_sent;
 }
 
 /* Encrypt data with session_key, then call qq_send_data */
-gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack,
+gint qq_send_cmd_detail(PurpleConnection *gc, guint16 cmd, guint16 seq, gboolean need_ack,
 	guint8 *data, gint data_len)
 {
+	qq_data *qd;
 	guint8 *encrypted_data;
 	gint encrypted_len;
 
-	g_return_val_if_fail(qd != NULL, -1);
-	g_return_val_if_fail(qd->conn != NULL && qd->conn->fd >= 0, -1);
+	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, -1);
+	qd = (qq_data *)gc->proto_data;
 	g_return_val_if_fail(data != NULL && data_len > 0, -1);
 
 	/* at most 16 bytes more */
@@ -1106,26 +1034,31 @@ gint qq_send_cmd_detail(qq_data *qd, guint16 cmd, guint16 seq, gboolean need_ack
 #endif
 	encrypted_len = qq_encrypt(encrypted_data, data, data_len, qd->session_key);
 	if (encrypted_len < 16) {
-		purple_debug_error("QQ_ENCRYPT", "Error len %d: [%05d] 0x%04X %s\n",
+		purple_debug_error("QQ_ENCRYPT",
+				"Error len %d: [%05d] 0x%04X %s\n",
 				encrypted_len, seq, cmd, qq_get_cmd_desc(cmd));
 		return -1;
 	}
 
 #if 0
-	purple_debug_info("QQ_ENCRYPT", "After %d: [%05d] 0x%04X %s\n",
+	purple_debug_info("QQ_ENCRYPT",
+			"After %d: [%05d] 0x%04X %s\n",
 			encrypted_len, seq, cmd, qq_get_cmd_desc(cmd));
 #endif
-	return qq_send_data(qd, qd->conn->fd, cmd, seq, need_ack, encrypted_data, encrypted_len);
+	return qq_send_data(gc, cmd, seq, need_ack, encrypted_data, encrypted_len);
 }
 
 /* set seq and need_ack, then call qq_send_cmd_detail */
-gint qq_send_cmd(qq_data *qd, guint16 cmd, guint8 *data, gint data_len)
+gint qq_send_cmd(PurpleConnection *gc, guint16 cmd, guint8 *data, gint data_len)
 {
-	g_return_val_if_fail(qd != NULL, -1);
+	qq_data *qd;
+
+	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, -1);
+	qd = (qq_data *) gc->proto_data;
 	g_return_val_if_fail(data != NULL && data_len > 0, -1);
 
 	qd->send_seq++;
-	return qq_send_cmd_detail(qd, cmd, qd->send_seq, TRUE, data, data_len);
+	return qq_send_cmd_detail(gc, cmd, qd->send_seq, TRUE, data, data_len);
 }
 
 gint qq_send_room_cmd_noid(PurpleConnection *gc, guint8 room_cmd, 
@@ -1144,20 +1077,15 @@ gint qq_send_room_cmd(PurpleConnection *gc, guint8 room_cmd, guint32 room_id,
 		guint8 *data, gint data_len)
 {
 	qq_data *qd;
-	int fd;
-
 	guint8 *buf;
 	gint buf_len;
 	guint8 *encrypted_data;
 	gint encrypted_len;
 	gint bytes_sent;
 	guint16 seq;
-
+	
 	g_return_val_if_fail(gc != NULL && gc->proto_data != NULL, -1);
 	qd = (qq_data *) gc->proto_data;
-
-	g_return_val_if_fail(qd->conn != NULL && qd->conn->fd >= 0, -1);
-	fd = qd->conn->fd;
 
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 	memset(buf, 0, MAX_PACKET_SIZE);
@@ -1193,12 +1121,12 @@ gint qq_send_room_cmd(PurpleConnection *gc, guint8 room_cmd, guint32 room_id,
 	}
 
 	if (qd->use_tcp) {
-		bytes_sent = tcp_send_out(qd, fd, buf, buf_len);
+		bytes_sent = tcp_send_out(qd, buf, buf_len);
 	} else {
-		bytes_sent = udp_send_out(qd, fd, buf, buf_len);
+		bytes_sent = udp_send_out(qd, buf, buf_len);
 	}
 
-	qq_trans_add_room_cmd(qd, fd, seq, room_cmd, room_id, buf, buf_len);
+	qq_trans_add_room_cmd(gc, seq, room_cmd, room_id, buf, buf_len);
 	
 #if 1
 		/* qq_show_packet("QQ_SEND_DATA", buf, buf_len); */

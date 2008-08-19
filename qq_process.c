@@ -142,7 +142,7 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 	
 	qd = (qq_data *) gc->proto_data;
 
-	ret_8 = qq_process_login_reply(data, data_len, gc);
+	ret_8 = qq_process_login_reply(gc, data, data_len);
 	if (ret_8 == QQ_LOGIN_REPLY_OK) {
 		purple_debug_info("QQ", "Login repliess OK; everything is fine\n");
 
@@ -169,33 +169,6 @@ static void process_cmd_login(PurpleConnection *gc, guint8 *data, gint data_len)
 
 		return;
 	}
-
-	if (ret_8 == QQ_LOGIN_REPLY_REDIRECT) {
-		/*
-		purple_debug_warning("QQ",
-			"Redirected to new server: %s:%d\n", inet_ntoa(qd->redirect_ip), qd->redirect_port);
-		*/
-		return;
-	}
-
-	if (ret_8 == QQ_LOGIN_REPLY_ERR_PWD) {
-		if (!purple_account_get_remember_password(gc->account)) {
-			purple_account_set_password(gc->account, NULL);
-		}
-		purple_connection_error_reason(gc,
-			PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED, _("Incorrect password."));
-		return;
-	}
-
-	if (ret_8 == QQ_LOGIN_REPLY_ERR_MISC) {
-		if (purple_debug_is_enabled())
-			purple_connection_error_reason(gc,
-				PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Unable to login. Check debug log."));
-		else
-			purple_connection_error_reason(gc,
-				PURPLE_CONNECTION_ERROR_NETWORK_ERROR, _("Unable to login"));
-		return;
-	}
 }
 
 static void process_room_cmd_notify(PurpleConnection *gc, 
@@ -208,13 +181,8 @@ static void process_room_cmd_notify(PurpleConnection *gc,
 	msg_utf8 = qq_to_utf8(msg, QQ_CHARSET_DEFAULT);
 	g_free(msg);
 	
-	msg = g_strdup_printf(_(
-		"Reply %s(0x%02X )\n"
-		"Sent %s(0x%02X )\n"
-		"Room id %d, reply [0x%02X]: \n"
-		"%s"), 
-		qq_get_room_cmd_desc(reply_cmd), reply_cmd, 
-		qq_get_room_cmd_desc(room_cmd), room_cmd, 
+	msg = g_strdup_printf(_("Reply %s(0x%02X)\nSent %s(0x%02X)\nRoom id %d, reply [0x%02X]:\n%s"), 
+		qq_get_room_cmd_desc(reply_cmd), reply_cmd, qq_get_room_cmd_desc(room_cmd), room_cmd, 
 		room_id, reply, msg_utf8);
 		
 	purple_notify_error(gc, NULL, _("Failed room reply"), msg);
@@ -368,6 +336,7 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	guint8 ret_8 = 0;
 	guint16 ret_16 = 0;
 	guint32 ret_32 = 0;
+	gchar *error_msg = NULL;
 
 	g_return_if_fail(rcved_len > 0);
 
@@ -376,11 +345,9 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 
 	data = g_newa(guint8, rcved_len);
 	if (cmd == QQ_CMD_TOKEN) {
-		/* the command should be processed before */
-		return;
-	}
-
-	if (cmd == QQ_CMD_LOGIN) {
+		g_memmove(data, rcved, rcved_len);
+		data_len = rcved_len;
+	} else if (cmd == QQ_CMD_LOGIN) {
 		/* May use password_twice_md5 in the past version like QQ2005*/
 		data_len = qq_decrypt(data, rcved, rcved_len, qd->inikey);
 		if (data_len >= 0) {
@@ -416,6 +383,19 @@ void qq_proc_cmd_reply(PurpleConnection *gc,
 	}
 
 	switch (cmd) {
+		case QQ_CMD_TOKEN:
+			ret_8 = qq_process_token_reply(gc, error_msg, data, data_len);
+			if (ret_8 != QQ_TOKEN_REPLY_OK) {
+				if (error_msg == NULL) {
+					error_msg = g_strdup_printf( _("Invalid token reply code, 0x%02X"), ret_8);
+				}
+				purple_connection_error_reason(gc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_msg);
+				g_free(error_msg);
+				return;
+			}
+			
+			qq_send_packet_login(gc);
+			break;
 		case QQ_CMD_LOGIN:
 			process_cmd_login(gc, data, data_len);
 			break;

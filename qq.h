@@ -41,15 +41,16 @@ const char *qq_win32_buddy_icon_dir(void);
 #define QQ_BUDDY_ICON_DIR qq_win32_buddy_icon_dir()
 #endif
 
-
+typedef struct _qq_data qq_data;
+typedef struct _qq_buddy qq_buddy;
 typedef struct _qq_interval qq_interval;
+
 struct _qq_interval {
 	gint resend;
 	gint keep_alive;
 	gint update; 
 };
 
-typedef struct _qq_buddy qq_buddy;
 struct _qq_buddy {
 	guint32 uid;
 	guint16 face;		/* index: 0 - 299 */
@@ -72,48 +73,38 @@ struct _qq_buddy {
 	gint8  role;		/* role in group, used only in group->members list */
 };
 
-typedef struct _qq_connection qq_connection;
-struct _qq_connection {
-	PurpleProxyConnectData *connect_data;
-	gboolean is_tcp;
-
-	int fd;				/* socket file handler */
-	int input_handler;
-
-	int can_write_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
-
-	/* tcp related */
-	PurpleCircBuffer *tcp_txbuf;
-	guint8 *tcp_rxqueue;
-	int tcp_rxlen;
-};
-
-typedef struct _qq_data qq_data;
 struct _qq_data {
 	PurpleConnection *gc;
 
 	/* common network resource */
-	GSList *openconns;
-	qq_connection *conn;
-	
-	gboolean use_tcp;		/* network in tcp or udp */
-	gint default_port;
 	GList *servers;
-
+	gint default_port;
+	gboolean use_tcp;		/* network in tcp or udp */
+	
 	gchar *server_name;
 	guint16 server_port;
-
 	struct in_addr redirect_ip;
 	guint16 redirect_port;
-	
-	guint reconn_watcher;
-	gint reconn_times;
+	guint reconnect_watcher;
+	gint reconnect_times;
+
+	PurpleProxyConnectData *connect_data;
+	gint fd;				/* socket file handler */
+	gint tx_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
 
 	qq_interval itv_config;
 	qq_interval itv_count;
 	guint network_watcher;
 	
 	GList *transactions;	/* check ack packet and resend */
+
+	/* tcp related */
+	PurpleCircBuffer *tcp_txbuf;
+	guint8 *tcp_rxqueue;
+	int tcp_rxlen;
+	
+	/* udp related */
+	PurpleDnsQueryData *udp_query_data;
 
 	guint32 uid;			/* QQ number */
 	guint8 *token;		/* get from server*/
@@ -156,6 +147,9 @@ struct _qq_data {
 	/* TODO pass qq_send_packet_get_info() a callback and use signals to get rid of these */
 	gboolean modifying_info;
 	gboolean modifying_face;
+
+	gboolean is_show_notice;
+	gboolean is_show_news;
 };
 
 #endif
