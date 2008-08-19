@@ -78,7 +78,7 @@ void qq_send_cmd_group_join_group(PurpleConnection *gc, qq_group *group)
 	case QQ_ROOM_AUTH_TYPE_NEED_AUTH:
 		break;
 	case QQ_ROOM_AUTH_TYPE_NO_ADD:
-		purple_notify_warning(gc, NULL, _("This QQ Qun does not allow others to join"), NULL);
+		purple_notify_warning(gc, NULL, _("The Qun does not allow others to join"), NULL);
 		return;
 	default:
 		purple_debug_error("QQ", "Unknown room auth type: %d\n", group->auth_type);
@@ -187,7 +187,7 @@ void qq_process_group_cmd_exit_group(guint8 *data, gint len, PurpleConnection *g
 			purple_blist_remove_chat(chat);
 		qq_group_delete_internal_record(qd, id);
 	}
-	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully left the QQ Qun"), NULL);
+	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully left the Qun"), NULL);
 }
 
 /* Process the reply to group_auth subcmd */
@@ -310,8 +310,7 @@ void qq_group_exit(PurpleConnection *gc, GHashTable *data)
 
 	purple_request_action(gc, _("QQ Qun Operation"),
 			    _("Are you sure you want to leave this Qun?"),
-			    _
-			    ("Note, if you are the creator, \nthis operation will eventually remove this Qun."),
+			    _("Note, if you are the creator, \nthis operation will eventually remove this Qun."),
 			    1,
 				purple_connection_get_account(gc), NULL, NULL,
 			    g, 2, _("Cancel"),
