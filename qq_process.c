@@ -26,11 +26,6 @@
 #include "debug.h"
 #include "internal.h"
 
-#ifdef _WIN32
-#define random rand
-#define srandom srand
-#endif
-
 #include "buddy_info.h"
 #include "buddy_list.h"
 #include "buddy_opt.h"

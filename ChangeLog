@@ -1,3 +1,14 @@
+2008.08.21 - ccpaging <ecc_hy(at)hotmail.com>
+	* Merge some modifiers in 2.5.0 for win32
+	* Replace random() with rand(), Replace srandom() with srand()
+	* Depends on pidgin-udp.patch
+
+2008.08.19 - ccpaging <ecc_hy(at)hotmail.com>
+	* Rewrite some prompting messages
+	* Add detecting connect/login status, if token not received in 5 seconds, close connection and try next server
+	* Add connection manager(simple.c is a kind of reference)
+	* Move token, login process from qq_process to qq_network, in order to avoid memory problems
+
 2008.08.16 - ccpaging <ecc_hy(at)hotmail.com>
 	* Rename group to room. If you used pidginqq before, this may create a new room with same title, you may delete old one
 	* Replace purple_debug with purple_debug_info, purple_debug_warning, purple_debug_error

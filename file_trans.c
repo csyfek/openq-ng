@@ -22,10 +22,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111-1301  USA
  */
 
-#ifdef _WIN32
-#define random rand
-#endif
-
 #include "internal.h"
 
 #include "debug.h"
@@ -62,7 +58,7 @@ static guint32 _gen_file_key(void)
 {
 	guint8 seed;
 
-	seed = random();
+	seed = rand() & 0xFF;
 	return _get_file_key(seed);
 }
 
