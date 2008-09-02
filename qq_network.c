@@ -26,11 +26,6 @@
 #include "debug.h"
 #include "internal.h"
 
-#ifdef _WIN32
-#define random rand
-#define srandom srand
-#endif
-
 #include "buddy_info.h"
 #include "group_info.h"
 #include "group_free.h"
@@ -129,7 +124,7 @@ static gboolean set_new_server(qq_data *qd)
 	}
 	
 	/* get new server */
-	index  = random() % count;
+	index  = rand() % count;
 	it = g_list_nth(qd->servers, index);
     qd->curr_server = it->data;		/* do not free server_name */
     if (qd->curr_server == NULL || strlen(qd->curr_server) <= 0 ) {
@@ -672,8 +667,8 @@ static void do_request_token(PurpleConnection *gc)
 	qd = (qq_data *) gc->proto_data;
 
 	/* QQ use random seq, to minimize duplicated packets */
-	srandom(time(NULL));
-	qd->send_seq = random() & 0xffff;
+	srand(time(NULL));
+	qd->send_seq = rand() & 0xffff;
 
 	qd->logged_in = FALSE;
 	qd->channel = 1;
