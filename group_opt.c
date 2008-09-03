@@ -38,6 +38,7 @@
 #include "header_info.h"
 #include "packet_parse.h"
 #include "qq_network.h"
+#include "qq_process.h"
 #include "utils.h"
 
 static int _compare_guint32(const void *a,
@@ -67,7 +68,7 @@ static void _qq_group_member_opt(PurpleConnection *gc, qq_group *group, gint ope
 	}
 	data_len = 6 + count * 4;
 	data = g_newa(guint8, data_len);
-	
+
 	bytes = 0;
 	bytes += qq_put8(data + bytes, operation);
 	for (i = 0; i < count; i++)
@@ -211,7 +212,8 @@ void qq_group_process_modify_members_reply(guint8 *data, gint len, PurpleConnect
 
 	purple_debug_info("QQ", "Succeed in modify members for room %d\n", group->ext_id);
 
-	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully modified QQ Qun member"), NULL);
+	purple_notify_info(gc, _("QQ Qun Operation"),
+			_("You have successfully modified Qun member"), NULL);
 }
 
 void qq_room_change_info(PurpleConnection *gc, qq_group *group)
@@ -352,12 +354,12 @@ void qq_group_process_create_group_reply(guint8 *data, gint len, PurpleConnectio
 	g_return_if_fail(id > 0 && ext_id);
 
 	group = qq_group_create_internal_record(gc, id, ext_id, NULL);
-	group->my_status = QQ_ROOM_MEMBER_STATUS_IS_ADMIN;
+	group->my_role = QQ_ROOM_ROLE_ADMIN;
 	group->creator_uid = qd->uid;
 	qq_group_refresh(gc, group);
 
 	qq_send_room_cmd_only(gc, QQ_ROOM_CMD_ACTIVATE, id);
-	qq_send_room_cmd_only(gc, QQ_ROOM_CMD_GET_INFO, id);
+	qq_room_update(gc, 0, group->id);
 
 	purple_debug_info("QQ", "Succeed in create Qun, external ID %d\n", group->ext_id);
 
@@ -366,9 +368,9 @@ void qq_group_process_create_group_reply(guint8 *data, gint len, PurpleConnectio
 	g->uid = id;
 
 	purple_request_action(gc, _("QQ Qun Operation"),
-			    _("You have successfully created a QQ Qun"),
+			    _("You have successfully created a Qun"),
 			    _
-			    ("Would you like to set up the QQ Qun details now?"),
+			    ("Would you like to set up the detail information now?"),
 			    1,
 				purple_connection_get_account(gc), NULL, NULL,
 				g, 2,

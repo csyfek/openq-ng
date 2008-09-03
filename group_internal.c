@@ -31,32 +31,32 @@
 #include "group_internal.h"
 #include "utils.h"
 
-static gchar *_qq_group_set_my_status_desc(qq_group *group)
+static gchar *get_role_desc(qq_group *group)
 {
-	const char *status_desc;
+	const char *role_desc;
 	g_return_val_if_fail(group != NULL, g_strdup(""));
 
-	switch (group->my_status) {
-	case QQ_ROOM_MEMBER_STATUS_NOT_MEMBER:
-		status_desc = _("I am not a member");
+	switch (group->my_role) {
+	case QQ_ROOM_ROLE_NO:
+		role_desc = _("I am not a member");
 		break;
-	case QQ_ROOM_MEMBER_STATUS_IS_MEMBER:
-		status_desc = _("I am a member");
+	case QQ_ROOM_ROLE_YES:
+		role_desc = _("I am a member");
 		break;
-	case QQ_ROOM_MEMBER_STATUS_APPLYING:
-		status_desc = _("I am applying to join");
+	case QQ_ROOM_ROLE_REQUESTING:
+		role_desc = _("I am requesting");
 		break;
-	case QQ_ROOM_MEMBER_STATUS_IS_ADMIN:
-		status_desc = _("I am the admin");
+	case QQ_ROOM_ROLE_ADMIN:
+		role_desc = _("I am the admin");
 		break;
 	default:
-		status_desc = _("Unknown status");
+		role_desc = _("Unknown status");
 	}
 
-	return g_strdup(status_desc);
+	return g_strdup(role_desc);
 }
 
-static void _qq_group_add_to_blist(PurpleConnection *gc, qq_group *group)
+static void add_room_to_blist(PurpleConnection *gc, qq_group *group)
 {
 	GHashTable *components;
 	PurpleGroup *g;
@@ -82,8 +82,8 @@ qq_group *qq_group_create_internal_record(PurpleConnection *gc,
         qd = (qq_data *) gc->proto_data;
 
         group = g_new0(qq_group, 1);
-        group->my_status = QQ_ROOM_MEMBER_STATUS_NOT_MEMBER;
-        group->my_status_desc = _qq_group_set_my_status_desc(group);
+        group->my_role = QQ_ROOM_ROLE_NO;
+        group->my_role_desc = get_role_desc(group);
         group->id = internal_id;
         group->ext_id = ext_id;
         group->type8 = 0x01;       /* assume permanent Qun */
@@ -96,7 +96,7 @@ qq_group *qq_group_create_internal_record(PurpleConnection *gc,
         group->members = NULL;
 
         qd->groups = g_list_append(qd->groups, group);
-        _qq_group_add_to_blist(gc, group);
+        add_room_to_blist(gc, group);
 
         return group;
 }
@@ -124,8 +124,8 @@ GHashTable *qq_group_to_hashtable(qq_group *group)
 {
 	GHashTable *components;
 	components = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
-	g_hash_table_insert(components, g_strdup(QQ_ROOM_KEY_MEMBER_STATUS), g_strdup_printf("%d", group->my_status));
-	group->my_status_desc = _qq_group_set_my_status_desc(group);
+	g_hash_table_insert(components, g_strdup(QQ_ROOM_KEY_ROLE), g_strdup_printf("%d", group->my_role));
+	group->my_role_desc = get_role_desc(group);
 
 	g_hash_table_insert(components,
 			    g_strdup(QQ_ROOM_KEY_INTERNAL_ID), g_strdup_printf("%d", group->id));
@@ -136,7 +136,7 @@ GHashTable *qq_group_to_hashtable(qq_group *group)
 	g_hash_table_insert(components,
 			    g_strdup(QQ_ROOM_KEY_CATEGORY), g_strdup_printf("%d", group->category));
 	g_hash_table_insert(components, g_strdup(QQ_ROOM_KEY_AUTH_TYPE), g_strdup_printf("%d", group->auth_type));
-	g_hash_table_insert(components, g_strdup(QQ_ROOM_KEY_MEMBER_STATUS_DESC), g_strdup(group->my_status_desc));
+	g_hash_table_insert(components, g_strdup(QQ_ROOM_KEY_ROLE_DESC), g_strdup(group->my_role_desc));
 	g_hash_table_insert(components, g_strdup(QQ_ROOM_KEY_TITLE_UTF8), g_strdup(group->title_utf8));
 	g_hash_table_insert(components, g_strdup(QQ_ROOM_KEY_DESC_UTF8), g_strdup(group->desc_utf8));
 	return components;
@@ -152,13 +152,13 @@ qq_group *qq_group_from_hashtable(PurpleConnection *gc, GHashTable *data)
 	qd = (qq_data *) gc->proto_data;
 
 	group = g_new0(qq_group, 1);
-	group->my_status =
+	group->my_role =
 	    qq_string_to_dec_value
 	    (NULL ==
 	     g_hash_table_lookup(data,
-				 QQ_ROOM_KEY_MEMBER_STATUS) ?
-	     g_strdup_printf("%d", QQ_ROOM_MEMBER_STATUS_NOT_MEMBER) :
-	     g_hash_table_lookup(data, QQ_ROOM_KEY_MEMBER_STATUS));
+				 QQ_ROOM_KEY_ROLE) ?
+	     g_strdup_printf("%d", QQ_ROOM_ROLE_NO) :
+	     g_hash_table_lookup(data, QQ_ROOM_KEY_ROLE));
 	group->id = qq_string_to_dec_value(g_hash_table_lookup(data, QQ_ROOM_KEY_INTERNAL_ID));
 	group->ext_id = qq_string_to_dec_value(g_hash_table_lookup(data, QQ_ROOM_KEY_EXTERNAL_ID));
 	group->type8 = qq_string_to_dec_value(g_hash_table_lookup(data, QQ_ROOM_KEY_TYPE));
@@ -167,7 +167,7 @@ qq_group *qq_group_from_hashtable(PurpleConnection *gc, GHashTable *data)
 	group->auth_type = qq_string_to_dec_value(g_hash_table_lookup(data, QQ_ROOM_KEY_AUTH_TYPE));
 	group->title_utf8 = g_strdup(g_hash_table_lookup(data, QQ_ROOM_KEY_TITLE_UTF8));
 	group->desc_utf8 = g_strdup(g_hash_table_lookup(data, QQ_ROOM_KEY_DESC_UTF8));
-	group->my_status_desc = _qq_group_set_my_status_desc(group);
+	group->my_role_desc = get_role_desc(group);
 
 	qd->groups = g_list_append(qd->groups, group);
 
@@ -184,48 +184,54 @@ void qq_group_refresh(PurpleConnection *gc, qq_group *group)
 	ext_id = g_strdup_printf("%d", group->ext_id);
 	chat = purple_blist_find_chat(purple_connection_get_account(gc), ext_id);
 	g_free(ext_id);
-	if (chat == NULL && group->my_status != QQ_ROOM_MEMBER_STATUS_NOT_MEMBER) {
-		_qq_group_add_to_blist(gc, group);
-	} else if (chat != NULL) {	/* we have a local record, update its info */
-		/* if there is title_utf8, we update the group name */
-		if (group->title_utf8 != NULL && strlen(group->title_utf8) > 0)
-			purple_blist_alias_chat(chat, group->title_utf8);
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_MEMBER_STATUS), g_strdup_printf("%d", group->my_status));
-		group->my_status_desc = _qq_group_set_my_status_desc(group);
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_MEMBER_STATUS_DESC), g_strdup(group->my_status_desc));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_INTERNAL_ID),
-				     g_strdup_printf("%d", group->id));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_EXTERNAL_ID),
-				     g_strdup_printf("%d", group->ext_id));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_TYPE), g_strdup_printf("%d", group->type8));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_CREATOR_UID), g_strdup_printf("%d", group->creator_uid));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_CATEGORY),
-				     g_strdup_printf("%d", group->category));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_AUTH_TYPE), g_strdup_printf("%d", group->auth_type));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_TITLE_UTF8), g_strdup(group->title_utf8));
-		g_hash_table_replace(chat->components,
-				     g_strdup(QQ_ROOM_KEY_DESC_UTF8), g_strdup(group->desc_utf8));
+	if (chat == NULL && group->my_role != QQ_ROOM_ROLE_NO) {
+		add_room_to_blist(gc, group);
+		return;
 	}
+
+	if (chat == NULL) {
+		return;
+	}
+	
+	/* we have a local record, update its info */
+	/* if there is title_utf8, we update the group name */
+	if (group->title_utf8 != NULL && strlen(group->title_utf8) > 0)
+		purple_blist_alias_chat(chat, group->title_utf8);
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_ROLE), g_strdup_printf("%d", group->my_role));
+	group->my_role_desc = get_role_desc(group);
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_ROLE_DESC), g_strdup(group->my_role_desc));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_INTERNAL_ID),
+		     g_strdup_printf("%d", group->id));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_EXTERNAL_ID),
+		     g_strdup_printf("%d", group->ext_id));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_TYPE), g_strdup_printf("%d", group->type8));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_CREATOR_UID), g_strdup_printf("%d", group->creator_uid));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_CATEGORY),
+		     g_strdup_printf("%d", group->category));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_AUTH_TYPE), g_strdup_printf("%d", group->auth_type));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_TITLE_UTF8), g_strdup(group->title_utf8));
+	g_hash_table_replace(chat->components,
+		     g_strdup(QQ_ROOM_KEY_DESC_UTF8), g_strdup(group->desc_utf8));
 }
 
-/* NOTE: If we knew how to convert between an external and internal group id, as the official 
+/* NOTE: If we knew how to convert between an external and internal group id, as the official
  * client seems to, the following would be unnecessary. That would be ideal. */
 
 /* Use list to specify if id's alternate id is pending discovery. */
 void qq_set_pending_id(GSList **list, guint32 id, gboolean pending)
 {
-	if (pending) 
+	if (pending)
 		*list = g_slist_prepend(*list, GINT_TO_POINTER(id));
-	else 
+	else
 		*list = g_slist_remove(*list, GINT_TO_POINTER(id));
 }
 

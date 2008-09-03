@@ -126,7 +126,7 @@ static void _qq_send_packet_ack_msg_sys(PurpleConnection *gc, guint8 code, guint
 	gint ack_len, bytes;
 
 	qd = (qq_data *) gc->proto_data;
-	
+
 	str = g_strdup_printf("%d", from);
 	bar = 0x1e;
 	ack_len = 1 + 1 + strlen(str) + 1 + 2;
@@ -142,7 +142,7 @@ static void _qq_send_packet_ack_msg_sys(PurpleConnection *gc, guint8 code, guint
 	g_free(str);
 
 	if (bytes == ack_len)	/* creation OK */
-		qq_send_cmd_detail(gc, QQ_CMD_ACK_SYS_MSG, 0, FALSE, ack, ack_len);
+		qq_send_server_reply(gc, QQ_CMD_ACK_SYS_MSG, 0, ack, ack_len);
 	else
 		purple_debug_error("QQ",
 			   "Fail creating sys msg ACK, expect %d bytes, build %d bytes\n", ack_len, bytes);
@@ -194,7 +194,7 @@ static void _qq_process_msg_sys_add_contact_rejected(PurpleConnection *gc, gchar
 
 	g_return_if_fail(from != NULL && to != NULL);
 
-	message = g_strdup_printf(_("User %s rejected your request"), from);
+	message = g_strdup_printf(_("Requestion rejected by %s"), from);
 	reason = g_strdup_printf(_("Message: %s"), msg_utf8);
 	_qq_sys_msg_log_write(gc, message, from);
 
@@ -214,7 +214,7 @@ static void _qq_process_msg_sys_add_contact_approved(PurpleConnection *gc, gchar
 	qd = (qq_data *) gc->proto_data;
 	qq_add_buddy_by_recv_packet(gc, strtol(from, NULL, 10), TRUE, TRUE);
 
-	message = g_strdup_printf(_("User %s approved your request"), from);
+	message = g_strdup_printf(_("Requestion approved by %s"), from);
 	_qq_sys_msg_log_write(gc, message, from);
 	purple_notify_info(gc, NULL, message, NULL);
 
@@ -263,9 +263,9 @@ static void _qq_process_msg_sys_add_contact_request(PurpleConnection *gc, gchar 
 		g2 = g_new0(gc_and_uid, 1);
 		g2->gc = gc;
 		g2->uid = strtol(from, NULL, 10);
-		message = g_strdup_printf(_("%s is not in your buddy list"), from);
+		message = g_strdup_printf(_("%s is not in buddy list"), from);
 		purple_request_action(gc, NULL, message,
-				    _("Would you like to add him?"), PURPLE_DEFAULT_ACTION_NONE,
+				    _("Would you add?"), PURPLE_DEFAULT_ACTION_NONE,
 					purple_connection_get_account(gc), name, NULL,
 					g2, 3,
 					_("Cancel"), NULL,

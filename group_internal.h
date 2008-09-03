@@ -28,8 +28,8 @@
 #include <glib.h>
 #include "group.h"
 
-#define QQ_ROOM_KEY_MEMBER_STATUS				"my_status_code"
-#define QQ_ROOM_KEY_MEMBER_STATUS_DESC		"my_status_desc"
+#define QQ_ROOM_KEY_ROLE									"my_role"
+#define QQ_ROOM_KEY_ROLE_DESC						"my_role_desc"
 #define QQ_ROOM_KEY_INTERNAL_ID					"id"
 #define QQ_ROOM_KEY_EXTERNAL_ID					"ext_id"
 #define QQ_ROOM_KEY_TYPE									"type"
@@ -39,7 +39,7 @@
 #define QQ_ROOM_KEY_TITLE_UTF8						"title_utf8"
 #define QQ_ROOM_KEY_DESC_UTF8						"desc_utf8"
 
-qq_group *qq_group_create_internal_record(PurpleConnection *gc, 
+qq_group *qq_group_create_internal_record(PurpleConnection *gc,
 		guint32 internal_id, guint32 ext_id, gchar *group_name_utf8);
 void qq_group_delete_internal_record(qq_data *qd, guint32 id);
 
