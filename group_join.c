@@ -42,6 +42,7 @@
 #include "header_info.h"
 #include "packet_parse.h"
 #include "qq_network.h"
+#include "qq_process.h"
 
 enum {
 	QQ_ROOM_JOIN_OK = 0x01,
@@ -68,8 +69,8 @@ void qq_send_cmd_group_join_group(PurpleConnection *gc, qq_group *group)
 {
 	g_return_if_fail(group != NULL);
 
-	if (group->my_status == QQ_ROOM_MEMBER_STATUS_NOT_MEMBER) {
-		group->my_status = QQ_ROOM_MEMBER_STATUS_APPLYING;
+	if (group->my_role == QQ_ROOM_ROLE_NO) {
+		group->my_role = QQ_ROOM_ROLE_REQUESTING;
 		qq_group_refresh(gc, group);
 	}
 
@@ -78,7 +79,7 @@ void qq_send_cmd_group_join_group(PurpleConnection *gc, qq_group *group)
 	case QQ_ROOM_AUTH_TYPE_NEED_AUTH:
 		break;
 	case QQ_ROOM_AUTH_TYPE_NO_ADD:
-		purple_notify_warning(gc, NULL, _("This QQ Qun does not allow others to join"), NULL);
+		purple_notify_warning(gc, NULL, _("The Qun does not allow others to join"), NULL);
 		return;
 	default:
 		purple_debug_error("QQ", "Unknown room auth type: %d\n", group->auth_type);
@@ -143,7 +144,7 @@ void qq_send_cmd_group_auth(PurpleConnection *gc, qq_group *group, guint8 opt, g
 		reason_qq = utf8_to_qq(reason_utf8, QQ_CHARSET_DEFAULT);
 
 	if (opt == QQ_ROOM_AUTH_REQUEST_APPLY) {
-		group->my_status = QQ_ROOM_MEMBER_STATUS_APPLYING;
+		group->my_role = QQ_ROOM_ROLE_REQUESTING;
 		qq_group_refresh(gc, group);
 		uid = 0;
 	}
@@ -187,7 +188,7 @@ void qq_process_group_cmd_exit_group(guint8 *data, gint len, PurpleConnection *g
 			purple_blist_remove_chat(chat);
 		qq_group_delete_internal_record(qd, id);
 	}
-	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully left the QQ Qun"), NULL);
+	purple_notify_info(gc, _("QQ Qun Operation"), _("You have successfully left the Qun"), NULL);
 }
 
 /* Process the reply to group_auth subcmd */
@@ -228,7 +229,7 @@ void qq_process_group_cmd_join_group(guint8 *data, gint len, PurpleConnection *g
 			   "Invalid join group reply, expect %d bytes, read %d bytes\n", 5, len);
 		return;
 	}
-	
+
 	bytes = 0;
 	bytes += qq_get32(&id, data + bytes);
 	bytes += qq_get8(&reply, data + bytes);
@@ -240,17 +241,17 @@ void qq_process_group_cmd_join_group(guint8 *data, gint len, PurpleConnection *g
 	switch (reply) {
 	case QQ_ROOM_JOIN_OK:
 		purple_debug_info("QQ", "Succeed joining group \"%s\"\n", group->title_utf8);
-		group->my_status = QQ_ROOM_MEMBER_STATUS_IS_MEMBER;
+		group->my_role = QQ_ROOM_ROLE_YES;
 		qq_group_refresh(gc, group);
 		/* this must be shown before getting online members */
 		qq_group_conv_show_window(gc, group);
-		qq_send_room_cmd_only(gc, QQ_ROOM_CMD_GET_INFO, group->id);
+		qq_room_update(gc, 0, group->id);
 		break;
 	case QQ_ROOM_JOIN_NEED_AUTH:
 		purple_debug_info("QQ",
 			   "Fail joining group [%d] %s, needs authentication\n",
 			   group->ext_id, group->title_utf8);
-		group->my_status = QQ_ROOM_MEMBER_STATUS_NOT_MEMBER;
+		group->my_role = QQ_ROOM_ROLE_NO;
 		qq_group_refresh(gc, group);
 		_qq_group_join_auth(gc, group);
 		break;
@@ -310,8 +311,7 @@ void qq_group_exit(PurpleConnection *gc, GHashTable *data)
 
 	purple_request_action(gc, _("QQ Qun Operation"),
 			    _("Are you sure you want to leave this Qun?"),
-			    _
-			    ("Note, if you are the creator, \nthis operation will eventually remove this Qun."),
+			    _("Note, if you are the creator, \nthis operation will eventually remove this Qun."),
 			    1,
 				purple_connection_get_account(gc), NULL, NULL,
 			    g, 2, _("Cancel"),

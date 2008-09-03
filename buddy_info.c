@@ -293,6 +293,20 @@ void qq_send_packet_get_info(PurpleConnection *gc, guint32 uid, gboolean show_wi
 	qd->info_query = g_list_append(qd->info_query, query);
 }
 
+void qq_request_buddy_info(PurpleConnection *gc, guint32 uid,
+		gint update_class, guint32 ship32)
+{
+	qq_data *qd;
+	gchar raw_data[16] = {0};
+
+	g_return_if_fail(uid != 0);
+
+	qd = (qq_data *) gc->proto_data;
+	g_snprintf(raw_data, sizeof(raw_data), "%d", uid);
+	qq_send_cmd_mess(gc, QQ_CMD_GET_USER_INFO, (guint8 *) raw_data, strlen(raw_data),
+			update_class, ship32);
+}
+
 /* set up the fields requesting personal information and send a get_info packet
  * for myself */
 void qq_prepare_modify_info(PurpleConnection *gc)
@@ -901,19 +915,21 @@ void qq_process_get_info_reply(guint8 *data, gint data_len, PurpleConnection *gc
 
 void qq_info_query_free(qq_data *qd)
 {
-	gint i;
+	gint count;
 	qq_info_query *p;
 
 	g_return_if_fail(qd != NULL);
 
-	i = 0;
+	count = 0;
 	while (qd->info_query != NULL) {
 		p = (qq_info_query *) (qd->info_query->data);
 		qd->info_query = g_list_remove(qd->info_query, p);
 		g_free(p);
-		i++;
+		count++;
 	}
-	purple_debug_info("QQ", "%d info queries are freed!\n", i);
+	if (count > 0) {
+		purple_debug_info("QQ", "%d info queries are freed!\n", count);
+	}
 }
 
 void qq_send_packet_get_level(PurpleConnection *gc, guint32 uid)
@@ -929,7 +945,7 @@ void qq_send_packet_get_level(PurpleConnection *gc, guint32 uid)
 	qq_send_cmd(gc, QQ_CMD_GET_LEVEL, buf, bytes);
 }
 
-void qq_send_packet_get_buddies_levels(PurpleConnection *gc)
+void qq_request_get_buddies_levels(PurpleConnection *gc, gint update_class)
 {
 	guint8 *buf;
 	guint16 size;
@@ -941,12 +957,11 @@ void qq_send_packet_get_buddies_levels(PurpleConnection *gc)
 	if ( qd->buddies == NULL) {
 		return;
 	}
-	/* server only sends back levels for online buddies, no point
-	 * in asking for anyone else */
-	size = 4 * g_list_length(qd->buddies) + 1;
+	/* server only reply levels for online buddies */
+	size = 4 * g_list_length(qd->buddies) + 1 + 4;
 	buf = g_newa(guint8, size);
 	bytes += qq_put8(buf + bytes, 0x00);
-	
+
 	while (NULL != node) {
 		q_bud = (qq_buddy *) node->data;
 		if (NULL != q_bud) {
@@ -954,7 +969,10 @@ void qq_send_packet_get_buddies_levels(PurpleConnection *gc)
 		}
 		node = node->next;
 	}
-	qq_send_cmd(gc, QQ_CMD_GET_LEVEL, buf, size);
+
+	/* my id should be the end if included */
+	bytes += qq_put32(buf + bytes, qd->uid);
+	qq_send_cmd_mess(gc, QQ_CMD_GET_LEVEL, buf, size, update_class, 0);
 }
 
 void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnection *gc)
@@ -969,9 +987,9 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 	qq_data *qd = (qq_data *) gc->proto_data;
 	gint bytes = 0;
 
-	decr_len--; 
+	decr_len--;
 	if (decr_len % 12 != 0) {
-		purple_debug_error("QQ", 
+		purple_debug_error("QQ",
 				"Get levels list of abnormal length. Truncating last %d bytes.\n", decr_len % 12);
 		decr_len -= (decr_len % 12);
 	}
@@ -986,7 +1004,7 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 		bytes += qq_get32(&onlineTime, decr_buf + bytes);
 		bytes += qq_get16(&level, decr_buf + bytes);
 		bytes += qq_get16(&timeRemainder, decr_buf + bytes);
-		purple_debug_info("QQ_LEVEL", "%d, tmOnline: %d, level: %d, tmRemainder: %d\n", 
+		purple_debug_info("QQ_LEVEL", "%d, tmOnline: %d, level: %d, tmRemainder: %d\n",
 				uid, onlineTime, level, timeRemainder);
 		if (uid == qd->uid) {
 			qd->my_level = level;
@@ -998,7 +1016,7 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 		if (purple_name == NULL) {
 			continue;
 		}
-		
+
 		b = purple_find_buddy(account, purple_name);
 		g_free(purple_name);
 
@@ -1006,7 +1024,7 @@ void qq_process_get_level_reply(guint8 *decr_buf, gint decr_len, PurpleConnectio
 		if (b != NULL) {
 			q_bud = (qq_buddy *) b->proto_data;
 		}
-		
+
 		if (q_bud == NULL) {
 			purple_debug_error("QQ", "Got levels of %d not in my buddy list\n", uid);
 			continue;

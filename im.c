@@ -251,7 +251,7 @@ static void _qq_process_recv_news(guint8 *data, gint data_len, PurpleConnection 
 	guint8 temp_len;
 	gchar *title, *brief, *url;
 	gchar *content, *content_utf8;
-	
+
 	g_return_if_fail(data != NULL && data_len != 0);
 
 #if 0
@@ -265,7 +265,7 @@ static void _qq_process_recv_news(guint8 *data, gint data_len, PurpleConnection 
 	g_return_if_fail(bytes + temp_len <= data_len);
 	bytes += qq_getdata(temp, temp_len, data+bytes);
 	title = g_strndup((gchar *)temp, temp_len);
-	
+
 	bytes += qq_get8(&temp_len, data + bytes);
 	g_return_if_fail(bytes + temp_len <= data_len);
 	bytes += qq_getdata(temp, temp_len, data+bytes);
@@ -357,9 +357,9 @@ static void _qq_process_recv_normal_im_text(guint8 *data, gint len, qq_recv_norm
 	}
 	qq_b = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
 	if (qq_b != NULL) {
-		qq_b->client_version = common->sender_ver; 
+		qq_b->client_version = common->sender_ver;
 	}
-	
+
 	purple_msg_type = (im_text->msg_type == QQ_IM_AUTO_REPLY) ? PURPLE_MESSAGE_AUTO_RESP : 0;
 
 	msg_with_purple_smiley = qq_smiley_to_purple(im_text->msg);
@@ -651,7 +651,7 @@ void qq_process_recv_im(guint8 *data, gint data_len, guint16 seq, PurpleConnecti
 	} else {
 		/* when we receive a message,
 		 * we send an ACK which is the first 16 bytes of incoming packet */
-		qq_send_cmd_detail(gc, QQ_CMD_RECV_IM, seq, FALSE, data, 16);
+		qq_send_server_reply(gc, QQ_CMD_RECV_IM, seq, data, 16);
 	}
 
 	/* check len first */

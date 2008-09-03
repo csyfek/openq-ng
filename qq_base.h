@@ -44,7 +44,7 @@
 #define QQ_UPDATE_ONLINE_INTERVAL   300	/* in sec */
 
 void qq_send_packet_token(PurpleConnection *gc);
-guint8 qq_process_token_reply(PurpleConnection *gc, gchar *error_msg, guint8 *buf, gint buf_len);
+guint8 qq_process_token_reply(PurpleConnection *gc, guint8 *buf, gint buf_len);
 
 void qq_send_packet_login(PurpleConnection *gc);
 guint8 qq_process_login_reply( PurpleConnection *gc, guint8 *data, gint data_len);

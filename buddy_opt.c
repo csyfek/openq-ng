@@ -290,7 +290,7 @@ void qq_process_remove_buddy_reply(guint8 *data, gint data_len, PurpleConnection
 }
 
 /* process the server reply for my request to remove myself from a buddy */
-void qq_process_remove_self_reply(guint8 *data, gint data_len, PurpleConnection *gc) 
+void qq_process_remove_self_reply(guint8 *data, gint data_len, PurpleConnection *gc)
 {
 	qq_data *qd;
 
@@ -301,10 +301,11 @@ void qq_process_remove_self_reply(guint8 *data, gint data_len, PurpleConnection 
 	if (data[0] != QQ_REMOVE_SELF_REPLY_OK) {
 		/* there is no reason return from server */
 		purple_debug_warning("QQ", "Remove self fails\n");
+		purple_notify_info(gc, NULL, _("Failed removing from friend's buddy list"), NULL);
 	} else {		/* if reply */
-		purple_debug_info("QQ", "Remove self from a buddy OK\n");
+		purple_debug_info("QQ", "Remove from a buddy OK\n");
 		/* TODO: Does the user really need to be notified about this? */
-		purple_notify_info(gc, NULL, _("You have successfully removed yourself from your friend's buddy list"), NULL);
+		purple_notify_info(gc, NULL, _("Successed removing from friend's buddy list"), NULL);
 	}
 }
 
@@ -345,7 +346,7 @@ void qq_process_add_buddy_reply(guint8 *data, gint data_len, guint16 seq, Purple
 
 	if (NULL == (segments = split_data(data, data_len, "\x1f", 2)))
 		return;
-		
+
 	uid = segments[0];
 	reply = segments[1];
 	if (strtol(uid, NULL, 10) != qd->uid) {	/* should not happen */
@@ -437,7 +438,7 @@ PurpleBuddy *qq_add_buddy_by_recv_packet(PurpleConnection *gc, guint32 uid, gboo
 		b->proto_data = q_bud;
 		qd->buddies = g_list_append(qd->buddies, q_bud);
 		qq_send_packet_get_info(gc, q_bud->uid, FALSE);
-		qq_send_packet_get_buddies_online(gc, 0);
+		qq_request_get_buddies_online(gc, 0, 0);
 	}
 
 	purple_blist_add_buddy(b, NULL, g, NULL);
@@ -451,8 +452,8 @@ PurpleBuddy *qq_add_buddy_by_recv_packet(PurpleConnection *gc, guint32 uid, gboo
 
 /* add a buddy and send packet to QQ server
  * note that when purple load local cached buddy list into its blist
- * it also calls this funtion, so we have to 
- * define qd->logged_in=TRUE AFTER serv_finish_login(gc) */
+ * it also calls this funtion, so we have to
+ * define qd->is_login=TRUE AFTER serv_finish_login(gc) */
 void qq_add_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *group)
 {
 	qq_data *qd;
@@ -460,7 +461,7 @@ void qq_add_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *group)
 	PurpleBuddy *b;
 
 	qd = (qq_data *) gc->proto_data;
-	if (!qd->logged_in)
+	if (!qd->is_login)
 		return;		/* IMPORTANT ! */
 
 	uid = purple_name_to_uid(buddy->name);
@@ -487,7 +488,7 @@ void qq_remove_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *grou
 	qd = (qq_data *) gc->proto_data;
 	uid = purple_name_to_uid(buddy->name);
 
-	if (!qd->logged_in)
+	if (!qd->is_login)
 		return;
 
 	if (uid > 0)
@@ -511,41 +512,45 @@ void qq_remove_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *grou
 /* free add buddy request queue */
 void qq_add_buddy_request_free(qq_data *qd)
 {
-	gint i;
+	gint count;
 	qq_add_buddy_request *p;
 
-	i = 0;
-	while (qd->add_buddy_request) {
+	count = 0;
+	while (qd->add_buddy_request != NULL) {
 		p = (qq_add_buddy_request *) (qd->add_buddy_request->data);
 		qd->add_buddy_request = g_list_remove(qd->add_buddy_request, p);
 		g_free(p);
-		i++;
+		count++;
 	}
-	purple_debug_info("QQ", "%d add buddy requests are freed!\n", i);
+	if (count > 0) {
+		purple_debug_info("QQ", "%d add buddy requests are freed!\n", count);
+	}
 }
 
 /* free up all qq_buddy */
 void qq_buddies_list_free(PurpleAccount *account, qq_data *qd)
 {
-	gint i;
+	gint count;
 	qq_buddy *p;
 	gchar *name;
 	PurpleBuddy *b;
 
-	i = 0;
+	count = 0;
 	while (qd->buddies) {
 		p = (qq_buddy *) (qd->buddies->data);
 		qd->buddies = g_list_remove(qd->buddies, p);
 		name = uid_to_purple_name(p->uid);
-		b = purple_find_buddy(account, name);   	
-		if(b != NULL) 
+		b = purple_find_buddy(account, name);
+		if(b != NULL)
 			b->proto_data = NULL;
 		else
 			purple_debug_info("QQ", "qq_buddy %s not found in purple proto_data\n", name);
 		g_free(name);
 
 		g_free(p);
-		i++;
+		count++;
 	}
-	purple_debug_info("QQ", "%d qq_buddy structures are freed!\n", i);
+	if (count > 0) {
+		purple_debug_info("QQ", "%d qq_buddy structures are freed!\n", count);
+	}
 }

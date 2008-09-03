@@ -34,16 +34,16 @@
 #define PURPLE_GROUP_QQ_QUN         "QQ 群"
 
 typedef enum {
-	QQ_ROOM_MEMBER_STATUS_NOT_MEMBER = 0x00,	/* default 0x00 means not member */
-	QQ_ROOM_MEMBER_STATUS_IS_MEMBER,
-	QQ_ROOM_MEMBER_STATUS_APPLYING,
-	QQ_ROOM_MEMBER_STATUS_IS_ADMIN,
-} qq_group_member_status;
+	QQ_ROOM_ROLE_NO = 0x00,	/* default 0x00 means not member */
+	QQ_ROOM_ROLE_YES,
+	QQ_ROOM_ROLE_REQUESTING,
+	QQ_ROOM_ROLE_ADMIN,
+} qq_room_role;
 
 typedef struct _qq_group {
 	/* all these will be saved when we exit Purple */
-	qq_group_member_status my_status;	/* my status for this group */
-	gchar *my_status_desc;			/* my status description */
+	qq_room_role my_role;	/* my role for this room */
+	gchar *my_role_desc;			/* my role description */
 	guint32 id;
 	guint32 ext_id;
 	guint8 type8;			/* permanent or temporory */
@@ -54,7 +54,7 @@ typedef struct _qq_group {
 	gchar *desc_utf8;
 	/* all these will be loaded from the network */
 	gchar *notice_utf8;	/* group notice by admin */
-	GList *members;	
+	GList *members;
 } qq_group;
 
 GList *qq_chat_info(PurpleConnection *gc);
