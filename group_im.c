@@ -380,7 +380,8 @@ void qq_process_room_msg_normal(guint8 *data, gint data_len, guint32 id, PurpleC
 	conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->title_utf8, purple_connection_get_account(gc));
 	if (conv == NULL && purple_prefs_get_bool("/plugins/prpl/qq/prompt_group_msg_on_recv")) {
 		/* New conv should open, get group info*/
-		qq_room_update(gc, 0, group->id);
+		/* qq_room_update(gc, 0, group->id); */
+		qq_send_room_cmd_only(gc, QQ_ROOM_CMD_GET_ONLINES, group->id);
 
 		serv_got_joined_chat(gc, qd->channel++, group->title_utf8);
 		conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, group->title_utf8, purple_connection_get_account(gc));

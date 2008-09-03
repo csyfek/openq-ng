@@ -779,7 +779,11 @@ gboolean connect_to_server(PurpleConnection *gc, gchar *server, gint port)
 		purple_proxy_connect_cancel(qd->conn_data);
 		qd->conn_data = NULL;
 	}
-	qd->conn_data = purple_proxy_connect(gc, account, server, port, connect_cb, gc);
+	if (qd->use_tcp) {
+		qd->conn_data = purple_proxy_connect(gc, account, server, port, connect_cb, gc);
+	} else {
+		qd->conn_data = purple_proxy_connect_udp(gc, account, server, port, connect_cb, gc);
+	}
 	if ( qd->conn_data == NULL ) {
 		purple_debug_error("QQ", _("Couldn't create socket"));
 		return FALSE;
