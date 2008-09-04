@@ -249,7 +249,7 @@ void qq_process_group_cmd_join_group(guint8 *data, gint len, PurpleConnection *g
 		qq_group_refresh(gc, group);
 		/* this must be shown before getting online members */
 		qq_group_conv_show_window(gc, group);
-		/* qq_room_update(gc, 0, group->id); */
+		/* qq_update_room(gc, 0, group->id); */
 		qq_send_room_cmd_only(gc, QQ_ROOM_CMD_GET_ONLINES, group->id);
 		break;
 	case QQ_ROOM_JOIN_NEED_AUTH:

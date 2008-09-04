@@ -465,7 +465,7 @@ static void _qq_get_info(PurpleConnection *gc, const gchar *who)
 		return;
 	}
 
-	qq_send_packet_get_level(gc, uid);
+	qq_request_get_level(gc, uid);
 	qq_send_packet_get_info(gc, uid, TRUE);
 }
 
