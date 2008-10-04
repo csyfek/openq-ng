@@ -1242,20 +1242,24 @@ guint8 qq_process_login_2007( PurpleConnection *gc, guint8 *data, gint data_len)
 	gchar *msg_utf8;
 
 	g_return_val_if_fail(data != NULL && data_len != 0, QQ_LOGIN_REPLY_ERR);
+	purple_debug_info("QQ", "FN_base, GO\n");
 
 	qd = (qq_data *) gc->proto_data;
 
 	bytes = 0;
 	bytes += qq_get8(&ret, data + bytes);
 	if (ret != 0) {
+		purple_debug_info("QQ", "FN_base, RET!=0\n");
 		msg = g_strndup((gchar *)data + bytes, data_len - bytes);
 		msg_utf8 = qq_to_utf8(msg, QQ_CHARSET_DEFAULT);
 
+		purple_debug_info("QQ", "FN_base, SW RET now\n");
 		switch (ret) {
 			case 0x05:
+				purple_debug_info("QQ", "FN_base, RET:0x%02x\n", ret);
 				error = g_strdup_printf(
 						_("Server is busy now, Please try later\n%s"),
-						ret, msg_utf8);
+						msg_utf8);
 				break;
 			case 0x0A:
 				/* 0a 2d 9a 4b 9a 01 01 00 00 00 05 00 00 00 00 79 0e 5f fd */
@@ -1447,7 +1451,7 @@ guint8 qq_process_login_2008( PurpleConnection *gc, guint8 *data, gint data_len)
 			case 0x05:
 				error = g_strdup_printf(
 						_("Server is busy now, Please try later\n%s"),
-						ret, msg_utf8);
+						msg_utf8);
 				break;
 			default:
 				error = g_strdup_printf(
