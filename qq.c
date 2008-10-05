@@ -632,6 +632,7 @@ static void action_about_openq(PurplePluginAction *action)
 	info = g_string_new("<html><body>");
 	g_string_append(info, _("<p><b>Original Author</b>:<br>\n"));
 	g_string_append(info, "puzzlebird<br>\n");
+	g_string_append(info, "<br>\n");
 	g_string_append(info, _("<p><b>Code Contributors</b>:<br>\n"));
 	g_string_append(info, "gfhuang : patches for libpurple 2.0.0beta2, maintainer<br>\n");
 	g_string_append(info, "Yuan Qingyun : patches for libpurple 1.5.0, maintainer<br>\n");
@@ -646,12 +647,14 @@ static void action_about_openq(PurplePluginAction *action)
 	g_string_append(info, "ccpaging : maintainer since 2007<br>\n");
 	g_string_append(info, "icesky : maintainer since 2007<br>\n");
 	g_string_append(info, "csyfek : faces, maintainer since 2007<br>\n");
+	g_string_append(info, "<br>\n");
 	g_string_append(info, _("<p><b>Lovely Patch Writers</b>:<br>\n"));
 	g_string_append(info, "gnap : message displaying, documentation<br>\n");
 	g_string_append(info, "manphiz : qun processing<br>\n");
 	g_string_append(info, "moo : qun processing<br>\n");
 	g_string_append(info, "Coly Li : qun processing<br>\n");
 	g_string_append(info, "Emil Alexiev : captcha verification on login based on LumaQQ for MAC (2007), login, add buddy, remove buddy, message exchange and logout<br>\n");
+	g_string_append(info, "<br>\n");
 	g_string_append(info, _("<p><b>Acknowledgement</b>:<br>\n"));
 	g_string_append(info, "Shufeng Tan : http://sf.net/projects/perl-oicq<br>\n");
 	g_string_append(info, "Jeff Ye : http://www.sinomac.com<br>\n");
@@ -663,11 +666,12 @@ static void action_about_openq(PurplePluginAction *action)
 	g_string_append(info, "qulogic(at)pidgin.im<br>\n");
 	g_string_append(info, "rlaager(at)pidgin.im<br>\n");
 	g_string_append(info, "OpenQ Google Group : http://groups.google.com/group/openq<br>\n");
-	g_string_append(info, _("<p>And, all the boys in the backroom...<br>\n"));
-	g_string_append(info, _("Feel free to join us! :)"));
+	g_string_append(info, "<br>\n");
+	g_string_append(info, _("<p><i>And, all the boys in the backroom...</i><br>\n"));
+	g_string_append(info, _("<i>Feel free to join us!</i> :)"));
 	g_string_append(info, "</body></html>");
 
-	title = g_strdup_printf(_("About OpenQ %s"), OPENQ_VER);
+	title = g_strdup_printf(_("About OpenQ %s"), OPENQ_VERSION);
 	purple_notify_formatted(gc, NULL, title, NULL, info->str, NULL, NULL);
 
 	g_free(title);
