@@ -8,6 +8,9 @@
 	* Update protocol for 2007
 	* Code cleanup
 
+2008.10.04 - lonicerae <lonicerae(at)gmail.com>
+	* fixed a bug in qq_base.c
+
 2008.10.03 - ccpaging <ccpaging(at)gmail.com>
 	* 2007 protocol:
 		1. fixed 'get room info'

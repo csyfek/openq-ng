@@ -898,16 +898,23 @@ guint8 qq_proc_login_cmds(PurpleConnection *gc,  guint16 cmd, guint16 seq,
 		case QQ_CMD_LOGIN:
 		default:
 			if (qd->client_version >= 2007) {
+				purple_debug_warning("QQ", "Decrypt login packet by pwd_twice_md5\n");
 				data_len = qq_decrypt(data, rcved, rcved_len, qd->ld.pwd_twice_md5);
 				if (data_len >= 0) {
-					purple_debug_warning("QQ", "Decrypt login packet by pwd_twice_md5\n");
-				} else {
+					purple_debug_warning("QQ", "Dpwd_twice_md5 *OK*\n");
+				}
+				else {
+					purple_debug_warning("QQ", "Dpwd_twice_md5 *FAILED*, try login_key, last data_len=%d\n", data_len);
 					data_len = qq_decrypt(data, rcved, rcved_len, qd->ld.login_key);
 					if (data_len >= 0) {
-						purple_debug_warning("QQ", "Decrypt login packet by login_key\n");
+						purple_debug_warning("QQ", "Dlogin_key *OK*\n");
+					}
+					else {
+						purple_debug_warning("QQ", "Dlogin_key *FAILED*\n");
 					}
 				}
-			} else {
+			}
+			else {
 				/* May use password_twice_md5 in the past version like QQ2005 */
 				data_len = qq_decrypt(data, rcved, rcved_len, qd->ld.random_key);
 				if (data_len >= 0) {
@@ -992,6 +999,7 @@ guint8 qq_proc_login_cmds(PurpleConnection *gc,  guint16 cmd, guint16 seq,
 			qq_update_all(gc, 0);
 			break;
 		default:
+			purple_debug_warning("QQ", "UNKNOWN LOGIN CMD: %d\n", cmd);
 			process_unknow_cmd(gc, _("Unknow LOGIN CMD"), data, data_len, cmd, seq);
 			return QQ_LOGIN_REPLY_ERR;
 	}
