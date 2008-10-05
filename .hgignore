@@ -1,0 +1,11 @@
+syntax: glob
+
+*.py[co]
+*.swp
+*.bak
+*.orig
+*.rej
+*~
+*.o
+*.obj
+*.in
