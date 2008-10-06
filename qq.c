@@ -512,6 +512,8 @@ static void action_update_all_rooms(PurplePluginAction *action)
 {
 	PurpleConnection *gc = (PurpleConnection *) action->context;
 	qq_data *qd;
+
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	qd = (qq_data *) gc->proto_data;
 
 	if ( !qd->is_login ) {
@@ -526,6 +528,7 @@ static void action_modify_info_base(PurplePluginAction *action)
 	PurpleConnection *gc = (PurpleConnection *) action->context;
 	qq_data *qd;
 
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	qd = (qq_data *) gc->proto_data;
 	qq_request_buddy_info(gc, qd->uid, 0, QQ_BUDDY_INFO_MODIFY_BASE);
 }
@@ -535,6 +538,7 @@ static void action_modify_info_ext(PurplePluginAction *action)
 	PurpleConnection *gc = (PurpleConnection *) action->context;
 	qq_data *qd;
 
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	qd = (qq_data *) gc->proto_data;
 	qq_request_buddy_info(gc, qd->uid, 0, QQ_BUDDY_INFO_MODIFY_EXT);
 }
@@ -544,6 +548,7 @@ static void action_modify_info_addr(PurplePluginAction *action)
 	PurpleConnection *gc = (PurpleConnection *) action->context;
 	qq_data *qd;
 
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	qd = (qq_data *) gc->proto_data;
 	qq_request_buddy_info(gc, qd->uid, 0, QQ_BUDDY_INFO_MODIFY_ADDR);
 }
@@ -553,12 +558,16 @@ static void action_modify_info_contact(PurplePluginAction *action)
 	PurpleConnection *gc = (PurpleConnection *) action->context;
 	qq_data *qd;
 
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	qd = (qq_data *) gc->proto_data;
 	qq_request_buddy_info(gc, qd->uid, 0, QQ_BUDDY_INFO_MODIFY_CONTACT);
 }
 
 static void action_change_password(PurplePluginAction *action)
 {
+	PurpleConnection *gc = (PurpleConnection *) action->context;
+
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	purple_notify_uri(NULL, "https://password.qq.com");
 }
 
@@ -571,6 +580,7 @@ static void action_show_account_info(PurplePluginAction *action)
 	struct tm *tm_local;
 	int index;
 
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	qd = (qq_data *) gc->proto_data;
 	info = g_string_new("<html><body>");
 
