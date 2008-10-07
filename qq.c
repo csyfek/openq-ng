@@ -58,7 +58,10 @@
 
 #define OPENQ_AUTHOR            "Puzzlebird"
 #define OPENQ_WEBSITE           "http://openq.sourceforge.net"
+
+#ifndef OPENQ_VERSION
 #define OPENQ_VERSION           DISPLAY_VERSION
+#endif
 
 static GList *server_list_build(gchar select)
 {
