@@ -245,16 +245,16 @@ static const gchar *qq_list_icon(PurpleAccount *a, PurpleBuddy *b)
 /* a short status text beside buddy icon*/
 static gchar *qq_status_text(PurpleBuddy *b)
 {
-	qq_buddy *q_bud;
+	qq_buddy_data *bd;
 	GString *status;
 
-	q_bud = (qq_buddy *) b->proto_data;
-	if (q_bud == NULL)
+	bd = (qq_buddy_data *) b->proto_data;
+	if (bd == NULL)
 		return NULL;
 
 	status = g_string_new("");
 
-	switch(q_bud->status) {
+	switch(bd->status) {
 	case QQ_BUDDY_OFFLINE:
 		g_string_append(status, _("Offline"));
 		break;
@@ -275,7 +275,7 @@ static gchar *qq_status_text(PurpleBuddy *b)
 		g_string_append(status, _("Busy"));
 		break;
 	default:
-		g_string_printf(status, _("Unknown-%d"), q_bud->status);
+		g_string_printf(status, _("Unknown-%d"), bd->status);
 	}
 
 	return g_string_free(status, FALSE);
@@ -285,21 +285,21 @@ static gchar *qq_status_text(PurpleBuddy *b)
 /* a floating text when mouse is on the icon, show connection status here */
 static void qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gboolean full)
 {
-	qq_buddy *q_bud;
+	qq_buddy_data *bd;
 	gchar *tmp;
 	GString *str;
 
 	g_return_if_fail(b != NULL);
 
-	q_bud = (qq_buddy *) b->proto_data;
-	if (q_bud == NULL)
+	bd = (qq_buddy_data *) b->proto_data;
+	if (bd == NULL)
 		return;
 
-	/* if (PURPLE_BUDDY_IS_ONLINE(b) && q_bud != NULL) */
-	if (q_bud->ip.s_addr != 0) {
+	/* if (PURPLE_BUDDY_IS_ONLINE(b) && bd != NULL) */
+	if (bd->ip.s_addr != 0) {
 		str = g_string_new(NULL);
-		g_string_printf(str, "%s:%d", inet_ntoa(q_bud->ip), q_bud->port);
-		if (q_bud->comm_flag & QQ_COMM_FLAG_TCP_MODE) {
+		g_string_printf(str, "%s:%d", inet_ntoa(bd->ip), bd->port);
+		if (bd->comm_flag & QQ_COMM_FLAG_TCP_MODE) {
 			g_string_append(str, " TCP");
 		} else {
 			g_string_append(str, " UDP");
@@ -307,11 +307,11 @@ static void qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gbo
 		g_string_free(str, TRUE);
 	}
 
-	tmp = g_strdup_printf("%d", q_bud->age);
+	tmp = g_strdup_printf("%d", bd->age);
 	purple_notify_user_info_add_pair(user_info, _("Age"), tmp);
 	g_free(tmp);
 
-	switch (q_bud->gender) {
+	switch (bd->gender) {
 	case QQ_BUDDY_GENDER_GG:
 		purple_notify_user_info_add_pair(user_info, _("Gender"), _("Male"));
 		break;
@@ -322,38 +322,38 @@ static void qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gbo
 		purple_notify_user_info_add_pair(user_info, _("Gender"), _("Unknown"));
 		break;
 	default:
-		tmp = g_strdup_printf("Error (%d)", q_bud->gender);
+		tmp = g_strdup_printf("Error (%d)", bd->gender);
 		purple_notify_user_info_add_pair(user_info, _("Gender"), tmp);
 		g_free(tmp);
 	}
 
-	if (q_bud->level) {
-		tmp = g_strdup_printf("%d", q_bud->level);
+	if (bd->level) {
+		tmp = g_strdup_printf("%d", bd->level);
 		purple_notify_user_info_add_pair(user_info, _("Level"), tmp);
 		g_free(tmp);
 	}
 
 	str = g_string_new(NULL);
-	if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_MEMBER) {
+	if (bd->comm_flag & QQ_COMM_FLAG_QQ_MEMBER) {
 		g_string_append( str, _("Member") );
 	}
-	if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_VIP) {
+	if (bd->comm_flag & QQ_COMM_FLAG_QQ_VIP) {
 		g_string_append( str, _(" VIP") );
 	}
-	if (q_bud->comm_flag & QQ_COMM_FLAG_TCP_MODE) {
+	if (bd->comm_flag & QQ_COMM_FLAG_TCP_MODE) {
 		g_string_append( str, _(" TCP") );
 	}
-	if (q_bud->comm_flag & QQ_COMM_FLAG_MOBILE) {
+	if (bd->comm_flag & QQ_COMM_FLAG_MOBILE) {
 		g_string_append( str, _(" FromMobile") );
 	}
-	if (q_bud->comm_flag & QQ_COMM_FLAG_BIND_MOBILE) {
+	if (bd->comm_flag & QQ_COMM_FLAG_BIND_MOBILE) {
 		g_string_append( str, _(" BindMobile") );
 	}
-	if (q_bud->comm_flag & QQ_COMM_FLAG_VIDEO) {
+	if (bd->comm_flag & QQ_COMM_FLAG_VIDEO) {
 		g_string_append( str, _(" Video") );
 	}
 
-	if (q_bud->ext_flag & QQ_EXT_FLAG_ZONE) {
+	if (bd->ext_flag & QQ_EXT_FLAG_ZONE) {
 		g_string_append( str, _(" Zone") );
 	}
 	purple_notify_user_info_add_pair(user_info, _("Flag"), str->str);
@@ -362,13 +362,13 @@ static void qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gbo
 
 #ifdef DEBUG
 	tmp = g_strdup_printf( "%s (%04X)",
-										qq_get_ver_desc(q_bud->client_tag),
-										q_bud->client_tag );
+										qq_get_ver_desc(bd->client_tag),
+										bd->client_tag );
 	purple_notify_user_info_add_pair(user_info, _("Ver"), tmp);
 	g_free(tmp);
 
 	tmp = g_strdup_printf( "Ext 0x%X, Comm 0x%X",
-												q_bud->ext_flag, q_bud->comm_flag );
+												bd->ext_flag, bd->comm_flag );
 	purple_notify_user_info_add_pair(user_info, _("Flag"), tmp);
 	g_free(tmp);
 #endif
@@ -377,18 +377,25 @@ static void qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gbo
 /* we can show tiny icons on the four corners of buddy icon, */
 static const char *qq_list_emblem(PurpleBuddy *b)
 {
-	/* each char** are refering to a filename in pixmaps/purple/status/default/ */
-	qq_buddy *q_bud;
+	PurpleAccount *account;
+	PurpleConnection *gc;
+	qq_data *qd;
+	qq_buddy_data *buddy;
 
-	if (!b || !(q_bud = b->proto_data)) {
+	if (!b || !(account = b->account) ||
+		!(gc = purple_account_get_connection(account)) || !(qd = gc->proto_data))
 		return NULL;
+
+	buddy = (qq_buddy_data *)b->proto_data;
+	if (!buddy) {
+		return "not-authorized";
 	}
 
-	if (q_bud->comm_flag & QQ_COMM_FLAG_MOBILE)
+	if (buddy->comm_flag & QQ_COMM_FLAG_MOBILE)
 		return "mobile";
-	if (q_bud->comm_flag & QQ_COMM_FLAG_VIDEO)
+	if (buddy->comm_flag & QQ_COMM_FLAG_VIDEO)
 		return "video";
-	if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_MEMBER)
+	if (buddy->comm_flag & QQ_COMM_FLAG_QQ_MEMBER)
 		return "qq_member";
 
 	return NULL;
@@ -526,6 +533,19 @@ static void action_update_all_rooms(PurplePluginAction *action)
 	qq_update_all_rooms(gc, 0, 0);
 }
 
+static void action_change_icon(PurplePluginAction *action)
+{
+	PurpleConnection *gc = (PurpleConnection *) action->context;
+
+	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
+
+	purple_request_file(action, _("Select icon..."), NULL,
+			FALSE,
+			NULL, NULL,
+			purple_connection_get_account(gc), NULL, NULL,
+			gc);
+}
+
 static void action_modify_info_base(PurplePluginAction *action)
 {
 	PurpleConnection *gc = (PurpleConnection *) action->context;
@@ -591,7 +611,7 @@ static void action_show_account_info(PurplePluginAction *action)
 	g_string_append_printf(info, _("<b>Login time</b>: %d-%d-%d, %d:%d:%d<br>\n"),
 			(1900 +tm_local->tm_year), (1 + tm_local->tm_mon), tm_local->tm_mday,
 			tm_local->tm_hour, tm_local->tm_min, tm_local->tm_sec);
-	g_string_append_printf(info, _("<b>Online Buddies</b>: %d<br>\n"), qd->online_total);
+	g_string_append_printf(info, _("<b>Total Online Buddies</b>: %d<br>\n"), qd->online_total);
 	tm_local = localtime(&qd->online_last_update);
 	g_string_append_printf(info, _("<b>Last Refresh</b>: %d-%d-%d, %d:%d:%d<br>\n"),
 			(1900 +tm_local->tm_year), (1 + tm_local->tm_mon), tm_local->tm_mday,
@@ -602,7 +622,7 @@ static void action_show_account_info(PurplePluginAction *action)
 	g_string_append_printf(info, _("<b>Server</b>: %s<br>\n"), qd->curr_server);
 	g_string_append_printf(info, _("<b>Client Tag</b>: %s<br>\n"), qq_get_ver_desc(qd->client_tag));
 	g_string_append_printf(info, _("<b>Connection Mode</b>: %s<br>\n"), qd->use_tcp ? "TCP" : "UDP");
-	g_string_append_printf(info, _("<b>My Internet IP</b>: %s<br>\n"), inet_ntoa(qd->my_ip));
+	g_string_append_printf(info, _("<b>My Internet IP</b>: %s:%d<br>\n"), inet_ntoa(qd->my_ip), qd->my_port);
 
 	g_string_append(info, "<hr>");
 	g_string_append(info, "<i>Network Status</i><br>\n");
@@ -754,12 +774,12 @@ static void _qq_menu_send_file(PurpleBlistNode * node, gpointer ignored)
 {
 	PurpleBuddy *buddy;
 	PurpleConnection *gc;
-	qq_buddy *q_bud;
+	qq_buddy_data *bd;
 
 	g_return_if_fail (PURPLE_BLIST_NODE_IS_BUDDY (node));
 	buddy = (PurpleBuddy *) node;
-	q_bud = (qq_buddy *) buddy->proto_data;
-/*	if (is_online (q_bud->status)) { */
+	bd = (qq_buddy_data *) buddy->proto_data;
+/*	if (is_online (bd->status)) { */
 	gc = purple_account_get_connection (buddy->account);
 	g_return_if_fail (gc != NULL && gc->proto_data != NULL);
 	qq_send_file(gc, buddy->name, NULL);
@@ -774,6 +794,9 @@ static GList *qq_actions(PurplePlugin *plugin, gpointer context)
 	PurplePluginAction *act;
 
 	m = NULL;
+	act = purple_plugin_action_new(_("Change icon"), action_change_icon);
+	m = g_list_append(m, act);
+
 	act = purple_plugin_action_new(_("Modify Information"), action_modify_info_base);
 	m = g_list_append(m, act);
 
@@ -839,7 +862,7 @@ static GList *qq_buddy_menu(PurpleBlistNode * node)
 
 /* TODO : not working, temp commented out by gfhuang */
 #if 0
-/*	if (q_bud && is_online(q_bud->status)) { */
+/*	if (bd && is_online(bd->status)) { */
 		act = purple_menu_action_new(_("Send File"), PURPLE_CALLBACK(_qq_menu_send_file), NULL, NULL); /* add NULL by gfhuang */
 		m = g_list_append(m, act);
 /*	} */
@@ -936,7 +959,7 @@ static PurplePluginProtocolInfo prpl_info =
 	NULL,							/* buddy_free */
 	NULL,							/* convo_closed */
 	NULL,							/* normalize */
-	qq_set_buddy_icon,					/* set_buddy_icon */
+	qq_set_custom_icon,
 	NULL,							/* remove_group */
 	qq_get_chat_buddy_real_name,				/* get_cb_real_name */
 	NULL,							/* set_chat_topic */
@@ -1070,6 +1093,7 @@ static void init_plugin(PurplePlugin *plugin)
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	purple_prefs_add_none("/plugins/prpl/qq");
+	purple_prefs_add_string("/plugins/prpl/qq/icon_dir", "");
 	purple_prefs_add_bool("/plugins/prpl/qq/show_status_by_icon", TRUE);
 	purple_prefs_add_bool("/plugins/prpl/qq/show_fake_video", FALSE);
 	purple_prefs_add_bool("/plugins/prpl/qq/show_room_when_newin", TRUE);

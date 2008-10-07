@@ -37,7 +37,7 @@
 #define QQ_KEY_LENGTH       16
 
 typedef struct _qq_data qq_data;
-typedef struct _qq_buddy qq_buddy;
+typedef struct _qq_buddy_data qq_buddy_data;
 typedef struct _qq_interval qq_interval;
 typedef struct _qq_net_stat qq_net_stat;
 typedef struct _qq_add_request qq_add_request;
@@ -86,7 +86,7 @@ struct _qq_net_stat {
 	glong rcved_dup;
 };
 
-struct _qq_buddy {
+struct _qq_buddy_data {
 	guint32 uid;
 	guint16 face;		/* index: 0 - 299 */
 	guint8 age;
@@ -179,7 +179,6 @@ struct _qq_data {
 	struct in_addr my_ip;			/* my ip address detected by server */
 	guint16 my_port;		/* my port detected by server */
 	guint16 my_icon;		/* my icon index */
-	guint16 my_level;		/* my level */
 	guint32 online_total;		/* the number of online QQ users */
 	time_t online_last_update;		/* last time send get_friends_online packet */
 
@@ -189,7 +188,6 @@ struct _qq_data {
 	GList *groups;
 	GSList *joining_groups;
 	GSList *adding_groups_from_server; /* internal ids of groups the server wants in my blist */
-	GList *buddies;
 	GList *group_info_window;
 
 	gboolean is_show_notice;
