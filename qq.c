@@ -684,7 +684,7 @@ static void action_about_openq(PurplePluginAction *action)
 	g_string_append(info, _("<i>Feel free to join us!</i> :)"));
 	g_string_append(info, "</body></html>");
 
-	title = g_strdup_printf(_("About OpenQ %s"), OPENQ_VERSION);
+	title = g_strdup_printf(_("About OpenQ r%s"), OPENQ_VERSION);
 	purple_notify_formatted(gc, NULL, title, NULL, info->str, NULL, NULL);
 
 	g_free(title);
