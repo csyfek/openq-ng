@@ -296,6 +296,7 @@ static qq_emoticon emoticons_sym[] = {
 	{0x66, "/xs"},
 	{0x67, "/dg"},
 	{0x68, "/lw"},
+	{0x69, "/xy"},
 	{0x6a, "/duoy"},
 	{0x6b, "/ty"},
 	{0x6c, "/xr"},
@@ -311,7 +312,7 @@ static qq_emoticon emoticons_sym[] = {
 	{0x76, "/zk"},
 	{0x77, "/tu"},
 	{0x78, "/jk"},
-	{0x79, "/lh"},
+	{0x79, "/:L"},
 	{0x7a, "/hanx"},
 	{0x7b, "/db"},
 	{0x7c, "/zt"},
@@ -326,7 +327,6 @@ static qq_emoticon emoticons_sym[] = {
 	{0x85, "/sj"},
 	{0x86, "/yj"},
 	{0x87, "/ds"},
-	{0x69, "/xy"},
 	{0x88, "/ws"},
 	{0x89, "/bb"},
 	{0x8a, "/tx"},
@@ -353,7 +353,7 @@ static qq_emoticon emoticons_sym[] = {
 	{0x9f, "/yy"},
 	{0xa0, "/shl"},
 	{0xa1, "/:L"},
-	{0xa2, "/ch"},
+	{0xa2, "/wipe"},
 	{0xa3, "/kb"},
 	{0xa4, "/gz"},
 	{0xa5, "/qd"},
@@ -419,6 +419,7 @@ static void emoticon_try_sort()
 	qsort(emoticons_std, emoticons_std_num, sizeof(qq_emoticon), emoticon_cmp);
 	purple_debug_info("QQ", "qsort extend emoticons\n");
 	qsort(emoticons_ext, emoticons_ext_num, sizeof(qq_emoticon), emoticon_cmp);
+	emoticons_is_sorted = TRUE;
 }
 
 static qq_emoticon *emoticon_find(gchar *name)
