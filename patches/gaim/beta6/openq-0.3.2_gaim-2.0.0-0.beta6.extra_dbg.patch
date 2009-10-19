@@ -1,0 +1,143 @@
+diff -uNr gaim-2.0.0beta6svn-orig/gtk/pixmaps/status/default/Makefile.am gaim-2.0.0beta6svn/gtk/pixmaps/status/default/Makefile.am
+--- gaim-2.0.0beta6svn-orig/gtk/pixmaps/status/default/Makefile.am	2007-03-11 14:51:17.676497250 +0800
++++ gaim-2.0.0beta6svn/gtk/pixmaps/status/default/Makefile.am	2007-03-11 15:17:18.058015000 +0800
+@@ -28,6 +28,7 @@
+ 	msn.png \
+ 	notauthorized.png \
+ 	novell.png \
++	obscure.png \
+ 	occupied.png \
+ 	offline.png \
+ 	op.png \
+diff -uNr gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/buddy_info.c gaim-2.0.0beta6svn/libgaim/protocols/qq/buddy_info.c
+--- gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/buddy_info.c	2007-03-11 14:51:50.902573750 +0800
++++ gaim-2.0.0beta6svn/libgaim/protocols/qq/buddy_info.c	2007-03-11 15:23:17.716492250 +0800
+@@ -35,6 +35,8 @@
+ #include "header_info.h"
+ #include "keep_alive.h"
+ #include "send_core.h"
++/* extra debug, by s3e */
++#include "buddy_status.h"
+ 
+ #define QQ_PRIMARY_INFORMATION _("Primary Information")
+ #define QQ_ADDITIONAL_INFORMATION _("Additional Information")
+@@ -648,6 +650,25 @@
+ 		q_bud->face = strtol(info->face, NULL, 10);
+ 		if (alias_utf8 != NULL)
+ 			q_bud->nickname = g_strdup(alias_utf8);
++		/*
++		 * extra debug:
++		 * since we have found out who was obscure, 
++		 * here try to renew its status manually :)
++		 */
++		/* renew the status */
++		gaim_debug(GAIM_DEBUG_INFO, "QQ", 
++			"q_bud->status = 0x%02x, refresh info-window now\n", 
++			q_bud->status);
++		if(q_bud->status == 0x14) {
++			q_bud->status = 0x00; /* so that I can catch you one more time */
++		} else if (q_bud->status == 0x28) {
++			q_bud->status = 0x0a; /* come out, please :) */
++		}
++		gaim_debug(GAIM_DEBUG_INFO, "QQ", 
++			"reset q_bud->status = 0x%02x\n", 
++			q_bud->status);
++		/* finish, by s3e */
++
+ 		qq_update_buddy_contact(gc, q_bud);
+ 		_qq_update_buddy_icon(gc->account, gaim_name, q_bud->face);
+ 	}
+diff -uNr gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/buddy_status.c gaim-2.0.0beta6svn/libgaim/protocols/qq/buddy_status.c
+--- gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/buddy_status.c	2007-03-11 14:51:50.898573500 +0800
++++ gaim-2.0.0beta6svn/libgaim/protocols/qq/buddy_status.c	2007-03-11 15:23:17.756494750 +0800
+@@ -240,7 +240,10 @@
+ 		/* This has a value of 0 when we've changed our status to 
+ 		 * QQ_BUDDY_ONLINE_INVISIBLE */
+ 		bytes += read_packet_dw(data, &cursor, len, &my_uid);
+-
++		/* extra debug:
++		 * may be unstable, really? but more interesting!
++		 * disable '35 bytes' judgement, by s3e */
++		/*
+ 		if (bytes != 35) {
+ 			gaim_debug(GAIM_DEBUG_ERROR, "QQ", "bytes(%d) != 35\n", bytes);
+ 			g_free(s->ip);
+@@ -248,7 +251,7 @@
+ 			g_free(s);
+ 			return;
+ 		}
+-
++		*/
+ 		name = uid_to_gaim_name(s->uid);
+ 		b = gaim_find_buddy(gc->account, name);
+ 		g_free(name);
+@@ -262,6 +265,11 @@
+ 			q_bud->status = s->status;
+ 			if(0 != s->client_version) 
+ 				q_bud->client_version = s->client_version; 
++			/* show status */
++			gaim_debug(GAIM_DEBUG_ERROR, "QQ", "s->status = %d\n", s->status);
++			if (q_bud->status == QQ_BUDDY_ONLINE_OFFLINE)
++				gaim_debug(GAIM_DEBUG_ERROR, "QQ", "mmm...:)\n");
++			/* finish, by s3e*/
+ 			if (q_bud->status == QQ_BUDDY_ONLINE_NORMAL)
+ 				qq_send_packet_get_level(gc, q_bud->uid);
+ 			qq_update_buddy_contact(gc, q_bud);
+diff -uNr gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/buddy_status.h gaim-2.0.0beta6svn/libgaim/protocols/qq/buddy_status.h
+--- gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/buddy_status.h	2007-03-11 14:51:50.898573500 +0800
++++ gaim-2.0.0beta6svn/libgaim/protocols/qq/buddy_status.h	2007-03-11 15:23:17.716492250 +0800
+@@ -44,7 +44,7 @@
+ enum {
+ 	QQ_BUDDY_OFFLINE = 0x00,
+ 	QQ_BUDDY_ONLINE_NORMAL = 0x0a,
+-	QQ_BUDDY_ONLINE_OFFLINE = 0x14,
++	QQ_BUDDY_ONLINE_OFFLINE = 0x14, /* log in or log out, comment by s3e */
+ 	QQ_BUDDY_ONLINE_AWAY = 0x1e,
+ 	QQ_BUDDY_ONLINE_INVISIBLE = 0x28
+ };
+diff -uNr gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/keep_alive.c gaim-2.0.0beta6svn/libgaim/protocols/qq/keep_alive.c
+--- gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/keep_alive.c	2007-03-11 14:51:51.014580750 +0800
++++ gaim-2.0.0beta6svn/libgaim/protocols/qq/keep_alive.c	2007-03-11 15:23:17.720492500 +0800
+@@ -113,8 +113,14 @@
+ 		q_bud = (qq_buddy *) list->data;
+ 		if (q_bud != NULL && now > q_bud->last_refresh + QQ_UPDATE_ONLINE_INTERVAL
+ 				&& q_bud->status != QQ_BUDDY_ONLINE_INVISIBLE) {
+-			q_bud->status = QQ_BUDDY_ONLINE_OFFLINE;
+-			qq_update_buddy_contact(gc, q_bud);
++			/* extra debug:
++			 * keep the obscure status until we menually update it */
++			if(q_bud->status != QQ_BUDDY_ONLINE_OFFLINE) {
++				q_bud->status = QQ_BUDDY_OFFLINE;
++				/* reset status to QQ_BUDDY_OFFLINE */
++				qq_update_buddy_contact(gc, q_bud);
++			}
++			/* so, we can differentiate between this two status type, by s3e */
+ 		}
+ 		list = list->next;
+ 	}
+diff -uNr gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/qq.c gaim-2.0.0beta6svn/libgaim/protocols/qq/qq.c
+--- gaim-2.0.0beta6svn-orig/libgaim/protocols/qq/qq.c	2007-03-11 14:51:51.018581000 +0800
++++ gaim-2.0.0beta6svn/libgaim/protocols/qq/qq.c	2007-03-11 15:23:17.720492500 +0800
+@@ -173,8 +173,10 @@
+ 		return NULL;
+ 		break;
+ 	/* TODO What does this status mean? Labelling it as offline... */
++	/* extra debug:
++	 * this means someone has just logged in or logged out... by s3e :) */
+ 	case QQ_BUDDY_ONLINE_OFFLINE:
+-		g_string_append(status, _("Offline"));
++		g_string_append(status, _("Obscure"));
+ 		break;
+ 	case QQ_BUDDY_ONLINE_AWAY:
+ 		g_string_append(status, _("Away"));
+@@ -263,6 +265,10 @@
+ 	} else {
+ 		if (q_bud->status == QQ_BUDDY_ONLINE_AWAY)
+ 			emblems[i++] = "away";
++		/* extra debug:
++		 * show obscure status, by s3e */
++		if (q_bud->status == QQ_BUDDY_ONLINE_OFFLINE)
++			emblems[i++] = "obscure";
+ 		/*
+ 		if (q_bud->comm_flag & QQ_COMM_FLAG_QQ_MEMBER)
+ 			emblems[i++] = "qq_member";
