@@ -1,0 +1,77 @@
+--- openq-0.3.2/pixmaps/status/default/Makefile.am.face	2005-03-17 23:59:56.000000000 +0800
++++ openq-0.3.2/pixmaps/status/default/Makefile.am	2006-04-17 16:38:21.000000000 +0800
+@@ -6,6 +6,9 @@
+ 	qq_10-1.png \
+ 	qq_10-2.png \
+ 	qq_10-3.png \
++	qq_100-1.png \
++	qq_100-2.png \
++	qq_100-3.png \
+ 	qq_11-1.png \
+ 	qq_11-2.png \
+ 	qq_11-3.png \
+@@ -252,14 +255,57 @@
+ 	qq_85-1.png \
+ 	qq_85-2.png \
+ 	qq_85-3.png \
++	qq_86-1.png \
++	qq_86-2.png \
++	qq_86-3.png \
++	qq_87-1.png \
++	qq_87-2.png \
++	qq_87-3.png \
++	qq_88-1.png \
++	qq_88-2.png \
++	qq_88-3.png \
++	qq_89-1.png \
++	qq_89-2.png \
++	qq_89-3.png \
+ 	qq_9-1.png \
+ 	qq_9-2.png \
+ 	qq_9-3.png \
++	qq_90-1.png \
++	qq_90-2.png \
++	qq_90-3.png \
++	qq_91-1.png \
++	qq_91-2.png \
++	qq_91-3.png \
++	qq_92-1.png \
++	qq_92-2.png \
++	qq_92-3.png \
++	qq_93-1.png \
++	qq_93-2.png \
++	qq_93-3.png \
++	qq_94-1.png \
++	qq_94-2.png \
++	qq_94-3.png \
++	qq_95-1.png \
++	qq_95-2.png \
++	qq_95-3.png \
++	qq_96-1.png \
++	qq_96-2.png \
++	qq_96-3.png \
++	qq_97-1.png \
++	qq_97-2.png \
++	qq_97-3.png \
++	qq_98-1.png \
++	qq_98-2.png \
++	qq_98-3.png \
++	qq_99-1.png \
++	qq_99-2.png \
++	qq_99-3.png \
+ 	qq_group.png \
+ 	qq_group_unexit.png \
+ 	qq_p_group.png \
+ 	qq_p_group_unexit.png \
+-	qqshow_default.gif
++	qqshow_default.gif \
++	wireless.png
+ 
+ EXTRA_DIST = \
+ 	Makefile.mingw \
+@@ -267,3 +313,5 @@
+ 
+ openqstatuspixdir = $(datadir)/pixmaps/gaim/status/default
+ openqstatuspix_DATA = $(status_images)
++
++# add extra icons and wireless.png, by shine.c
