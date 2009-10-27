@@ -53,6 +53,7 @@ void qq_group_conv_refresh_online_member(GaimConnection * gc, qq_group * group)
 	qq_buddy *member;
 	gchar *member_name;
 	GaimConversation *conv;
+	gint flag;
 	g_return_if_fail(gc != NULL && group != NULL);
 
 	names = NULL;
@@ -87,6 +88,8 @@ void qq_group_conv_refresh_online_member(GaimConnection * gc, qq_group * group)
 		flags = g_list_remove(flags, member_name);
 		g_free(member_name);
 	}
+	if (flags)
+		g_list_free(flags);	
 }				// qq_group_conv_show_window
 
 /*****************************************************************************/

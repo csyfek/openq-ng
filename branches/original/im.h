@@ -38,6 +38,20 @@ enum {
 	QQ_IM_AUTO_REPLY = 0x02,
 };
 
+enum {
+        QQ_RECV_IM_TO_BUDDY = 0x0009,
+        QQ_RECV_IM_TO_UNKNOWN = 0x000a,
+        QQ_RECV_IM_UNKNOWN_GROUP_IM = 0x0020,
+        QQ_RECV_IM_ADD_TO_GROUP = 0x0021,
+        QQ_RECV_IM_DEL_FROM_GROUP = 0x0022,
+        QQ_RECV_IM_APPLY_ADD_TO_GROUP = 0x0023,
+        QQ_RECV_IM_APPROVE_APPLY_ADD_TO_GROUP = 0x0024,
+        QQ_RECV_IM_REJCT_APPLY_ADD_TO_GROUP = 0x0025,
+        QQ_RECV_IM_TEMP_GROUP_IM = 0x002A,       
+        QQ_RECV_IM_GROUP_IM = 0x002B,           
+        QQ_RECV_IM_CREATE_GROUP = 0x0026,
+        QQ_RECV_IM_SYS_NOTIFICATION = 0x0030,
+};
 guint8 *qq_get_send_im_tail(const gchar * font_color,
 			    const gchar * font_size,
 			    const gchar * font_name,

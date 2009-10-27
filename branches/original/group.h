@@ -48,7 +48,7 @@ typedef struct _qq_group {
 	guint32 external_group_id;
 	guint8 group_type;	// permanent or temporory
 	guint32 creator_uid;
-	guint16 group_category;
+	guint32 group_category;
 	guint8 auth_type;
 	gchar *group_name_utf8;
 	gchar *group_desc_utf8;

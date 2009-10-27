@@ -208,7 +208,7 @@ void qq_process_recv_group_im_been_approved
 	read_packet_dw(data, cursor, len, &admin_uid);
 
 	g_return_if_fail(external_group_id > 0 && admin_uid > 0);
-	// it is also a "æ— " here, so do not display
+	// it is also a "æ—? here, so do not display
 	convert_as_pascal_string(*cursor, &reason_utf8, QQ_CHARSET_DEFAULT);
 
 	msg = g_strdup_printf
@@ -304,7 +304,7 @@ void qq_process_recv_group_im_been_added
 /*****************************************************************************/
 // recv an IM from a group chat
 void qq_process_recv_group_im
-    (guint8 * data, guint8 ** cursor, gint data_len, guint32 internal_group_id, GaimConnection * gc) {
+    (guint8 * data, guint8 ** cursor, gint data_len, guint32 internal_group_id, GaimConnection * gc, guint16 im_type /* gfhuang */) {
 	gchar *msg_with_gaim_smiley, *msg_utf8_encoded, *im_src_name;
 	guint16 unknown;
 	GaimConversation *conv;
@@ -312,6 +312,7 @@ void qq_process_recv_group_im
 	qq_buddy *member;
 	qq_group *group;
 	qq_recv_group_im *im_group;
+	gint skip_len;
 
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL && data != NULL && data_len > 0);
 	qd = (qq_data *) gc->proto_data;
@@ -325,6 +326,11 @@ void qq_process_recv_group_im
 
 	read_packet_dw(data, cursor, data_len, &(im_group->external_group_id));
 	read_packet_b(data, cursor, data_len, &(im_group->group_type));
+	
+	if(QQ_RECV_IM_TEMP_GROUP_IM == im_type) {	//by gfhuang, protocal changed
+		read_packet_dw(data, cursor, data_len, &(internal_group_id));
+	}
+	
 	read_packet_dw(data, cursor, data_len, &(im_group->member_uid));
 	read_packet_w(data, cursor, data_len, &unknown);	// 0x00
 	read_packet_w(data, cursor, data_len, &(im_group->msg_seq));
@@ -333,13 +339,32 @@ void qq_process_recv_group_im
 	read_packet_w(data, cursor, data_len, &unknown);	// 0x00
 	// length includes font_attr
 	// this msg_len includes msg and font_attr
+	////////////////// the format is
+	// length of all
+	// 1. unknown 10 bytes
+	// 2. 0-ended string
+	// 3. font_attr
+	
 	read_packet_w(data, cursor, data_len, &(im_group->msg_len));
 	g_return_if_fail(im_group->msg_len > 0);
+
+	// 10 bytes from lumaqq
+	//    contentType = buf.getChar();
+        //    totalFragments = buf.get() & 255;
+        //    fragmentSequence = buf.get() & 255;
+        //    messageId = buf.getChar();
+        //    buf.getInt();
+
+	if(im_type != QQ_RECV_IM_UNKNOWN_GROUP_IM)  // gfhuang, protocal changed
+		skip_len = 10;
+	else
+		skip_len = 0;
+	*cursor += skip_len;
 
 	im_group->msg = g_strdup(*cursor);
 	*cursor += strlen(im_group->msg) + 1;
 	// there might not be any font_attr, check it
-	im_group->font_attr_len = im_group->msg_len - strlen(im_group->msg) - 1;
+	im_group->font_attr_len = im_group->msg_len - strlen(im_group->msg) - 1 - skip_len /* gfhuang */;
 	if (im_group->font_attr_len > 0)
 		im_group->font_attr = g_memdup(*cursor, im_group->font_attr_len);
 	else
