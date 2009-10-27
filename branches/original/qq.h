@@ -65,6 +65,9 @@ struct _qq_data {
 	guint8 status;		// 
 	gboolean logged_in;	// used by qq-add_buddy
 	gboolean use_tcp;	// network in tcp or udp
+	//modify by Yuan Qingyun
+	guint8 token_len; //login token length
+	guint8 * ptoken;  //login token
 
 	GaimProxyType proxy_type;	// proxy type
 	GaimXfer *xfer;		// file transfer handler

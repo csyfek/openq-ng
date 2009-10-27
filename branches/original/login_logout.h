@@ -37,6 +37,9 @@ void qq_send_packet_logout(GaimConnection * gc);
 
 void qq_process_login_reply(guint8 * buf, gint buf_len, GaimConnection * gc);
 
+void qq_send_packet_login_token(GaimConnection * gc);
+
+void qq_process_login_token_relay(guint8 * buf, gint buf_len, GaimConnection * gc);
 #endif
 /*****************************************************************************/
 // END OF FILE

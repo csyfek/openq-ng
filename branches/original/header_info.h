@@ -33,8 +33,8 @@
 #define QQ_PACKET_TAG           0x02	// all QQ text packets starts with it
 #define QQ_PACKET_TAIL          0x03	// all QQ text packets end with it
 
-#define QQ_CLIENT               0x0b37	// QQ2003iii build 0304, Aprili 05 update
-
+//#define QQ_CLIENT               0x0b37	// QQ2003iii build 0304, Aprili 05 update
+#define QQ_CLIENT               0x0f15  // QQ2006
 // list of known QQ commands
 enum {
 	QQ_CMD_LOGOUT = 0x0001,	// log out
@@ -57,6 +57,7 @@ enum {
 	QQ_CMD_GET_FRIENDS_ONLINE = 0x0027,	// get my online friends list
 	QQ_CMD_CELL_PHONE_2 = 0x0029,	// cell phone 2
 	QQ_CMD_GROUP_CMD = 0x0030,	// group command 
+	QQ_CMD_GET_LOGIN_TOKEN = 0x0062, //get qq login token
 	QQ_CMD_RECV_MSG_SYS = 0x0080,	// receive a system message
 	QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS = 0x0081,	// friends change status
 };

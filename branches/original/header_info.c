@@ -33,7 +33,7 @@
 #define QQ_CLIENT_0B35 0x0b35	// GB QQ2003iii build 0304 (offical release)
 #define QQ_CLIENT_0B37 0x0b37	// GB QQ2003iii build 0304 (April 05 updates)
 #define QQ_SERVER_0100 0x0100	// server
-
+#define QQ_SERVER_0000 0x0000   // server
 /*****************************************************************************/
 // given command alias, return the command name accordingly
 const gchar *qq_get_cmd_desc(gint type)
@@ -77,6 +77,8 @@ const gchar *qq_get_cmd_desc(gint type)
 		return "QQ_CMD_RECV_MSG_SYS";
 	case QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS:
 		return "QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS";
+	case QQ_CMD_GET_LOGIN_TOKEN:
+		return "QQ_CMD_GET_LOGIN_TOKEN";
 	default:
 		return "UNKNOWN_TYPE";
 	}			// switch (type)
@@ -105,6 +107,8 @@ const gchar *qq_get_source_str(gint source)
 		return "GB QQ2003iii build 0304 (April 5 update)";
 	case QQ_SERVER_0100:
 		return "QQ Server 0100";
+	case QQ_SERVER_0000:
+		return "QQ Server 0000";
 	default:
 		return "QQ unknown version";
 	}
