@@ -131,6 +131,11 @@ void _qq_group_join_auth(GaimConnection * gc, qq_group * group)
 }				// _qq_group_join_auth
 
 /*****************************************************************************/
+unsigned  char unknown32[32] = {0x68, 0x12, 0x8c, 0xf1, 0x95, 0xdd, 0xbb, 0x47,
+		      0xf6, 0xb1, 0xb0, 0xf6, 0x86, 0xd7, 0x26, 0x6d,
+		      0x47, 0xe9, 0x22, 0x57, 0xc2, 0xde, 0x68, 0xa5,
+		      0xd7, 0x0b, 0x3b, 0xa8, 0x90, 0x2c, 0xca, 0x1c
+	};
 void qq_send_cmd_group_auth(GaimConnection * gc, qq_group * group, guint8 opt, guint32 uid, const gchar * reason_utf8) {
 	guint8 *raw_data, *cursor;
 	gchar *reason_qq;
@@ -149,7 +154,7 @@ void qq_send_cmd_group_auth(GaimConnection * gc, qq_group * group, guint8 opt, g
 		uid = 0;
 	}			// if (opt == QQ_GROUP_AUTH_REQUEST_APPLY)
 
-	data_len = 10 + strlen(reason_qq) + 1;
+	data_len = 44 + strlen(reason_qq) + 1;
 	raw_data = g_newa(guint8, data_len);
 	cursor = raw_data;
 
@@ -157,6 +162,9 @@ void qq_send_cmd_group_auth(GaimConnection * gc, qq_group * group, guint8 opt, g
 	bytes += create_packet_b(raw_data, &cursor, QQ_GROUP_CMD_JOIN_GROUP_AUTH);
 	bytes += create_packet_dw(raw_data, &cursor, group->internal_group_id);
 	bytes += create_packet_b(raw_data, &cursor, opt);
+	bytes += create_packet_b(raw_data, &cursor, 0);
+	bytes += create_packet_b(raw_data, &cursor, 32);
+	bytes += create_packet_data(raw_data, &cursor, unknown32, 32);
 	bytes += create_packet_dw(raw_data, &cursor, uid);
 	bytes += create_packet_b(raw_data, &cursor, strlen(reason_qq));
 	bytes += create_packet_data(raw_data, &cursor, reason_qq, strlen(reason_qq));

@@ -129,6 +129,7 @@ gchar *_my_convert(const gchar * str, gssize len, const gchar * to_charset, cons
 // returns the number of bytes read, return -1 if fatal error
 // the converted UTF-8 will be save in ret, 
 gint convert_as_pascal_string(guint8 * data, gchar ** ret, const gchar * from_charset) {
+
 	guint8 len;
 
 	g_return_val_if_fail(data != NULL && from_charset != NULL, -1);

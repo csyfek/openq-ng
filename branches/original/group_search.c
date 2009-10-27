@@ -62,8 +62,8 @@ void qq_send_cmd_group_search_group(GaimConnection * gc, guint32 external_group_
 /*****************************************************************************/
 // process group cmd reply "search group"
 void qq_process_group_cmd_search_group(guint8 * data, guint8 ** cursor, gint len, GaimConnection * gc) {
-	guint8 search_type;
-	guint16 unknown;
+	guint8 search_type, *punknown=NULL, unknown1=0;//add by Yuan Qingyun
+	guint16 unknown, unknownlen=0;
 	gint bytes, pascal_len, i;
 	qq_data *qd;
 	GaimRoomlistRoom *room;
@@ -85,9 +85,13 @@ void qq_process_group_cmd_search_group(guint8 * data, guint8 ** cursor, gint len
 		bytes += read_packet_dw(data, cursor, len, &(group->internal_group_id));
 		bytes += read_packet_dw(data, cursor, len, &(group->external_group_id));
 		bytes += read_packet_b(data, cursor, len, &(group->group_type));
+		bytes += read_packet_w(data, cursor, len, &(unknown));
+		bytes += read_packet_w(data, cursor, len, &(unknown));
 		bytes += read_packet_dw(data, cursor, len, &(group->creator_uid));
 		bytes += read_packet_w(data, cursor, len, &(unknown));
-		bytes += read_packet_w(data, cursor, len, &(group->group_category));
+		bytes += read_packet_w(data, cursor, len, &(unknown));
+		bytes += read_packet_dw(data, cursor, len, &(group->group_category));
+		bytes += read_packet_w(data, cursor, len, &(unknown));
 		pascal_len = convert_as_pascal_string(*cursor, &(group->group_name_utf8), QQ_CHARSET_DEFAULT);
 		bytes += pascal_len;
 		*cursor += pascal_len;
@@ -96,6 +100,13 @@ void qq_process_group_cmd_search_group(guint8 * data, guint8 ** cursor, gint len
 		pascal_len = convert_as_pascal_string(*cursor, &(group->group_desc_utf8), QQ_CHARSET_DEFAULT);
 		bytes += pascal_len;
 		*cursor += pascal_len;
+		bytes += read_packet_b(data, cursor, len, &unknown1);//add by Yuan Qingyun
+		bytes += read_packet_b(data, cursor, len, &unknownlen);//add by Yuan Qingyun
+		punknown=g_new0(guint8, unknownlen);//add by Yuan Qingyun
+		gaim_debug(GAIM_DEBUG_WARNING, "QQ",
+                           "Dump unknown text\n%s", hex_dump_to_str(*cursor, unknownlen));//add by Yuan Qingyun
+		bytes += read_packet_data(data, cursor, len, punknown, unknownlen);//add by Yuan Qingyun
+		g_free(punknown);//add by Yuan Qingyun
 		// end of one qq_group
 		room = gaim_roomlist_room_new(GAIM_ROOMLIST_ROOMTYPE_ROOM, group->group_name_utf8, NULL);
 		gaim_roomlist_room_add_field(qd->roomlist, room, g_strdup_printf("%d", group->external_group_id));

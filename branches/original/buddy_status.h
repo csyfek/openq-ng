@@ -37,15 +37,16 @@ typedef struct _qq_buddy_status {
 	guint16 port;
 	guint8 unknown2;
 	guint8 status;
-	guint16 unknown3;
+	guint16 client_version;
 	guint8 *unknown_key;
 } qq_buddy_status;
 
 enum {
+	QQ_BUDDY_OFFLINE = 0x00,               // by gfhuang
 	QQ_BUDDY_ONLINE_NORMAL = 0x0a,
 	QQ_BUDDY_ONLINE_OFFLINE = 0x14,
 	QQ_BUDDY_ONLINE_AWAY = 0x1e,
-	QQ_BUDDY_ONLINE_INVISIBLE = 0x40,
+	QQ_BUDDY_ONLINE_INVISIBLE = 0x28,	// 40 not 0x40!, bug by gfhuang
 };
 
 enum {

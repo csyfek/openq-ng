@@ -48,6 +48,7 @@ struct _qq_buddy {
 	guint8 status;
 	guint8 flag1;
 	guint8 comm_flag;	// details in qq_buddy_list.c
+	guint16 client_version; // added by gfhuang
 	time_t signon;
 	time_t idle;
 	time_t last_refresh;
@@ -68,7 +69,7 @@ struct _qq_data {
 	//modify by Yuan Qingyun
 	guint8 token_len; //login token length
 	guint8 * ptoken;  //login token
-
+	guint8 * pGroupUnknown;
 	GaimProxyType proxy_type;	// proxy type
 	GaimXfer *xfer;		// file transfer handler
 	struct sockaddr_in dest_sin;

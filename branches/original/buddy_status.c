@@ -56,7 +56,6 @@ void _qq_buddy_status_dump_unclear(qq_buddy_status * s)
 	g_string_append_printf(dump, "unclear fields for [%d]:\n", s->uid);
 	g_string_append_printf(dump, "004:     %02x   (unknown)\n", s->unknown1);
 	g_string_append_printf(dump, "011:     %02x   (unknown)\n", s->unknown2);
-	g_string_append_printf(dump, "013-014: %04x (unknown)\n", s->unknown3);
 
 	gaim_debug(GAIM_DEBUG_INFO, "QQ", "Buddy status entry, %s", dump->str);
 	g_string_free(dump, TRUE);
@@ -84,8 +83,8 @@ gint _qq_buddy_status_read(guint8 * data, guint8 ** cursor, gint len, qq_buddy_s
 	bytes += read_packet_b(data, cursor, len, &s->unknown2);
 	// 012-012: status
 	bytes += read_packet_b(data, cursor, len, &s->status);
-	// 013-014: 
-	bytes += read_packet_w(data, cursor, len, &s->unknown3);
+	// 013-014: client_version 
+	bytes += read_packet_w(data, cursor, len, &s->client_version);
 	// 015-030: unknown key
 	s->unknown_key = g_new0(guint8, QQ_KEY_LENGTH);
 	bytes += read_packet_data(data, cursor, len, s->unknown_key, QQ_KEY_LENGTH);
@@ -206,6 +205,7 @@ void qq_process_friend_change_status(guint8 * buf, gint buf_len, GaimConnection 
 	GaimBuddy *b;
 	qq_buddy *q_bud;
 	qq_buddy_status *s;
+	gchar *name;
 
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 	g_return_if_fail(buf != NULL && buf_len != 0);
@@ -232,12 +232,19 @@ void qq_process_friend_change_status(guint8 * buf, gint buf_len, GaimConnection 
 		if (QQ_DEBUG)
 			_qq_buddy_status_dump_unclear(s);
 
-		b = gaim_find_buddy(gc->account, uid_to_gaim_name(s->uid));
+		name = uid_to_gaim_name(s->uid);	//by gfhuang
+		b = gaim_find_buddy(gc->account, name);
+		g_free(name);
 		q_bud = (b == NULL) ? NULL : (qq_buddy *) b->proto_data;
 		if (q_bud) {
+			gaim_debug(GAIM_DEBUG_INFO, "QQ", "s->uid = %d, q_bud->uid = %d\n", s->uid , q_bud->uid);
+			if(0 != *((guint32 *)s->ip)) { //by gfhuang
 			g_memmove(q_bud->ip, s->ip, 4);
 			q_bud->port = s->port;
+			}
 			q_bud->status = s->status;
+			if(0 != s->client_version) 
+				q_bud->client_version = s->client_version;  //gfhuang
 			qq_update_buddy_contact(gc, q_bud);
 		}
 		g_free(s->ip);

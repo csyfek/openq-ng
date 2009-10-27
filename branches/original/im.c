@@ -64,19 +64,6 @@ enum
 };
 
 enum {
-	QQ_RECV_IM_TO_BUDDY = 0x0009,
-	QQ_RECV_IM_TO_UNKNOWN = 0x000a,
-	QQ_RECV_IM_GROUP_IM = 0x0020,
-	QQ_RECV_IM_ADD_TO_GROUP = 0x0021,
-	QQ_RECV_IM_DEL_FROM_GROUP = 0x0022,
-	QQ_RECV_IM_APPLY_ADD_TO_GROUP = 0x0023,
-	QQ_RECV_IM_APPROVE_APPLY_ADD_TO_GROUP = 0x0024,
-	QQ_RECV_IM_REJCT_APPLY_ADD_TO_GROUP = 0x0025,
-	QQ_RECV_IM_CREATE_GROUP = 0x0026,
-	QQ_RECV_IM_SYS_NOTIFICATION = 0x0030,
-};
-
-enum {
 	QQ_RECV_SYS_IM_KICK_OUT = 0x01,
 };
 
@@ -209,8 +196,8 @@ const gchar *qq_get_recv_im_type_str(gint type)
 		return "QQ_RECV_IM_TO_BUDDY";
 	case QQ_RECV_IM_TO_UNKNOWN:
 		return "QQ_RECV_IM_TO_UNKNOWN";
-	case QQ_RECV_IM_GROUP_IM:
-		return "QQ_RECV_IM_GROUP_IM";
+	case QQ_RECV_IM_UNKNOWN_GROUP_IM:
+		return "QQ_RECV_IM_UNKNOWN_GROUP_IM";
 	case QQ_RECV_IM_ADD_TO_GROUP:
 		return "QQ_RECV_IM_ADD_TO_GROUP";
 	case QQ_RECV_IM_DEL_FROM_GROUP:
@@ -225,6 +212,10 @@ const gchar *qq_get_recv_im_type_str(gint type)
 		return "QQ_RECV_IM_APPROVE_APPLY_ADD_TO_GROUP";
 	case QQ_RECV_IM_REJCT_APPLY_ADD_TO_GROUP:
 		return "QQ_RECV_IM_REJCT_APPLY_ADD_TO_GROUP";
+	case QQ_RECV_IM_TEMP_GROUP_IM:
+		return "QQ_RECV_IM_TEMP_GROUP_IM";
+	case QQ_RECV_IM_GROUP_IM:
+		return "QQ_RECV_IM_GROUP_IM";
 	default:
 		return "QQ_RECV_IM_UNKNOWN";
 	}			// switch type
@@ -718,10 +709,12 @@ void qq_process_recv_im(guint8 * buf, gint buf_len, guint16 seq, GaimConnection 
 				   "IM from buddy [%d], I am a stranger to him/her\n", im_header->sender_uid);
 			_qq_process_recv_normal_im(data, &cursor, len, gc);
 			break;
+		case QQ_RECV_IM_UNKNOWN_GROUP_IM:
+		case QQ_RECV_IM_TEMP_GROUP_IM:
 		case QQ_RECV_IM_GROUP_IM:
 			gaim_debug(GAIM_DEBUG_INFO, "QQ", "IM from group, internal_id [%d]\n", im_header->sender_uid);
 			// sender_uid is in fact internal_group_id
-			qq_process_recv_group_im(data, &cursor, len, im_header->sender_uid, gc);
+			qq_process_recv_group_im(data, &cursor, len, im_header->sender_uid, gc, im_header->im_type);
 			break;
 		case QQ_RECV_IM_ADD_TO_GROUP:
 			gaim_debug(GAIM_DEBUG_INFO, "QQ",

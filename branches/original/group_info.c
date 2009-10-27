@@ -163,10 +163,12 @@ void qq_send_cmd_group_get_member_info(GaimConnection * gc, qq_group * group) {
 void qq_process_group_cmd_get_group_info(guint8 * data, guint8 ** cursor, gint len, GaimConnection * gc) {
 	qq_group *group;
 	qq_data *qd;
-	guint8 bar;
+	guint8 bar, orgnization;
 	guint16 unknown;
 	guint32 member_uid, internal_group_id;
 	gint pascal_len, i;
+	guint32 unknown4;
+	guint8 unknown1;
 
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 	g_return_if_fail(data != NULL && len > 0);
@@ -180,12 +182,15 @@ void qq_process_group_cmd_get_group_info(guint8 * data, guint8 ** cursor, gint l
 
 	read_packet_dw(data, cursor, len, &(group->external_group_id));
 	read_packet_b(data, cursor, len, &(group->group_type));
+	read_packet_dw(data, cursor, len, &unknown4);	//unknown 4 bytes, protocal changed by gfhuang
 	read_packet_dw(data, cursor, len, &(group->creator_uid));
 	read_packet_b(data, cursor, len, &(group->auth_type));
+	read_packet_dw(data, cursor, len, &unknown4);	// oldCategory, by gfhuang
 	read_packet_w(data, cursor, len, &(unknown));	// 0x00
-	read_packet_w(data, cursor, len, &(group->group_category));
+	read_packet_dw(data, cursor, len, &(group->group_category));
 	read_packet_w(data, cursor, len, &(unknown));	// 0x00
-	read_packet_w(data, cursor, len, &(unknown));	// 0x00
+	read_packet_b(data, cursor, len, &unknown1);
+	read_packet_dw(data, cursor, len, &(unknown4));	// versionID, by gfhuang
 
 	pascal_len = convert_as_pascal_string(*cursor, &(group->group_name_utf8), QQ_CHARSET_DEFAULT);
 	*cursor += pascal_len;
@@ -200,6 +205,7 @@ void qq_process_group_cmd_get_group_info(guint8 * data, guint8 ** cursor, gint l
 	while (*cursor < data + len) {
 		read_packet_dw(data, cursor, len, &member_uid);
 		i++;
+		read_packet_b(data, cursor, len, &orgnization);	// protocal changed, gfhuang
 		read_packet_b(data, cursor, len, &bar);	// 0x00
 		qq_group_find_or_add_member(gc, group, member_uid);
 	}			// while *cursor

@@ -33,7 +33,7 @@ void qq_send_packet_group_im(GaimConnection * gc, qq_group * group, const gchar 
 void qq_process_group_cmd_im(guint8 * data, guint8 ** cursor, gint len, GaimConnection * gc);
 void
 qq_process_recv_group_im(guint8 * data,
-			 guint8 ** cursor, gint data_len, guint32 internal_group_id, GaimConnection * gc);
+			 guint8 ** cursor, gint data_len, guint32 internal_group_id, GaimConnection * gc, guint16 im_type /* gfhuang */);
 void
 qq_process_recv_group_im_apply_join(guint8 * data,
 				    guint8 ** cursor, gint len, guint32 internal_group_id, GaimConnection * gc);
