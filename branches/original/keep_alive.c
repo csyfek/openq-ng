@@ -79,7 +79,7 @@ void qq_process_keep_alive_reply(guint8 * buf, gint buf_len, GaimConnection * gc
 	data = g_newa(guint8, len);
 
 	if (qq_crypt(DECRYPT, buf, buf_len, qd->session_key, data, &len)) {
-		if (NULL == (segments = split_data(data, len, "\x1f", 5)))
+		if (NULL == (segments = split_data(data, len, "\x1f", 6)))
 			return;
 		// segments[0] and segment[1] are all 0x30 ("0")
 		qd->all_online = strtol(segments[2], NULL, 10);

@@ -40,7 +40,7 @@
 #include "send_core.h"		// qq_send_cmd
 #include "qq.h"			// qq_data
 
-#define QQ_LOGIN_DATA_LENGTH                69	//length of plain login packet
+#define QQ_LOGIN_DATA_LENGTH                416 //69	//length of plain login packet
 #define QQ_LOGIN_REPLY_OK_PACKET_LEN        139
 #define QQ_LOGIN_REPLY_REDIRECT_PACKET_LEN  11
 
@@ -58,17 +58,36 @@
 }; */
 
 // for QQ 2003iii 0304, fixed value
-static const guint8 login_23_51[29] = {
+/*static const guint8 login_23_51[29] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x9a, 0x93, 0xfe, 0x85,
 	0xd3, 0xd9, 0x2a, 0x41, 0xc8, 0x0d, 0xff, 0xb6,
 	0x40, 0xb8, 0xac, 0x32, 0x01
+};*/
+// for QQ 2006 with sp1 modify by Yuan Qingyun
+static const guint8 login_23_51[29] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x29, 0xc0, 0xf8, 0xc4,
+	0x04, 0x3b, 0xee, 0x57, 0x92, 0xd2, 0x42, 0xa6,
+	0xbe, 0x41, 0x98, 0x97, 0x9e
 };
 
 // fixed value, not affected by version, or mac address
-static const guint8 login_53_68[16] = {
+/*static const guint8 login_53_68[16] = {
 	0x82, 0x2a, 0x91, 0xfd, 0xa5, 0xca, 0x67, 0x4c,
 	0xac, 0x81, 0x1f, 0x6f, 0x52, 0x05, 0xa7, 0xbf
+};*/
+// for QQ 2006 with sp1 modify by Yuan Qingyun
+static const guint8 login_53_68[16] = {
+	0x2e, 0xda, 0x0c, 0x59, 0xa7, 0x1a, 0xd6, 0x4a,
+	0xb1, 0x48, 0x5d, 0xba, 0x37, 0x1e, 0xac, 0xb9
+};
+// for QQ 2006 with sp1 add by Yuan Qingyun
+static const guint8 login_94_118[25] = {
+	0x01, 0x40, 0x01, 0xd7, 0x50, 0x72, 0xc8, 0x00,
+	0x10, 0x4a, 0xc3, 0x1b, 0x6c, 0xf9, 0x85, 0xf5,
+	0xd9, 0xa8, 0x05, 0xac, 0x95, 0xa0, 0xe2, 0x44,
+	0x01
 };
 
 typedef struct _qq_login_reply_ok qq_login_reply_ok_packet;
@@ -279,7 +298,7 @@ void qq_send_packet_login(GaimConnection * gc)
 
 	qd = (qq_data *) gc->proto_data;
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
-	raw_data = g_newa(guint8, QQ_LOGIN_DATA_LENGTH);
+	raw_data = g_new0(guint8, QQ_LOGIN_DATA_LENGTH);
 	encrypted_data = g_newa(guint8, QQ_LOGIN_DATA_LENGTH + 16);	// 16 bytes more
 	qd->inikey = _gen_login_key();
 
@@ -298,7 +317,12 @@ void qq_send_packet_login(GaimConnection * gc)
 	raw_data[52] = qd->login_mode;
 	// 053-068, fixed value, maybe related to per machine
 	g_memmove(raw_data + 53, login_53_68, 16);
-
+	// 069-069, login token length
+	raw_data[69] = qd->token_len;
+	// 070-093, login token
+	g_memmove(raw_data + 70, qd->ptoken, qd->token_len);
+	// 094-118, unknown
+	g_memmove(raw_data + 70 + qd->token_len, login_94_118, 25);
 	qq_crypt(ENCRYPT, raw_data, QQ_LOGIN_DATA_LENGTH, qd->inikey, encrypted_data, &encrypted_len);
 
 	cursor = buf;
@@ -359,7 +383,7 @@ void qq_process_login_reply(guint8 * buf, gint buf_len, GaimConnection * gc)
 		len = buf_len;	// reset len, decrypt will fail if len is too short              
 		if (qq_crypt(DECRYPT, buf, buf_len, qd->inikey, data, &len)) {
 			// decrypt ok with inipwd, it might be password error
-			gaim_debug(GAIM_DEBUG_WARNING, "QQ", "Decrypt login reply packet with inikey, %d bytes\n", len);
+			gaim_debug(GAIM_DEBUG_WARNING, "QQ", "Decrypt login reply packet with inikey, %d bytes data[0] is %x\n", len, data[0]);
 			bytes = 0;
 			switch (data[0]) {
 			case QQ_LOGIN_REPLY_REDIRECT:
@@ -395,6 +419,59 @@ void qq_process_login_reply(guint8 * buf, gint buf_len, GaimConnection * gc)
 		}
 	}			// switch ret
 }				// qq_process_login_reply
+
+//add by Yuan Qingyun to process login token
+void qq_process_login_token_relay(guint8 * buf, gint buf_len, GaimConnection * gc)
+{
+        gint bytes;
+        guint8 retCode = 0;
+        guint8 *cursor;
+        qq_data *qd;
+        if (NULL ==gc || NULL == gc->proto_data)
+                return;
+        qd = (qq_data *) gc->proto_data;
+        cursor = buf;
+        bytes = 0;
+
+        // 000-000: reply code
+        bytes += read_packet_b(buf, &cursor, buf_len, &retCode);
+        if (retCode != 0)
+        {
+                gaim_debug(GAIM_DEBUG_ERROR, "QQ", "Fail get login tocken from server\n");
+		return;
+        }
+        bytes += read_packet_b(buf, &cursor, buf_len, &qd->token_len);
+        if (qd->ptoken != NULL)
+                g_free(qd->ptoken);
+        qd->ptoken = g_new0(guint8, qd->token_len);
+        bytes += read_packet_data(buf, &cursor, buf_len, qd->ptoken, qd->token_len);
+        qq_send_packet_login(gc);
+
+}
+
+//add by Yuan Qingyun for send login token
+void qq_send_packet_login_token(GaimConnection * gc)
+{
+        qq_data *qd;
+        guint8 *buf, *cursor;
+        gint bytes;
+        guint16 seq_ret;
+        g_return_if_fail(gc != NULL && gc->proto_data != NULL);
+        qd = (qq_data *) gc->proto_data;
+        buf = g_newa(guint8, MAX_PACKET_SIZE);
+        cursor = buf;
+        qd->token_len = 0;
+        qd->ptoken = NULL;
+        bytes = 0;
+        bytes += _create_packet_head_seq(buf, &cursor, gc, QQ_CMD_GET_LOGIN_TOKEN, TRUE, &seq_ret);
+        bytes += create_packet_dw(buf, &cursor, qd->uid);
+        bytes += create_packet_b(buf, &cursor, 0x00);
+        bytes += create_packet_b(buf, &cursor, QQ_PACKET_TAIL);
+        if (bytes == (cursor - buf))    // packet creation OK
+                _qq_send_packet(gc, buf, bytes, QQ_CMD_GET_LOGIN_TOKEN);
+        else
+                gaim_debug(GAIM_DEBUG_ERROR, "QQ", "Fail create login tocken packet\n");
+}
 
 /*****************************************************************************/
 // END OF FILE

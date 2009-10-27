@@ -155,7 +155,8 @@ void _qq_got_login(gpointer data, gint source, GaimInputCondition cond)
 	gaim_connection_update_progress(gc, buf, 1, QQ_CONNECT_STEPS);
 	g_free(buf);
 
-	qq_send_packet_login(gc);	// finally ready to fire
+	//qq_send_packet_login(gc);	// finally ready to fire
+	qq_send_packet_login_token(gc); //Modify by Yuan Qingyun for get login token 
 }				// _qq_got_login
 
 /*****************************************************************************/
@@ -357,8 +358,9 @@ void qq_disconnect(GaimConnection * gc)
 	g_free(qd->pwkey);
 	g_free(qd->session_key);
 	g_free(qd->my_ip);
+        g_free(qd->ptoken); //add by Yuan Qingyun 
+        qd->ptoken = NULL;
 	g_free(qd);
-
 	gc->proto_data = NULL;
 }				// qq_disconnect
 

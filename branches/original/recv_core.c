@@ -164,8 +164,8 @@ void _qq_packet_process(guint8 * buf, gint buf_len, GaimConnection * gc)
 		gaim_debug(GAIM_DEBUG_INFO, "QQ",
 			   "==> [%05d] %s, from (%s)\n",
 			   header.seq, qq_get_cmd_desc(header.cmd), qq_get_source_str(header.source_tag));
-
-	if (header.cmd != QQ_CMD_LOGIN) {
+	//add "&& header.cmd != QQ_CMD_GET_LOGIN_TOKEN" by Yuan Qingyun for QQ 2006 with SP1
+	if (header.cmd != QQ_CMD_LOGIN && header.cmd != QQ_CMD_GET_LOGIN_TOKEN) {
 		if (!qd->logged_in) {	// packets before login
 			b4_packet = g_new0(packet_before_login, 1);
 			// must duplicate, buffer will be freed after exiting this function
@@ -263,6 +263,9 @@ void _qq_packet_process(guint8 * buf, gint buf_len, GaimConnection * gc)
 		break;
 	case QQ_CMD_RECV_MSG_FRIEND_CHANGE_STATUS:
 		qq_process_friend_change_status(cursor, len, gc);
+		break;
+	case QQ_CMD_GET_LOGIN_TOKEN://add by Yuan Qingyun for QQ 2006 with SP1
+		qq_process_login_token_relay(cursor, len, gc);
 		break;
 	default:
 		_qq_process_packet_default(cursor, len, header.cmd, header.seq, gc);
