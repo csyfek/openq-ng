@@ -1,0 +1,153 @@
+--- libpurple/account.c.orig	2008-07-02 08:46:10.000000000 +0800
++++ libpurple/account.c	2008-08-16 14:26:39.000000000 +0800
+@@ -290,7 +290,8 @@
+ 			 proxy_type == PURPLE_PROXY_HTTP       ? "http"   :
+ 			 proxy_type == PURPLE_PROXY_SOCKS4     ? "socks4" :
+ 			 proxy_type == PURPLE_PROXY_SOCKS5     ? "socks5" :
+-			 proxy_type == PURPLE_PROXY_USE_ENVVAR ? "envvar" : "unknown"), -1);
++			 proxy_type == PURPLE_PROXY_USE_ENVVAR ? "envvar" :
++			 proxy_type == PURPLE_PROXY_UDP        ? "udp"    : "unknown"), -1);
+ 
+ 	if ((value = purple_proxy_info_get_host(proxy_info)) != NULL)
+ 	{
+@@ -666,6 +667,8 @@
+ 			purple_proxy_info_set_type(proxy_info, PURPLE_PROXY_SOCKS5);
+ 		else if (!strcmp(data, "envvar"))
+ 			purple_proxy_info_set_type(proxy_info, PURPLE_PROXY_USE_ENVVAR);
++		else if (!strcmp(data, "udp"))
++			purple_proxy_info_set_type(proxy_info, PURPLE_PROXY_UDP);
+ 		else
+ 		{
+ 			purple_debug_error("account", "Invalid proxy type found when "
+--- libpurple/proxy.h.orig	2008-07-02 08:46:18.000000000 +0800
++++ libpurple/proxy.h	2008-08-16 14:29:10.000000000 +0800
+@@ -39,7 +39,8 @@
+ 	PURPLE_PROXY_HTTP,             /**< HTTP proxy.                       */
+ 	PURPLE_PROXY_SOCKS4,           /**< SOCKS 4 proxy.                    */
+ 	PURPLE_PROXY_SOCKS5,           /**< SOCKS 5 proxy.                    */
+-	PURPLE_PROXY_USE_ENVVAR        /**< Use environmental settings.       */
++	PURPLE_PROXY_USE_ENVVAR,       /**< Use environmental settings.       */
++	PURPLE_PROXY_UDP               /**< No proxy over UDP                 */
+ 
+ } PurpleProxyType;
+ 
+--- libpurple/proxy.c.orig	2008-07-02 08:46:18.000000000 +0800
++++ libpurple/proxy.c	2008-08-16 14:20:45.000000000 +0800
+@@ -230,6 +230,12 @@
+ 		return &info;
+ 	}
+ 
++	if (!strcmp(tmp, "udp\n")) {
++		info.type = PURPLE_PROXY_UDP;
++		g_free(tmp);
++		return &info;
++	}
++
+ 	if (strcmp(tmp, "manual\n")) {
+ 		/* Unknown setting.  Fallback to using our global proxy settings. */
+ 		g_free(tmp);
+@@ -486,7 +492,11 @@
+ 	purple_debug_info("proxy", "Connecting to %s:%d with no proxy\n",
+ 			connect_data->host, connect_data->port);
+ 
+-	connect_data->fd = socket(addr->sa_family, SOCK_STREAM, 0);
++	if (purple_proxy_info_get_type(connect_data->gpi) == PURPLE_PROXY_NONE)
++		connect_data->fd = socket(addr->sa_family, SOCK_STREAM, 0);
++	else
++		connect_data->fd = socket(addr->sa_family, SOCK_DGRAM, 0);
++
+ 	if (connect_data->fd < 0)
+ 	{
+ 		purple_proxy_connect_data_disconnect_formatted(connect_data,
+@@ -1745,6 +1755,7 @@
+ 
+ 	switch (purple_proxy_info_get_type(connect_data->gpi)) {
+ 		case PURPLE_PROXY_NONE:
++		case PURPLE_PROXY_UDP:
+ 			proxy_connect_none(connect_data, addr, addrlen);
+ 			break;
+ 
+@@ -1900,6 +1911,7 @@
+ 	connect_data->gpi = purple_proxy_get_setup(account);
+ 
+ 	if ((purple_proxy_info_get_type(connect_data->gpi) != PURPLE_PROXY_NONE) &&
++		(purple_proxy_info_get_type(connect_data->gpi) != PURPLE_PROXY_UDP) &&
+ 		(purple_proxy_info_get_host(connect_data->gpi) == NULL ||
+ 		 purple_proxy_info_get_port(connect_data->gpi) <= 0)) {
+ 
+@@ -1911,6 +1923,7 @@
+ 	switch (purple_proxy_info_get_type(connect_data->gpi))
+ 	{
+ 		case PURPLE_PROXY_NONE:
++		case PURPLE_PROXY_UDP:
+ 			break;
+ 
+ 		case PURPLE_PROXY_HTTP:
+@@ -2012,6 +2025,8 @@
+ 
+ 		if (!strcmp(type, "none"))
+ 			proxytype = PURPLE_PROXY_NONE;
++		else if (!strcmp(type, "udp"))
++			proxytype = PURPLE_PROXY_UDP;
+ 		else if (!strcmp(type, "http"))
+ 			proxytype = PURPLE_PROXY_HTTP;
+ 		else if (!strcmp(type, "socks4"))
+--- pidgin/gtkaccount.c.orig	2008-07-02 08:46:19.000000000 +0800
++++ pidgin/gtkaccount.c	2008-08-16 13:34:38.000000000 +0800
+@@ -942,6 +942,12 @@
+ 			1, PURPLE_PROXY_USE_ENVVAR,
+ 			-1);
+ 
++	gtk_list_store_append(model, &iter);
++	gtk_list_store_set(model, &iter,
++			0, _("UDP"),
++			1, PURPLE_PROXY_UDP,
++			-1);
++
+ 	renderer = gtk_cell_renderer_text_new();
+ 	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(dropdown), renderer, TRUE);
+ 	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(dropdown), renderer,
+@@ -958,6 +964,7 @@
+ 
+ 	if (dialog->new_proxy_type == PURPLE_PROXY_USE_GLOBAL ||
+ 		dialog->new_proxy_type == PURPLE_PROXY_NONE ||
++		dialog->new_proxy_type == PURPLE_PROXY_UDP ||
+ 		dialog->new_proxy_type == PURPLE_PROXY_USE_ENVVAR) {
+ 
+ 		gtk_widget_hide_all(dialog->proxy_vbox);
+@@ -1059,7 +1066,7 @@
+ 				type + 1);
+ 
+ 		if (type == PURPLE_PROXY_USE_GLOBAL || type == PURPLE_PROXY_NONE ||
+-				type == PURPLE_PROXY_USE_ENVVAR)
++				type == PURPLE_PROXY_UDP || type == PURPLE_PROXY_USE_ENVVAR)
+ 			gtk_widget_hide_all(vbox2);
+ 
+ 
+--- pidgin/gtkprefs.c.orig	2008-07-02 08:46:19.000000000 +0800
++++ pidgin/gtkprefs.c	2008-08-16 13:35:25.000000000 +0800
+@@ -1148,7 +1148,7 @@
+ 	GtkWidget *frame = data;
+ 	const char *proxy = value;
+ 
+-	if (strcmp(proxy, "none") && strcmp(proxy, "envvar"))
++	if (strcmp(proxy, "none") && strcmp(proxy, "udp") && strcmp(proxy, "envvar"))
+ 		gtk_widget_show_all(frame);
+ 	else
+ 		gtk_widget_hide(frame);
+@@ -1335,6 +1335,7 @@
+ 					"SOCKS 5", "socks5",
+ 					"HTTP", "http",
+ 					_("Use Environmental Settings"), "envvar",
++					"UDP", "udp",
+ 					NULL);
+ 		gtk_box_pack_start(GTK_BOX(vbox), prefs_proxy_frame, 0, 0, 0);
+ 		proxy_info = purple_global_proxy_get_info();
+@@ -1428,6 +1429,7 @@
+ 	/* Only hide table if not running gnome otherwise we hide the IP address table! */
+ 	if (!purple_running_gnome() && (proxy_info == NULL ||
+ 	    purple_proxy_info_get_type(proxy_info) == PURPLE_PROXY_NONE ||
++	    purple_proxy_info_get_type(proxy_info) == PURPLE_PROXY_UDP ||
+ 	    purple_proxy_info_get_type(proxy_info) == PURPLE_PROXY_USE_ENVVAR)) {
+ 		gtk_widget_hide(table);
+ 	} else if (purple_running_gnome()) {
