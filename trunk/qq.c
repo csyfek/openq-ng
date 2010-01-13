@@ -161,7 +161,7 @@ static void qq_login(PurpleAccount *account)
 
 	version_str = purple_account_get_string(account, "client_version", NULL);
 	qd->client_tag = QQ_CLIENT_0D55;	/* set default as QQ2005 */
-	qd->client_version = 2005;
+	qd->client_version = 2008;
 	if (version_str != NULL && strlen(version_str) != 0) {
 		if (strcmp(version_str, "qq2007") == 0) {
 			qd->client_tag = QQ_CLIENT_111D;
@@ -169,6 +169,9 @@ static void qq_login(PurpleAccount *account)
 		} else if (strcmp(version_str, "qq2008") == 0) {
 			qd->client_tag = QQ_CLIENT_115B;
 			qd->client_version = 2008;
+		} else if (strcmp(version_str, "qq2009") == 0) {
+			qd->client_tag = QQ_CLIENT_1663;
+			qd->client_version = 2009;
 		}
 	}
 
