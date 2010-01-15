@@ -39,6 +39,9 @@
 #define qq_strlen(s) ((s)!=NULL?strlen(s):0)
 #define qq_strcmp(s1,s2) ((s1)!=NULL && (s2)!=NULL?strcmp(s1,s2):0)
 
+typedef guint32 UPDCLS;
+typedef guint32 UID;
+
 typedef struct _qq_data qq_data;
 typedef struct _qq_buddy_data qq_buddy_data;
 typedef struct _qq_interval qq_interval;
