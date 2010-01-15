@@ -28,6 +28,7 @@
 #include <glib.h>
 #include "connection.h"
 #include "blist.h"
+#include "qq.h"
 
 #define QQ_BUDDY_MEMO_REQUEST_SUCCESS 0x00
 
