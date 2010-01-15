@@ -163,7 +163,7 @@ void qq_room_conv_set_onlines(PurpleConnection *gc, qq_room_data *rmd)
 }
 
 void qq_room_got_chat_in(PurpleConnection *gc,
-		guint32 room_id, guint32 uid_from, const gchar *msg, time_t in_time)
+		guint32 room_id, UID uid_from, const gchar *msg, time_t in_time)
 {
 	PurpleConversation *conv;
 	qq_data *qd;
@@ -213,7 +213,7 @@ void qq_process_room_im(guint8 *data, gint data_len, guint32 id, PurpleConnectio
 	struct {
 		guint32 ext_id;
 		guint8 type8;
-		guint32 member_uid;
+		UID member_uid;
 		guint16 unknown;
 		guint16 msg_seq;
 		time_t send_time;

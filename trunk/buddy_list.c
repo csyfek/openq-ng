@@ -365,7 +365,7 @@ guint32 qq_process_get_buddies_and_rooms(guint8 *data, gint data_len, PurpleConn
 	gint bytes;
 	guint8 sub_cmd, reply_code;
 	guint32 unknown, position;
-	guint32 uid;
+	UID uid;
 	guint8 type;
 	qq_room_data *rmd;
 
@@ -535,7 +535,7 @@ void qq_process_buddy_change_status(guint8 *data, gint data_len, PurpleConnectio
 {
 	qq_data *qd;
 	gint bytes;
-	guint32 my_uid;
+	UID my_uid;
 	gchar *who;
 	PurpleBuddy *buddy;
 	qq_buddy_data *bd;
@@ -593,7 +593,7 @@ void qq_process_buddy_change_status(guint8 *data, gint data_len, PurpleConnectio
 }
 
 /*TODO: maybe this should be qq_update_buddy_status() ?*/
-void qq_update_buddy_status(PurpleConnection *gc, guint32 uid, guint8 status, guint8 flag)
+void qq_update_buddy_status(PurpleConnection *gc, UID uid, guint8 status, guint8 flag)
 {
 	gchar *who;
 	gchar *status_id;

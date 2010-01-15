@@ -43,7 +43,7 @@ enum
 
 void qq_process_get_buddy_memo(PurpleConnection *gc, guint8* data, gint data_len, UPDCLS update_class, guint32 action);
 
-void qq_request_buddy_memo(PurpleConnection *gc, guint32 bd_uid, UPDCLS update_class, guint32 action);
+void qq_request_buddy_memo(PurpleConnection *gc, UID bd_uid, UPDCLS update_class, guint32 action);
 
 #endif
 

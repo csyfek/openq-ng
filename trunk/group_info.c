@@ -176,7 +176,8 @@ void qq_process_room_cmd_get_info(guint8 *data, gint data_len, guint32 action, P
 	PurpleConversation *conv;
 	guint8 organization, role;
 	guint16 unknown, max_members;
-	guint32 member_uid, id, ext_id;
+	UID member_uid;
+	guint32 id, ext_id;
 	guint32 unknown4;
 	guint8 unknown1;
 	gint bytes, num;
@@ -285,7 +286,8 @@ void qq_process_room_cmd_get_info(guint8 *data, gint data_len, guint32 action, P
 
 void qq_process_room_cmd_get_onlines(guint8 *data, gint len, PurpleConnection *gc)
 {
-	guint32 room_id, member_uid;
+	guint32 room_id;
+	UID member_uid;
 	guint8 unknown;
 	gint bytes, num;
 	qq_room_data *rmd;
@@ -333,7 +335,8 @@ void qq_process_room_cmd_get_buddies(guint8 *data, gint len, PurpleConnection *g
 {
 	gint bytes;
 	gint num;
-	guint32 id, member_uid;
+	guint32 id;
+	UID member_uid;
 	guint16 unknown;
 	qq_room_data *rmd;
 	qq_buddy_data *bd;
