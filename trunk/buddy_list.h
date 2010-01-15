@@ -30,7 +30,7 @@
 
 #include "qq.h"
 typedef struct _qq_buddy_status {
-	guint32 uid;
+	UID uid;
 	guint8 unknown1;
 	struct in_addr ip;
 	guint16 port;
@@ -54,6 +54,6 @@ void qq_process_change_status(guint8 *data, gint data_len, PurpleConnection *gc)
 void qq_process_buddy_change_status(guint8 *data, gint data_len, PurpleConnection *gc);
 
 void qq_update_buddyies_status(PurpleConnection *gc);
-void qq_update_buddy_status(PurpleConnection *gc, guint32 uid, guint8 status, guint8 flag);
+void qq_update_buddy_status(PurpleConnection *gc, UID uid, guint8 status, guint8 flag);
 void qq_buddy_data_free_all(PurpleConnection *gc);
 #endif

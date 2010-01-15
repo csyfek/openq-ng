@@ -51,12 +51,12 @@ enum {
 
 typedef struct _qq_buddy_req {
 	PurpleConnection *gc;
-	guint32 uid;
+	UID uid;
 	guint8 *auth;
 	guint8 auth_len;
 } qq_buddy_req;
 
-void add_buddy_authorize_input(PurpleConnection *gc, guint32 uid,
+void add_buddy_authorize_input(PurpleConnection *gc, UID uid,
 		guint8 *auth, guint8 auth_len);
 
 static void buddy_req_free(qq_buddy_req *add_req)
@@ -88,7 +88,7 @@ PurpleGroup *qq_group_find_or_new(const gchar *group_name)
 	return g;
 }
 
-static qq_buddy_data *qq_buddy_data_new(guint32 uid)
+static qq_buddy_data *qq_buddy_data_new(UID uid)
 {
 	qq_buddy_data *bd = g_new0(qq_buddy_data, 1);
 	memset(bd, 0, sizeof(qq_buddy_data));
@@ -97,7 +97,7 @@ static qq_buddy_data *qq_buddy_data_new(guint32 uid)
 	return bd;
 }
 
-qq_buddy_data *qq_buddy_data_find(PurpleConnection *gc, guint32 uid)
+qq_buddy_data *qq_buddy_data_find(PurpleConnection *gc, UID uid)
 {
 	gchar *who;
 	PurpleBuddy *buddy;
@@ -131,7 +131,7 @@ void qq_buddy_data_free(qq_buddy_data *bd)
 }
 
 /* create purple buddy without data and display with no-auth icon */
-PurpleBuddy *qq_buddy_new(PurpleConnection *gc, guint32 uid)
+PurpleBuddy *qq_buddy_new(PurpleConnection *gc, UID uid)
 {
 	PurpleBuddy *buddy;
 	PurpleGroup *group;
@@ -175,7 +175,7 @@ static void qq_buddy_free(PurpleBuddy *buddy)
 	purple_blist_remove_buddy(buddy);
 }
 
-PurpleBuddy *qq_buddy_find(PurpleConnection *gc, guint32 uid)
+PurpleBuddy *qq_buddy_find(PurpleConnection *gc, UID uid)
 {
 	PurpleBuddy *buddy;
 	gchar *who;
@@ -188,7 +188,7 @@ PurpleBuddy *qq_buddy_find(PurpleConnection *gc, guint32 uid)
 	return buddy;
 }
 
-PurpleBuddy *qq_buddy_find_or_new(PurpleConnection *gc, guint32 uid)
+PurpleBuddy *qq_buddy_find_or_new(PurpleConnection *gc, UID uid)
 {
 	PurpleBuddy *buddy;
 	qq_buddy_data *bd;
@@ -213,7 +213,7 @@ PurpleBuddy *qq_buddy_find_or_new(PurpleConnection *gc, guint32 uid)
 }
 
 /* send packet to remove a buddy from my buddy list */
-static void request_remove_buddy(PurpleConnection *gc, guint32 uid)
+static void request_remove_buddy(PurpleConnection *gc, UID uid)
 {
 	gchar uid_str[11];
 	gint bytes;
@@ -226,7 +226,7 @@ static void request_remove_buddy(PurpleConnection *gc, guint32 uid)
 }
 
 static void request_remove_buddy_ex(PurpleConnection *gc,
-		guint32 uid, guint8 *auth, guint8 auth_len)
+		UID uid, guint8 *auth, guint8 auth_len)
 {
 	gint bytes;
 	guint8 *raw_data;
@@ -246,7 +246,7 @@ static void request_remove_buddy_ex(PurpleConnection *gc,
 	qq_send_cmd_mess(gc, QQ_CMD_REMOVE_BUDDY, raw_data, bytes, 0, uid);
 }
 
-void qq_request_auth_code(PurpleConnection *gc, guint8 cmd, guint16 sub_cmd, guint32 uid)
+void qq_request_auth_code(PurpleConnection *gc, guint8 cmd, guint16 sub_cmd, UID uid)
 {
 	guint8 raw_data[16];
 	gint bytes;
@@ -260,7 +260,7 @@ void qq_request_auth_code(PurpleConnection *gc, guint8 cmd, guint16 sub_cmd, gui
 	qq_send_cmd_mess(gc, QQ_CMD_AUTH_CODE, raw_data, bytes, 0, uid);
 }
 
-void qq_process_auth_code(PurpleConnection *gc, guint8 *data, gint data_len, guint32 uid)
+void qq_process_auth_code(PurpleConnection *gc, guint8 *data, gint data_len, UID uid)
 {
 	qq_data *qd;
 	gint bytes;
@@ -311,7 +311,7 @@ static void add_buddy_question_cb(qq_buddy_req *add_req, const gchar *text)
 	buddy_req_free(add_req);
 }
 
-static void add_buddy_question_input(PurpleConnection *gc, guint32 uid, gchar *question)
+static void add_buddy_question_input(PurpleConnection *gc, UID uid, gchar *question)
 {
 	gchar *who, *msg;
 	qq_buddy_req *add_req;
@@ -339,7 +339,7 @@ static void add_buddy_question_input(PurpleConnection *gc, guint32 uid, gchar *q
 }
 
 void qq_request_question(PurpleConnection *gc,
-		guint8 cmd, guint32 uid, const gchar *question_utf8, const gchar *answer_utf8)
+		guint8 cmd, UID uid, const gchar *question_utf8, const gchar *answer_utf8)
 {
 	guint8 raw_data[MAX_PACKET_SIZE - 16];
 	gint bytes;
@@ -374,7 +374,7 @@ void qq_request_question(PurpleConnection *gc,
 	return;
 }
 
-static void request_add_buddy_by_question(PurpleConnection *gc, guint32 uid,
+static void request_add_buddy_by_question(PurpleConnection *gc, UID uid,
 	guint8 *code, guint16 code_len)
 {
 	guint8 raw_data[MAX_PACKET_SIZE - 16];
@@ -398,7 +398,7 @@ static void request_add_buddy_by_question(PurpleConnection *gc, guint32 uid,
 	qq_send_cmd(gc, QQ_CMD_ADD_BUDDY_AUTH_EX, raw_data, bytes);
 }
 
-void qq_process_question(PurpleConnection *gc, guint8 *data, gint data_len, guint32 uid)
+void qq_process_question(PurpleConnection *gc, guint8 *data, gint data_len, UID uid)
 {
 	qq_data *qd;
 	gint bytes;
@@ -467,7 +467,7 @@ void qq_process_question(PurpleConnection *gc, guint8 *data, gint data_len, guin
 }
 
 /* try to remove myself from someone's buddy list */
-static void request_buddy_remove_me(PurpleConnection *gc, guint32 uid)
+static void request_buddy_remove_me(PurpleConnection *gc, UID uid)
 {
 	guint8 raw_data[16] = {0};
 	gint bytes = 0;
@@ -480,7 +480,7 @@ static void request_buddy_remove_me(PurpleConnection *gc, guint32 uid)
 }
 
 /* try to add a buddy without authentication */
-static void request_add_buddy_no_auth(PurpleConnection *gc, guint32 uid)
+static void request_add_buddy_no_auth(PurpleConnection *gc, UID uid)
 {
 	gchar uid_str[11];
 
@@ -492,7 +492,7 @@ static void request_add_buddy_no_auth(PurpleConnection *gc, guint32 uid)
 			(guint8 *) uid_str, strlen(uid_str), 0, uid);
 }
 
-static void request_add_buddy_no_auth_ex(PurpleConnection *gc, guint32 uid)
+static void request_add_buddy_no_auth_ex(PurpleConnection *gc, UID uid)
 {
 	guint bytes;
 	guint8 raw_data[16];
@@ -505,7 +505,7 @@ static void request_add_buddy_no_auth_ex(PurpleConnection *gc, guint32 uid)
 }
 
 /* this buddy needs authentication, text conversion is done at lowest level */
-static void request_add_buddy_auth(PurpleConnection *gc, guint32 uid, const gchar response, const gchar *text)
+static void request_add_buddy_auth(PurpleConnection *gc, UID uid, const gchar response, const gchar *text)
 {
 	guint8 raw_data[MAX_PACKET_SIZE - 16];
 	gint bytes;
@@ -532,7 +532,7 @@ static void request_add_buddy_auth(PurpleConnection *gc, guint32 uid, const gcha
 	qq_send_cmd(gc, QQ_CMD_ADD_BUDDY_AUTH, raw_data, bytes);
 }
 
-static void request_add_buddy_auth_ex(PurpleConnection *gc, guint32 uid,
+static void request_add_buddy_auth_ex(PurpleConnection *gc, UID uid,
 	const gchar *text, guint8 *auth, guint8 auth_len)
 {
 	guint8 raw_data[MAX_PACKET_SIZE - 16];
@@ -649,7 +649,7 @@ static void add_buddy_no_auth_cb(qq_buddy_req *add_req)
 	buddy_req_free(add_req);
 }
 
-void add_buddy_authorize_input(PurpleConnection *gc, guint32 uid,
+void add_buddy_authorize_input(PurpleConnection *gc, UID uid,
 		guint8 *auth, guint8 auth_len)
 {
 	gchar *who, *msg;
@@ -689,7 +689,7 @@ void add_buddy_authorize_input(PurpleConnection *gc, guint32 uid,
 void qq_add_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *group)
 {
 	qq_data *qd;
-	guint32 uid;
+	UID uid;
 
 	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
 	g_return_if_fail(buddy != NULL);
@@ -742,7 +742,7 @@ void qq_process_add_buddy_auth(guint8 *data, gint data_len, PurpleConnection *gc
 }
 
 /* process the server reply for my request to remove a buddy */
-void qq_process_remove_buddy(PurpleConnection *gc, guint8 *data, gint data_len, guint32 uid)
+void qq_process_remove_buddy(PurpleConnection *gc, guint8 *data, gint data_len, UID uid)
 {
 	PurpleBuddy *buddy = NULL;
 	gchar *msg;
@@ -765,7 +765,7 @@ void qq_process_remove_buddy(PurpleConnection *gc, guint8 *data, gint data_len, 
 }
 
 /* process the server reply for my request to remove myself from a buddy */
-void qq_process_buddy_remove_me(PurpleConnection *gc, guint8 *data, gint data_len, guint32 uid)
+void qq_process_buddy_remove_me(PurpleConnection *gc, guint8 *data, gint data_len, UID uid)
 {
 	qq_data *qd;
 	gchar *msg;
@@ -783,7 +783,7 @@ void qq_process_buddy_remove_me(PurpleConnection *gc, guint8 *data, gint data_le
 }
 
 void qq_process_add_buddy_no_auth(PurpleConnection *gc,
-		guint8 *data, gint data_len, guint32 uid)
+		guint8 *data, gint data_len, UID uid)
 {
 	qq_data *qd;
 	gchar **segments;
@@ -845,11 +845,11 @@ void qq_process_add_buddy_no_auth(PurpleConnection *gc,
 }
 
 void qq_process_add_buddy_no_auth_ex(PurpleConnection *gc,
-		guint8 *data, gint data_len, guint32 uid)
+		guint8 *data, gint data_len, UID uid)
 {
 	qq_data *qd;
 	gint bytes;
-	guint32 dest_uid;
+	UID dest_uid;
 	guint8 reply;
 	guint8 auth_type;
 
@@ -914,7 +914,7 @@ void qq_remove_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *grou
 {
 	qq_data *qd;
 	qq_buddy_data *bd;
-	guint32 uid;
+	UID uid;
 
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 	g_return_if_fail(buddy != NULL);
@@ -944,7 +944,7 @@ void qq_remove_buddy(PurpleConnection *gc, PurpleBuddy *buddy, PurpleGroup *grou
 	 * otherwise purple segmentation fault */
 }
 
-static void buddy_add_input(PurpleConnection *gc, guint32 uid, gchar *reason)
+static void buddy_add_input(PurpleConnection *gc, UID uid, gchar *reason)
 {
 	PurpleAccount *account = purple_connection_get_account(gc);
 	qq_buddy_req *add_req;
@@ -978,7 +978,7 @@ static void buddy_add_input(PurpleConnection *gc, guint32 uid, gchar *reason)
 static void server_buddy_add_request(PurpleConnection *gc, gchar *from, gchar *to,
 		guint8 *data, gint data_len)
 {
-	guint32 uid;
+	UID uid;
 	gchar *msg, *reason;
 
 	g_return_if_fail(from != NULL && to != NULL);
@@ -1008,7 +1008,7 @@ void qq_process_buddy_check_code(PurpleConnection *gc, guint8 *data, gint data_l
 	gint bytes;
 	guint8 cmd;
 	guint8 reply;
-	guint32 uid;
+	UID uid;
 	guint16 flag1, flag2;
 
 	g_return_if_fail(data != NULL && data_len >= 5);
@@ -1040,7 +1040,7 @@ static void request_buddy_check_code(PurpleConnection *gc,
 {
 	guint8 *raw_data;
 	gint bytes;
-	guint32 uid;
+	UID uid;
 
 	g_return_if_fail(code != NULL && code_len > 0 && from != NULL);
 
@@ -1087,7 +1087,7 @@ static void server_buddy_add_request_ex(PurpleConnection *gc, gchar *from, gchar
 		guint8 *data, gint data_len)
 {
 	gint bytes;
-	guint32 uid;
+	UID uid;
 	gchar *msg;
 	guint8 allow_reverse;
 
@@ -1117,7 +1117,7 @@ static void server_buddy_added(PurpleConnection *gc, gchar *from, gchar *to,
 {
 	PurpleAccount *account = purple_connection_get_account(gc);
 	PurpleBuddy *buddy;
-	guint32 uid;
+	UID uid;
 	qq_buddy_req *add_req;
 	gchar *who;
 	gchar *primary;
@@ -1191,7 +1191,7 @@ static void server_buddy_added_me(PurpleConnection *gc, gchar *from, gchar *to,
 {
 	PurpleAccount *account = purple_connection_get_account(gc);
 	qq_data *qd;
-	guint32 uid;
+	UID uid;
 
 	g_return_if_fail(from != NULL && to != NULL);
 
@@ -1218,7 +1218,7 @@ static void server_buddy_added_me(PurpleConnection *gc, gchar *from, gchar *to,
 static void server_buddy_rejected_me(PurpleConnection *gc, gchar *from, gchar *to,
 		guint8 *data, gint data_len)
 {
-	guint32 uid;
+	UID uid;
 	PurpleBuddy *buddy;
 	gchar *msg, *msg_utf8;
 	gint bytes;

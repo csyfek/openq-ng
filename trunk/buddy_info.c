@@ -222,7 +222,7 @@ static void info_display_only(PurpleConnection *gc, gchar **segments)
 	g_strfreev(segments);
 }
 
-void qq_request_buddy_info(PurpleConnection *gc, guint32 uid,
+void qq_request_buddy_info(PurpleConnection *gc, UID uid,
 		UPDCLS update_class, int action)
 {
 	qq_data *qd;
@@ -624,7 +624,7 @@ static void update_buddy_info(PurpleConnection *gc, gchar **segments)
 	PurpleBuddy *buddy = NULL;
 	qq_data *qd = NULL;
 	qq_buddy_data *bd = NULL;
-	guint32 uid;
+	UID uid;
 	gchar *who;
 	gchar *alias_utf8;
 
@@ -745,7 +745,7 @@ void qq_process_get_buddy_info(guint8 *data, gint data_len, guint32 action, Purp
 	return;
 }
 
-void qq_request_get_level(PurpleConnection *gc, guint32 uid)
+void qq_request_get_level(PurpleConnection *gc, UID uid)
 {
 	qq_data *qd = (qq_data *) gc->proto_data;
 	guint8 buf[16] = {0};
@@ -760,7 +760,7 @@ void qq_request_get_level(PurpleConnection *gc, guint32 uid)
 	qq_send_cmd(gc, QQ_CMD_GET_LEVEL, buf, bytes);
 }
 
-void qq_request_get_level_2007(PurpleConnection *gc, guint32 uid)
+void qq_request_get_level_2007(PurpleConnection *gc, UID uid)
 {
 	guint8 buf[16] = {0};
 	gint bytes = 0;
@@ -801,7 +801,8 @@ void qq_request_get_buddies_level(PurpleConnection *gc, UPDCLS update_class)
 static void process_level(PurpleConnection *gc, guint8 *data, gint data_len)
 {
 	gint bytes = 0;
-	guint32 uid, onlineTime;
+	UID uid;
+	guint32 onlineTime;
 	guint16 level, timeRemainder;
 	qq_buddy_data *bd;
 
@@ -833,7 +834,8 @@ static void process_level(PurpleConnection *gc, guint8 *data, gint data_len)
 static void process_level_2007(PurpleConnection *gc, guint8 *data, gint data_len)
 {
 	gint bytes;
-	guint32 uid, onlineTime;
+	UID uid;
+	guint32 onlineTime;
 	guint16 level, timeRemainder;
 	qq_buddy_data *bd;
 	guint16 str_len;
