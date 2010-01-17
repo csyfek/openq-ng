@@ -449,7 +449,7 @@ static void qq_change_status(PurpleAccount *account, PurpleStatus *status)
 /* send packet to get who's detailed information */
 static void qq_show_buddy_info(PurpleConnection *gc, const gchar *who)
 {
-	guint32 uid;
+	UID uid;
 	qq_data *qd;
 
 	qd = gc->proto_data;
@@ -831,7 +831,7 @@ static void qq_modify_buddy_memo_from_menu_cb(PurpleBlistNode *node, gpointer da
 	PurpleBuddy *buddy;
 	qq_buddy_data *bd;
 	PurpleConnection *gc;
-	guint32 bd_uid;
+	UID bd_uid;
 
 	g_return_if_fail(PURPLE_BLIST_NODE_IS_BUDDY(node));
 
@@ -935,7 +935,7 @@ static void qq_get_chat_buddy_info(PurpleConnection *gc, gint channel, const gch
 {
 	qq_data *qd;
 	gchar *uid_str;
-	guint32 uid;
+	UID uid;
 
 	purple_debug_info("QQ", "Get chat buddy info of %s\n", who);
 	g_return_if_fail(who != NULL);

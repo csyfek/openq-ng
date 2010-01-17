@@ -261,8 +261,8 @@ static void process_private_msg(guint8 *data, gint data_len, guint16 seq, Purple
 	gint bytes;
 
 	struct {
-		guint32 uid_from;
-		guint32 uid_to;
+		UID uid_from;
+		UID uid_to;
 		guint32 seq;
 		struct in_addr ip_from;
 		guint16 port_from;
