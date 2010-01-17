@@ -71,8 +71,8 @@ typedef struct _qq_im_header qq_im_header;
 struct _qq_im_header {
 	/* this is the common part of normal_text */
 	guint16 version_from;
-	guint32 uid_from;
-	guint32 uid_to;
+	UID uid_from;
+	UID uid_to;
 	guint8 session_md5[QQ_KEY_LENGTH];
 	guint16 im_type;
 };
@@ -1038,7 +1038,7 @@ void qq_process_extend_im(PurpleConnection *gc, guint8 *data, gint len)
 }
 
 /* send an IM to uid_to */
-static void request_send_im(PurpleConnection *gc, guint32 uid_to, gint type,
+static void request_send_im(PurpleConnection *gc, UID uid_to, gint type,
 	qq_im_format *fmt, gchar *msg, guint8 id, guint8 frag_count, guint8 frag_index)
 {
 	qq_data *qd;
@@ -1246,7 +1246,7 @@ static GSList*  qq_grab_emoticons(const char *msg, const char*username)
 gint qq_send_im(PurpleConnection *gc, const gchar *who, const gchar *what, PurpleMessageFlags flags)
 {
 	qq_data *qd;
-	guint32 uid_to;
+	UID uid_to;
 	gint type;
 	qq_im_format *fmt;
 	gchar *msg_stripped, *tmp;

@@ -39,6 +39,7 @@
 #define qq_strlen(s) ((s)!=NULL?strlen(s):0)
 #define qq_strcmp(s1,s2) ((s1)!=NULL && (s2)!=NULL?strcmp(s1,s2):0)
 
+/* business logic layer */
 typedef guint32 UPDCLS;
 typedef guint32 UID;
 
@@ -87,7 +88,7 @@ struct _qq_net_stat {
 };
 
 struct _qq_buddy_data {
-	guint32 uid;
+	UID uid;
 	guint16 face;		/* index: 0 - 299 */
 	guint8 age;
 	guint8 gender;
@@ -156,7 +157,7 @@ struct _qq_data {
 
 	GList *transactions;	/* check ack packet and resend */
 
-	guint32 uid;			/* QQ number */
+	UID uid;			/* QQ number */
 
 	qq_login_data ld;
 	qq_captcha_data captcha;
