@@ -528,7 +528,8 @@ void qq_im_fmt_free(qq_im_format *fmt)
 qq_im_format *qq_im_fmt_new(void)
 {
 	qq_im_format *fmt;
-	const gchar simsun[] = { 0xcb, 0xce, 0xcc, 0xe5, 0};	/* simsun in Chinese */
+	/* '0xcb, 0xce, 0xcc, 0xe5' means Chinese '宋体' in utf8 */
+	const gchar simsun[] = { 0xcb, 0xce, 0xcc, 0xe5, 0};
 
 	fmt = g_new0(qq_im_format, 1);
 	memset(fmt, 0, sizeof(qq_im_format));
