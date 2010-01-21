@@ -51,7 +51,7 @@ enum {
 typedef struct {
 	/* attr:
 		bit0-4 for font size, bit5 for bold,
-		bit6 for italic, bit7 for underline?
+		bit6 for italic, bit7 for underline
 	*/
 	guint8 attr;
 	guint8 rgb[3];
