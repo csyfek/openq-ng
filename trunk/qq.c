@@ -1147,6 +1147,9 @@ static void init_plugin(PurplePlugin *plugin)
 	option = purple_account_option_bool_new(_("Show chat room when msg comes"), "show_chat", TRUE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
+	option = purple_account_option_bool_new(_("Use default font"), "default_font", FALSE);
+	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
 	option = purple_account_option_int_new(_("Keep alive interval (seconds)"), "keep_alive_interval", 60);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
