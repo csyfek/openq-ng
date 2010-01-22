@@ -542,6 +542,17 @@ qq_im_format *qq_im_fmt_new(void)
 	return fmt;
 }
 
+void qq_im_fmt_reset_font(qq_im_format *fmt)
+{
+	const gchar simsun[] = {0xcb, 0xce, 0xcc, 0xe5, 0x00};
+	g_return_if_fail(NULL != fmt);
+
+	if (NULL != fmt->font) {
+		g_free(fmt->font);
+		fmt->font = g_strdup(simsun);
+	}
+}
+
 qq_im_format *qq_im_fmt_new_by_purple(const gchar *msg)
 {
 	qq_im_format *fmt;

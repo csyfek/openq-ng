@@ -57,7 +57,7 @@
 #include "utils.h"
 #include "version.h"
 
-#define OPENQ_VERSION 		"0.3.2-p20" 
+#define OPENQ_VERSION 		"0.3.2-p20"
 
 static GList *server_list_build(gchar select)
 {
@@ -178,6 +178,13 @@ static void qq_login(PurpleAccount *account)
 	qd->is_show_notice = purple_account_get_bool(account, "show_notice", TRUE);
 	qd->is_show_news = purple_account_get_bool(account, "show_news", TRUE);
 	qd->is_show_chat = purple_account_get_bool(account, "show_chat", TRUE);
+
+	if (purple_account_get_bool(account, "default_font", FALSE)) {
+		qd->misc = 0x01;
+	}
+	else {
+		qd->misc = 0x00;
+	}
 
 	qd->resend_times = purple_prefs_get_int("/plugins/prpl/qq/resend_times");
 	if (qd->resend_times <= 1) qd->itv_config.resend = 4;
