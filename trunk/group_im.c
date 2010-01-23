@@ -225,11 +225,14 @@ void qq_process_room_im(guint8 *data, gint data_len, guint32 id, PurpleConnectio
 	guint16 content_type;
 	guint8 frag_count, frag_index;
 	guint16 msg_id;
+	guint32 use_default_font;
 	qq_im_format *fmt = NULL;
 
 	/* at least include im_text.msg_len */
 	g_return_if_fail(data != NULL && data_len > 23);
 	qd = (qq_data *) gc->proto_data;
+
+	use_default_font = (qd->custom) & QQ_CUSTOM_USE_DEFAULT_FONT;
 
 	/* qq_show_packet("ROOM_IM", data, data_len); */
 	memset(&im_text, 0, sizeof(im_text));
@@ -283,8 +286,14 @@ void qq_process_room_im(guint8 *data, gint data_len, guint32 id, PurpleConnectio
 	/* group im_group has no flag to indicate whether it has font_attr or not */
 	msg_smiley = qq_emoticon_to_purple(im_text.msg);
 	if (fmt != NULL) {
+		purple_debug_info("QQ", "going to use_default_font\n");
+		if (QQ_CUSTOM_USE_DEFAULT_FONT == use_default_font) {
+			qq_im_fmt_reset_font(fmt);
+			purple_debug_info("QQ", "use_default_font set\n");
+		}
 		msg_fmt = qq_im_fmt_to_purple(fmt, msg_smiley);
 		msg_utf8 =  qq_to_utf8(msg_fmt, QQ_CHARSET_DEFAULT);
+		purple_debug_info("QQ", "passed!\n");
 		g_free(msg_fmt);
 		qq_im_fmt_free(fmt);
 	} else {
