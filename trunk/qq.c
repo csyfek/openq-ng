@@ -57,7 +57,7 @@
 #include "utils.h"
 #include "version.h"
 
-#define OPENQ_VERSION 		"0.3.2-p20" 
+#define OPENQ_VERSION 		"0.3.2-p20"
 
 static GList *server_list_build(gchar select)
 {
@@ -178,6 +178,13 @@ static void qq_login(PurpleAccount *account)
 	qd->is_show_notice = purple_account_get_bool(account, "show_notice", TRUE);
 	qd->is_show_news = purple_account_get_bool(account, "show_news", TRUE);
 	qd->is_show_chat = purple_account_get_bool(account, "show_chat", TRUE);
+
+	if (purple_account_get_bool(account, "default_font", FALSE)) {
+		qd->custom = QQ_CUSTOM_USE_DEFAULT_FONT;
+	}
+	else {
+		qd->custom = QQ_CUSTOM_NONE;
+	}
 
 	qd->resend_times = purple_prefs_get_int("/plugins/prpl/qq/resend_times");
 	if (qd->resend_times <= 1) qd->itv_config.resend = 4;
@@ -1145,6 +1152,9 @@ static void init_plugin(PurplePlugin *plugin)
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	option = purple_account_option_bool_new(_("Show chat room when msg comes"), "show_chat", TRUE);
+	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
+
+	option = purple_account_option_bool_new(_("Use default font"), "default_font", FALSE);
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	option = purple_account_option_int_new(_("Keep alive interval (seconds)"), "keep_alive_interval", 60);
