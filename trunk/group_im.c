@@ -232,7 +232,7 @@ void qq_process_room_im(guint8 *data, gint data_len, guint32 id, PurpleConnectio
 	g_return_if_fail(data != NULL && data_len > 23);
 	qd = (qq_data *) gc->proto_data;
 
-	use_default_font = (qd->misc) & 0x01;
+	use_default_font = (qd->custom) & QQ_CUSTOM_USE_DEFAULT_FONT;
 
 	/* qq_show_packet("ROOM_IM", data, data_len); */
 	memset(&im_text, 0, sizeof(im_text));
@@ -287,7 +287,7 @@ void qq_process_room_im(guint8 *data, gint data_len, guint32 id, PurpleConnectio
 	msg_smiley = qq_emoticon_to_purple(im_text.msg);
 	if (fmt != NULL) {
 		purple_debug_info("QQ", "going to use_default_font\n");
-		if (use_default_font) {
+		if (QQ_CUSTOM_USE_DEFAULT_FONT == use_default_font) {
 			qq_im_fmt_reset_font(fmt);
 			purple_debug_info("QQ", "use_default_font set\n");
 		}

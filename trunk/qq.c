@@ -180,10 +180,10 @@ static void qq_login(PurpleAccount *account)
 	qd->is_show_chat = purple_account_get_bool(account, "show_chat", TRUE);
 
 	if (purple_account_get_bool(account, "default_font", FALSE)) {
-		qd->misc = 0x01;
+		qd->custom = QQ_CUSTOM_USE_DEAULT_FONT;
 	}
 	else {
-		qd->misc = 0x00;
+		qd->custom = QQ_CUSTOM_NONE;
 	}
 
 	qd->resend_times = purple_prefs_get_int("/plugins/prpl/qq/resend_times");
