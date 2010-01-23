@@ -1,3 +1,6 @@
+2010.01.23 - flos <lonicerae(at)gmail.com>
+	* added an option to force incoming message in chat room to use a default font instead of the font in message itself
+
 2010.01.18 - flos <lonicerae(at)gmail.com>
 	* added type 'UPDCLS' and 'UID' for implementing business logic layer
 
