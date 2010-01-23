@@ -180,7 +180,7 @@ static void qq_login(PurpleAccount *account)
 	qd->is_show_chat = purple_account_get_bool(account, "show_chat", TRUE);
 
 	if (purple_account_get_bool(account, "default_font", FALSE)) {
-		qd->custom = QQ_CUSTOM_USE_DEAULT_FONT;
+		qd->custom = QQ_CUSTOM_USE_DEFAULT_FONT;
 	}
 	else {
 		qd->custom = QQ_CUSTOM_NONE;
