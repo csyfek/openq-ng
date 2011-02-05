@@ -89,14 +89,11 @@ static void server_list_create(PurpleAccount *account)
 {
 	PurpleConnection *gc;
 	qq_data *qd;
-	PurpleProxyInfo *gpi;
 	const gchar *custom_server;
 
 	gc = purple_account_get_connection(account);
 	g_return_if_fail(gc != NULL  && gc->proto_data != NULL);
 	qd = gc->proto_data;
-
-	gpi = purple_proxy_get_setup(account);
 
 	qd->use_tcp = purple_account_get_bool(account, "use_tcp", TRUE);
 
@@ -160,18 +157,15 @@ static void qq_login(PurpleAccount *account)
 	purple_debug_info("QQ", "Server list has %d\n", g_list_length(qd->servers));
 
 	version_str = purple_account_get_string(account, "client_version", NULL);
-	qd->client_tag = QQ_CLIENT_0D55;	/* set default as QQ2005 */
+	qd->client_tag = QQ_CLIENT_115B;	/* set default as QQ2008 */
 	qd->client_version = 2008;
 	if (version_str != NULL && strlen(version_str) != 0) {
-		if (strcmp(version_str, "qq2007") == 0) {
+		if (strcmp(version_str, "qq2005") == 0) {
+			qd->client_tag = QQ_CLIENT_0D55;
+			qd->client_version = 2005;
+		} else if (strcmp(version_str, "qq2007") == 0) {
 			qd->client_tag = QQ_CLIENT_111D;
 			qd->client_version = 2007;
-		} else if (strcmp(version_str, "qq2008") == 0) {
-			qd->client_tag = QQ_CLIENT_115B;
-			qd->client_version = 2008;
-		} else if (strcmp(version_str, "qq2009") == 0) {
-			qd->client_tag = QQ_CLIENT_1663;
-			qd->client_version = 2009;
 		}
 	}
 
@@ -230,6 +224,9 @@ static void qq_close(PurpleConnection *gc)
 		purple_timeout_remove(qd->connect_watcher);
 		qd->connect_watcher = 0;
 	}
+
+	/* This is cancelled by _purple_connection_destroy */
+	qd->conn_data = NULL;
 
 	qq_disconnect(gc);
 
@@ -388,13 +385,10 @@ static void qq_tooltip_text(PurpleBuddy *b, PurpleNotifyUserInfo *user_info, gbo
 static const char *qq_list_emblem(PurpleBuddy *b)
 {
 	PurpleAccount *account;
-	PurpleConnection *gc;
-	qq_data *qd;
 	qq_buddy_data *buddy;
 
 	if (!b || !(account = purple_buddy_get_account(b)) ||
-		!(gc = purple_account_get_connection(account)) ||
-		!(qd = purple_connection_get_protocol_data(gc)))
+		!purple_account_get_connection(account))
 		return NULL;
 
 	buddy = purple_buddy_get_protocol_data(b);
@@ -627,12 +621,10 @@ static void action_show_account_info(PurplePluginAction *action)
 static void action_about_openq(PurplePluginAction *action)
 {
 	PurpleConnection *gc = (PurpleConnection *) action->context;
-	qq_data *qd;
 	GString *info;
 	gchar *title;
 
-	g_return_if_fail(NULL != gc && NULL != gc->proto_data);
-	qd = (qq_data *) gc->proto_data;
+	g_return_if_fail(NULL != gc);
 
 	info = g_string_new("<html><body>");
 	g_string_append(info, _("<p><b>Original Author</b>:<br>\n"));
@@ -1047,7 +1039,10 @@ static PurplePluginProtocolInfo prpl_info =
 	sizeof(PurplePluginProtocolInfo), /* struct_size */
 	NULL,							/* get_account_text_table */
 	NULL,							/* initiate_media */
-	NULL                            /* can_do_media */
+	NULL,							/* get_media_caps */
+	NULL,							/* get_moods */
+	NULL,							/* set_public_alias */
+	NULL							/* get_public_alias */
 };
 
 static PurplePluginInfo info = {
@@ -1125,8 +1120,8 @@ static void init_plugin(PurplePlugin *plugin)
 	prpl_info.protocol_options = g_list_append(prpl_info.protocol_options, option);
 
 	kvp = g_new0(PurpleKeyValuePair, 1);
-	kvp->key = g_strdup(_("QQ2005"));
-	kvp->value = g_strdup("qq2005");
+	kvp->key = g_strdup(_("QQ2008"));
+	kvp->value = g_strdup("qq2008");
 	version_kv_list = g_list_append(version_kv_list, kvp);
 
 	kvp = g_new0(PurpleKeyValuePair, 1);
@@ -1135,8 +1130,8 @@ static void init_plugin(PurplePlugin *plugin)
 	version_kv_list = g_list_append(version_kv_list, kvp);
 
 	kvp = g_new0(PurpleKeyValuePair, 1);
-	kvp->key = g_strdup(_("QQ2008"));
-	kvp->value = g_strdup("qq2008");
+	kvp->key = g_strdup(_("QQ2005"));
+	kvp->value = g_strdup("qq2005");
 	version_kv_list = g_list_append(version_kv_list, kvp);
 
 	option = purple_account_option_list_new(_("Client Version"), "client_version", version_kv_list);
