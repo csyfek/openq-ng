@@ -42,11 +42,11 @@
 #define QQ_DEFAULT_PORT					8000
 
 /* set QQ_CONNECT_MAX to 1, when test reconnecting */
-#define QQ_CONNECT_MAX						3
+#define QQ_CONNECT_MAX				3
 #define QQ_CONNECT_INTERVAL			2
-#define QQ_CONNECT_CHECK					5
-#define QQ_KEEP_ALIVE_INTERVAL		60
-#define QQ_TRANS_INTERVAL				10
+#define QQ_CONNECT_CHECK			5
+#define QQ_KEEP_ALIVE_INTERVAL			60
+#define QQ_TRANS_INTERVAL			10
 
 gboolean connect_to_server(PurpleConnection *gc, gchar *server, gint port);
 
