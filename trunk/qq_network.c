@@ -63,6 +63,7 @@ static qq_connection *connection_find(qq_data *qd, int fd) {
 
 static qq_connection *connection_create(qq_data *qd, int fd) {
 	qq_connection *ret = g_new0(qq_connection, 1);
+	g_return_val_if_fail(ret != NULL, NULL);
 	ret->fd = fd;
 	qd->openconns = g_slist_append(qd->openconns, ret);
 	return ret;
@@ -772,9 +773,14 @@ static void connect_cb(gpointer data, gint source, const gchar *error_message)
 	}
 
 	/* _qq_show_socket("Got login socket", source); */
+	/* ok, already connected to the server */
 	qd->fd = source;
 	conn = connection_create(qd, source);
+	g_return_if_fail( conn != NULL );
+
 	if (qd->use_tcp) {
+		/* events which match "PURPLE_INPUT_READ" of
+		 * "source" would trigger the callback function */
 		conn->input_handler = purple_input_add(source, PURPLE_INPUT_READ, tcp_pending, gc);
 	} else {
 		conn->input_handler = purple_input_add(source, PURPLE_INPUT_READ, udp_pending, gc);
