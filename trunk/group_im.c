@@ -207,6 +207,7 @@ void qq_process_room_im(guint8 *data, gint data_len, guint32 id, PurpleConnectio
 {
 	gchar *msg_smiley, *msg_fmt, *msg_utf8;
 	gint bytes, tail_len;
+	qq_data *qd;
 	struct {
 		guint32 ext_id;
 		guint8 type8;
@@ -224,6 +225,7 @@ void qq_process_room_im(guint8 *data, gint data_len, guint32 id, PurpleConnectio
 	guint16 msg_id;
 	guint32 use_default_font;
 	qq_im_format *fmt = NULL;
+	qd = (qq_data *) gc->proto_data;
 
 	/* at least include im_text.msg_len */
 	g_return_if_fail(data != NULL && data_len > 23);
