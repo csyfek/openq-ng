@@ -1,0 +1,148 @@
+# compact patch for pidgin 2.6.5.
+# created by lonicerae <lonicerae(at)gmail.com>, 2010-01-14
+# build pidgin with:
+#	gtk-win32-devel-2.6.10-rc1.exe
+#	Bonjour_SDK
+#	aspell-dev-0-50-3-3
+#	gtkspell-2.0.11-daa1
+#	libxml2-2.6.30
+#	meanwhile-1.0.2_daa1
+#	nspr-4.6.4
+#	nss-3.11.4
+#	silc-toolkit-1.1.5
+
+diff -uNr pidgin-2.6.5-orig/config.h.mingw pidgin-2.6.5/config.h.mingw
+--- pidgin-2.6.5-orig/config.h.mingw	Wed Feb 11 11:56:00 2009
++++ pidgin-2.6.5/config.h.mingw	Thu Jan 14 11:17:02 2010
+@@ -163,13 +163,13 @@
+ /* #define HAVE_PATHS_H 1 */
+ 
+ /* Compile with support for perl */
+-#define HAVE_PERL 1
++/* #define HAVE_PERL 1 */
+ 
+ /* Define to 1 if you have the `Perl_eval_pv' function. */
+ /* #undef HAVE_PERL_EVAL_PV */
+ 
+ /* Define to 1 if you have the <perl.h> header file. */
+-#define HAVE_PERL_H 1
++/* #define HAVE_PERL_H 1 */
+ 
+ /* Define to 1 if you have the `perl_run' function. */
+ /* #define HAVE_PERL_RUN 1 */
+@@ -283,7 +283,7 @@
+ /* #define HAVE_SYS_WAIT_H 1 */
+ 
+ /* Compile with support for the Tcl toolkit */
+-#define HAVE_TCL 1
++/* #define HAVE_TCL 1 */
+ 
+ /* Define to 1 if you have the <termios.h> header file. */
+ /* #define HAVE_TERMIOS_H 1 */
+@@ -292,7 +292,7 @@
+ #define HAVE_TIMEZONE 1
+ 
+ /* Compile with support for the Tk toolkit */
+-#define HAVE_TK 1
++/* #define HAVE_TK 1 */
+ 
+ /* tm_gmtoff is available. */
+ /* #define HAVE_TM_GMTOFF 1 */
+diff -uNr pidgin-2.6.5-orig/libpurple/plugins/Makefile.mingw pidgin-2.6.5/libpurple/plugins/Makefile.mingw
+--- pidgin-2.6.5-orig/libpurple/plugins/Makefile.mingw	Tue Mar  3 09:22:06 2009
++++ pidgin-2.6.5/libpurple/plugins/Makefile.mingw	Thu Jan 14 11:17:02 2010
+@@ -45,13 +45,13 @@
+ .PHONY: all clean plugins install
+ 
+ all: $(PURPLE_DLL).a plugins
+-	$(MAKE) -C $(PERL_PLUGIN) -f $(MINGW_MAKEFILE)
+-	$(MAKE) -C $(TCL_PLUGIN) -f $(MINGW_MAKEFILE)
++#	$(MAKE) -C $(PERL_PLUGIN) -f $(MINGW_MAKEFILE)
++#	$(MAKE) -C $(TCL_PLUGIN) -f $(MINGW_MAKEFILE)
+ 	$(MAKE) -C $(SSL_PLUGIN) -f $(MINGW_MAKEFILE)
+ 
+ install: all $(PURPLE_INSTALL_PLUGINS_DIR)
+-	$(MAKE) -C $(PERL_PLUGIN) -f $(MINGW_MAKEFILE) install
+-	$(MAKE) -C $(TCL_PLUGIN) -f $(MINGW_MAKEFILE) install
++#	$(MAKE) -C $(PERL_PLUGIN) -f $(MINGW_MAKEFILE) install
++#	$(MAKE) -C $(TCL_PLUGIN) -f $(MINGW_MAKEFILE) install
+ 	$(MAKE) -C $(SSL_PLUGIN) -f $(MINGW_MAKEFILE) install
+ 	cp *.dll $(PURPLE_INSTALL_PLUGINS_DIR)
+ 
+@@ -75,8 +75,8 @@
+ ##
+ clean:
+ 	rm -f *.o *.dll
+-	$(MAKE) -C $(PERL_PLUGIN) -f $(MINGW_MAKEFILE) clean
+-	$(MAKE) -C $(TCL_PLUGIN) -f $(MINGW_MAKEFILE) clean
++#	$(MAKE) -C $(PERL_PLUGIN) -f $(MINGW_MAKEFILE) clean
++#	$(MAKE) -C $(TCL_PLUGIN) -f $(MINGW_MAKEFILE) clean
+ 	$(MAKE) -C $(SSL_PLUGIN) -f $(MINGW_MAKEFILE) clean
+ 
+ include $(PIDGIN_COMMON_TARGETS)
+diff -uNr pidgin-2.6.5-orig/libpurple/protocols/Makefile.mingw pidgin-2.6.5/libpurple/protocols/Makefile.mingw
+--- pidgin-2.6.5-orig/libpurple/protocols/Makefile.mingw	Sat Jan  2 07:28:02 2010
++++ pidgin-2.6.5/libpurple/protocols/Makefile.mingw	Thu Jan 14 11:23:09 2010
+@@ -8,7 +8,7 @@
+ PIDGIN_TREE_TOP := ../..
+ include $(PIDGIN_TREE_TOP)/libpurple/win32/global.mak
+ 
+-SUBDIRS = gg irc jabber msn mxit novell null oscar qq sametime silc simple yahoo bonjour myspace
++SUBDIRS = jabber msn null qq simple
+ 
+ .PHONY: all install clean
+ 
+diff -uNr pidgin-2.6.5-orig/libpurple/win32/global.mak pidgin-2.6.5/libpurple/win32/global.mak
+--- pidgin-2.6.5-orig/libpurple/win32/global.mak	Sat Jan  2 07:28:03 2010
++++ pidgin-2.6.5/libpurple/win32/global.mak	Thu Jan 14 11:17:02 2010
+@@ -6,7 +6,7 @@
+ #
+ 
+ #include optional $(PIDGIN_TREE_TOP)/local.mak to allow overriding of any definitions
+--include $(PIDGIN_TREE_TOP)/local.mak
++include $(PIDGIN_TREE_TOP)/local.mak
+ 
+ # Locations of our various dependencies
+ WIN32_DEV_TOP ?= $(PIDGIN_TREE_TOP)/../win32-dev
+@@ -79,7 +79,7 @@
+ DISPLAY_VERSION := $(PIDGIN_VERSION)
+ endif
+ 
+-CYRUS_SASL ?= 1
++CYRUS_SASL ?= 0
+ 
+ ifeq ($(CYRUS_SASL), 1)
+ DEFINES += -DHAVE_CYRUS_SASL
+diff -uNr pidgin-2.6.5-orig/local.mak pidgin-2.6.5/local.mak
+--- pidgin-2.6.5-orig/local.mak	Thu Jan  1 08:00:00 1970
++++ pidgin-2.6.5/local.mak	Thu Jan 14 11:17:02 2010
+@@ -0,0 +1,3 @@
++GTK_TOP := D:/GTK
++LIBXML2_TOP := $(GTK_TOP)
++CFLAGS += `pkg-config --cflags libxml-2.0`
+diff -uNr pidgin-2.6.5-orig/pidgin/plugins/Makefile.mingw pidgin-2.6.5/pidgin/plugins/Makefile.mingw
+--- pidgin-2.6.5-orig/pidgin/plugins/Makefile.mingw	Tue Jun 23 00:10:46 2009
++++ pidgin-2.6.5/pidgin/plugins/Makefile.mingw	Thu Jan 14 11:26:10 2010
+@@ -60,14 +60,12 @@
+ 
+ all: plugins
+ 	$(MAKE) -C $(DISCO_PLUGIN) -f $(MINGW_MAKEFILE)
+-	$(MAKE) -C $(GTKPERL_PLUGIN) -f $(MINGW_MAKEFILE)
+ 	$(MAKE) -C $(TICKER_PLUGIN) -f $(MINGW_MAKEFILE)
+ 	$(MAKE) -C $(TRANSPARENCY_PLUGIN) -f $(MINGW_MAKEFILE)
+ 	$(MAKE) -C $(WINPREFS_PLUGIN) -f $(MINGW_MAKEFILE)
+ 
+ install: all $(PIDGIN_INSTALL_PLUGINS_DIR)
+ 	$(MAKE) -C $(DISCO_PLUGIN) -f $(MINGW_MAKEFILE) install
+-	$(MAKE) -C $(GTKPERL_PLUGIN) -f $(MINGW_MAKEFILE) install
+ 	$(MAKE) -C $(TICKER_PLUGIN) -f $(MINGW_MAKEFILE) install
+ 	$(MAKE) -C $(TRANSPARENCY_PLUGIN) -f $(MINGW_MAKEFILE) install
+ 	$(MAKE) -C $(WINPREFS_PLUGIN) -f $(MINGW_MAKEFILE) install
+@@ -99,7 +97,6 @@
+ clean:
+ 	rm -f *.o *.dll
+ 	$(MAKE) -C $(DISCO_PLUGIN) -f $(MINGW_MAKEFILE) clean
+-	$(MAKE) -C $(GTKPERL_PLUGIN) -f $(MINGW_MAKEFILE) clean
+ 	$(MAKE) -C $(TICKER_PLUGIN) -f $(MINGW_MAKEFILE) clean
+ 	$(MAKE) -C $(TRANSPARENCY_PLUGIN) -f $(MINGW_MAKEFILE) clean
+ 	$(MAKE) -C $(WINPREFS_PLUGIN) -f $(MINGW_MAKEFILE) clean
