@@ -35,6 +35,11 @@
 
 #define QQ_KEY_LENGTH       16
 
+#define VD_LCLEN            6
+#define VD_SPLEN            12
+#define VD_HSLEN            16
+#define VD_SIG1_LEN         11
+
 /* steal from kazehakase :) */
 #define qq_strlen(s) ((s)!=NULL?strlen(s):0)
 #define qq_strcmp(s1,s2) ((s1)!=NULL && (s2)!=NULL?strcmp(s1,s2):0)
@@ -103,8 +108,7 @@ typedef struct _qq_buddy_data {
 	gint8  role;		/* role in group, used only in group->members list */
 } qq_buddy_data;
 
-typedef struct _qq_connection qq_connection;
-struct _qq_connection {
+typedef struct _qq_connection {
 	int fd;				/* socket file handler */
 	int input_handler;
 
@@ -113,23 +117,31 @@ struct _qq_connection {
 	PurpleCircBuffer *tcp_txbuf;
 	guint8 *tcp_rxqueue;
 	int tcp_rxlen;
-};
+} qq_connection;
+
+/* for QQ2009/2010 */
+typedef struct _qq_version_data {
+	guint8 locale[VD_LCLEN];
+	guint8 version_spec[VD_SPLEN];
+	guint8 exe_hash[VD_HSLEN];
+	guint8 sig1[VD_SIG1_LEN];
+} qq_version_data;
 
 typedef struct _qq_data {
 	PurpleConnection *gc;
 
 	GSList *openconns;
-	gboolean use_tcp;		/* network in tcp or udp */
+	gboolean use_tcp;			/* network in tcp or udp */
 	PurpleProxyConnectData *conn_data;
 #ifndef purple_proxy_connect_udp
-	PurpleDnsQueryData *udp_query_data;		/* udp related */
-	gint udp_can_write_handler; 	/* socket can_write handle, use in udp connecting and tcp send out */
+	PurpleDnsQueryData *udp_query_data;	/* udp related */
+	gint udp_can_write_handler;		/* socket can_write handle, use in udp connecting and tcp send out */
 #endif
-	gint fd;							/* socket file handler */
+	gint fd;				/* socket file handler */
 	qq_net_stat net_stat;
 
 	GList *servers;
-	gchar *curr_server;		/* point to servers->data, do not free*/
+	gchar *curr_server;			/* point to servers->data, do not free*/
 
 	guint16 client_tag;
 	gint client_version;
@@ -148,33 +160,34 @@ typedef struct _qq_data {
 	guint network_watcher;
 	gint resend_times;
 
-	GList *transactions;	/* check ack packet and resend */
+	GList *transactions;			/* check ack packet and resend */
 
-	UID uid;			/* QQ number */
+	UID uid;				/* QQ number */
 
 	qq_login_data ld;
+	qq_version_data vd;			/* additional data for QQ2009 login */
 	qq_captcha_data captcha;
 
-	guint8 session_key[QQ_KEY_LENGTH];		/* later use this as key in this session */
-	guint8 session_md5[QQ_KEY_LENGTH];		/* concatenate my uid with session_key and md5 it */
+	guint8 session_key[QQ_KEY_LENGTH];	/* later use this as key in this session */
+	guint8 session_md5[QQ_KEY_LENGTH];	/* concatenate my uid with session_key and md5 it */
 
-	guint16 send_seq;		/* send sequence number */
-	guint8 login_mode;		/* online of invisible */
-	gboolean is_login;		/* used by qq_add_buddy */
+	guint16 send_seq;			/* send sequence number */
+	guint8 login_mode;			/* online of invisible */
+	gboolean is_login;			/* used by qq_add_buddy */
 
 	PurpleXfer *xfer;			/* file transfer handler */
 
 	/* get from login reply packet */
-	struct in_addr my_local_ip;			/* my local ip address detected by server */
-	guint16 my_local_port;		/* my lcoal port detected by server */
+	struct in_addr my_local_ip;		/* my local ip address detected by server */
+	guint16 my_local_port;			/* my lcoal port detected by server */
 	time_t login_time;
 	time_t last_login_time[3];
 	struct in_addr last_login_ip;
 	/* get from keep_alive packet */
 	struct in_addr my_ip;			/* my ip address detected by server */
-	guint16 my_port;		/* my port detected by server */
-	guint16 my_icon;		/* my icon index */
-	guint32 online_total;		/* the number of online QQ users */
+	guint16 my_port;			/* my port detected by server */
+	guint16 my_icon;			/* my icon index */
+	guint32 online_total;			/* the number of online QQ users */
 	time_t online_last_update;		/* last time send get_friends_online packet */
 
 	PurpleRoomlist *roomlist;
@@ -186,7 +199,7 @@ typedef struct _qq_data {
 	gboolean is_show_chat;
 	guint32 custom;
 
-	guint16 send_im_id;		/* send IM sequence number */
+	guint16 send_im_id;			/* send IM sequence number */
 } qq_data;
 
 #endif

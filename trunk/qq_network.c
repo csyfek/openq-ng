@@ -137,6 +137,8 @@ static gboolean set_new_server(qq_data *qd)
 	return TRUE;
 }
 
+/* this header is NOT tcp header, it is QQ package header.
+ * combines header_tag, source_tag, cmd and seq */
 static gint packet_get_header(guint8 *header_tag,  guint16 *source_tag,
 	guint16 *cmd, guint16 *seq, guint8 *buf)
 {
@@ -145,6 +147,17 @@ static gint packet_get_header(guint8 *header_tag,  guint16 *source_tag,
 	bytes += qq_get16(source_tag, buf + bytes);
 	bytes += qq_get16(cmd, buf + bytes);
 	bytes += qq_get16(seq, buf + bytes);
+	return bytes;
+}
+
+/* from QQ2010 on, extra info should be taken out */
+static gint packet_get_header_ex(UID *uid, guint8 *header_ex_fixed, guint8 *buf)
+{
+	gint bytes = 0;
+	bytes += qq_get32(uid, buf + bytes);
+	bytes += qq_getdata(header_ex_fixed, 3, buf + bytes);
+	qq_show_packet("packet_get_header_ex", header_ex_fixed, 3);
+	purple_debug_info("QQ", "packet_get_header_ex - UID:%u, ex_fixed:%s", *uid, header_ex_fixed);
 	return bytes;
 }
 
@@ -267,6 +280,8 @@ static gboolean packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 	guint16 source_tag;
 	guint16 cmd;
 	guint16 seq;		/* May be ack_seq or send_seq, depends on cmd */
+	UID uid;
+	guint8 header_ex_fixed[3]; /* 3 zeors */
 	guint8 room_cmd;
 	guint32 room_id;
 	UPDCLS update_class;
@@ -285,6 +300,10 @@ static gboolean packet_process(PurpleConnection *gc, guint8 *buf, gint buf_len)
 	/* Len, header and tail tag have been checked before */
 	bytes = 0;
 	bytes += packet_get_header(&header_tag, &source_tag, &cmd, &seq, buf + bytes);
+	if (qd->client_version == 2010)
+	{
+		bytes += packet_get_header_ex(&uid, header_ex_fixed, buf + bytes);
+	}
 
 #if 1
 		purple_debug_info("QQ", "==> [%05d] %s 0x%04X, source tag 0x%04X len %d\n",
@@ -406,7 +425,9 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 	 *  QQ need a keep alive packet in every 60 seconds
 	 gc->last_received = time(NULL);
 	*/
-	/* purple_debug_info("TCP_PENDING", "Read %d bytes, rxlen is %d\n", buf_len, conn->tcp_rxlen); */
+#if 1
+	purple_debug_info("TCP_PENDING", "Read %d bytes, tcp_rxlen is %d\n", buf_len, conn->tcp_rxlen);
+#endif
 	conn->tcp_rxqueue = g_realloc(conn->tcp_rxqueue, buf_len + conn->tcp_rxlen);
 	memcpy(conn->tcp_rxqueue + conn->tcp_rxlen, buf, buf_len);
 	conn->tcp_rxlen += buf_len;
@@ -430,6 +451,9 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 			break;
 		}
 
+#if 1
+		qq_show_packet("tcp_pending", conn->tcp_rxqueue, pkt_len);
+#endif
 		/* purple_debug_info("TCP_PENDING", "Packet len=%d, rxlen=%d\n", pkt_len, conn->tcp_rxlen); */
 		if ( pkt_len < QQ_TCP_HEADER_LENGTH
 		    || *(conn->tcp_rxqueue + bytes) != QQ_PACKET_TAG
@@ -454,6 +478,7 @@ static void tcp_pending(gpointer data, gint source, PurpleInputCondition cond)
 			continue;
 		}
 
+		/* get packet */
 		memset(pkt, 0, MAX_PACKET_SIZE);
 		g_memmove(pkt, conn->tcp_rxqueue + bytes, pkt_len - bytes);
 
@@ -793,6 +818,7 @@ static void connect_cb(gpointer data, gint source, const gchar *error_message)
 
 	if (qd->client_version >= 2007) {
 		purple_connection_update_progress(gc, _("Getting server"), 2, QQ_CONNECT_STEPS);
+		/* touch required */
 		qq_request_get_server(gc);
 		return;
 	}
@@ -1072,10 +1098,12 @@ static gint packet_encap(qq_data *qd, guint8 *buf, gint maxlen, guint16 cmd, gui
 	bytes += qq_put8(buf + bytes, QQ_PACKET_TAG);
 	bytes += qq_put16(buf + bytes, qd->client_tag);
 	bytes += qq_put16(buf + bytes, cmd);
-
 	bytes += qq_put16(buf + bytes, seq);
-
 	bytes += qq_put32(buf + bytes, qd->uid);
+	if(qd->client_version == 2010)
+	{
+		bytes += qq_putdata(buf + bytes, qd->vd.sig1, VD_SIG1_LEN);
+	}
 	bytes += qq_putdata(buf + bytes, data, data_len);
 	bytes += qq_put8(buf + bytes, QQ_PACKET_TAIL);
 
@@ -1083,7 +1111,9 @@ static gint packet_encap(qq_data *qd, guint8 *buf, gint maxlen, guint16 cmd, gui
 	if (qd->use_tcp) {
 		qq_put16(buf, bytes);
 	}
-
+#if 1
+	qq_show_packet("packet_encap", buf, bytes);
+#endif
 	return bytes;
 }
 
@@ -1101,6 +1131,7 @@ static gint packet_send_out(PurpleConnection *gc, guint16 cmd, guint16 seq, guin
 
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 	memset(buf, 0, MAX_PACKET_SIZE);
+	/* encapsulate */
 	buf_len = packet_encap(qd, buf, MAX_PACKET_SIZE, cmd, seq, data, data_len);
 	if (buf_len <= 0) {
 		return -1;
@@ -1122,7 +1153,7 @@ gint qq_send_cmd_encrypted(PurpleConnection *gc, guint16 cmd, guint16 seq,
 	gint sent_len;
 
 #if 1
-		/* qq_show_packet("qq_send_cmd_encrypted", data, data_len); */
+		/* qq_show_packet("qq_send_cmd_encrypted", encrypted, encrypted_len); */
 		purple_debug_info("QQ", "<== [%05d] %s(0x%04X), datalen %d\n",
 				seq, qq_get_cmd_desc(cmd), cmd, encrypted_len);
 #endif

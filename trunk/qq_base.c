@@ -53,6 +53,32 @@ static void get_session_md5(guint8 *session_md5, UID uid, guint8 *session_key)
 	qq_get_md5(session_md5, QQ_KEY_LENGTH, src, bytes);
 }
 
+/* restore version data for 2009/2010 */
+static void restore_version_data(qq_data *qd)
+{
+	if(qd->client_version == 2009)
+	{
+		static guint8 locale[] = QQ2009_LOCALE;
+		static guint8 verspec[] = QQ2009_VERSION_SPEC;
+		static guint8 exehash[] = QQ2009_EXE_HASH;
+		memcpy(qd->vd.locale, locale, sizeof(locale));
+		memcpy(qd->vd.version_spec, verspec, sizeof(verspec));
+		memcpy(qd->vd.exe_hash, exehash, sizeof(exehash));
+	}
+	else
+	{
+		static guint8 locale[] = QQ2010_LOCALE;
+		static guint8 verspec[] = QQ2010_VERSION_SPEC;
+		static guint8 exehash[] = QQ2010_EXE_HASH;
+		static guint8 sig1[] = QQ2010_SIG1;
+		memcpy(qd->vd.locale, locale, sizeof(locale));
+		memcpy(qd->vd.version_spec, verspec, sizeof(verspec));
+		memcpy(qd->vd.exe_hash, exehash, sizeof(exehash));
+		memcpy(qd->vd.sig1, sig1, sizeof(sig1));
+	}
+
+}
+
 /* process login reply which says OK */
 static gint8 process_login_ok(PurpleConnection *gc, guint8 *data, gint len)
 {
@@ -596,7 +622,7 @@ gboolean qq_process_keep_alive_2008(guint8 *data, gint data_len, PurpleConnectio
 	return TRUE;
 }
 
-/* For QQ2007/2008 */
+/* For QQ2007/2008/2009 */
 void qq_request_get_server(PurpleConnection *gc)
 {
 	qq_data *qd;
@@ -608,22 +634,47 @@ void qq_request_get_server(PurpleConnection *gc)
 	g_return_if_fail(gc != NULL && gc->proto_data != NULL);
 	qd = (qq_data *) gc->proto_data;
 
+	if(qd->client_version >= 2009)
+	{
+		restore_version_data(qd);
+	}
+
 	raw_data = g_newa(guint8, 128);
 	memset(raw_data, 0, 128);
 
 	encrypted = g_newa(guint8, 128 + 17);	/* 17 bytes more */
-
-	bytes = 0;
+	/* prepare for cipher text */
 	if (qd->redirect == NULL) {
-		/* first packet to get server */
+		/* first packet to get server,
+		   in myqq3, this is called 'login touch'*/
 		qd->redirect_len = 15;
 		qd->redirect = g_realloc(qd->redirect, qd->redirect_len);
 		memset(qd->redirect, 0, qd->redirect_len);
 	}
+	/* fill material */
+	bytes = 0;
+	if(qd->client_version >=2009)
+	{
+		/* 0x0001 */
+		bytes += qq_put16(raw_data + bytes, 0x0001);
+		/* locale */
+		bytes += qq_putdata(raw_data + bytes, qd->vd.locale, VD_LCLEN);
+		/* version spec */
+		bytes += qq_putdata(raw_data + bytes, qd->vd.version_spec, VD_SPLEN);
+	}
+	/* zeros[15] */
 	bytes += qq_putdata(raw_data + bytes, qd->redirect, qd->redirect_len);
+#if 1
+	qq_show_packet("qq_request_get_server raw_data:", raw_data, bytes);
+#endif
 
 	encrypted_len = qq_encrypt(encrypted, raw_data, bytes, qd->ld.random_key);
+#if 1
+	qq_show_packet("qq_request_get_server qd->ld.random_key:", qd->ld.random_key, 16);
+	qq_show_packet("qq_request_get_server encrypted:", encrypted, encrypted_len);
+#endif
 
+	/* key and cipher part of packet */
 	buf = g_newa(guint8, MAX_PACKET_SIZE);
 	memset(buf, 0, MAX_PACKET_SIZE);
 	bytes = 0;
@@ -634,6 +685,7 @@ void qq_request_get_server(PurpleConnection *gc)
 	qq_send_cmd_encrypted(gc, QQ_CMD_GET_SERVER, qd->send_seq, buf, bytes, TRUE);
 }
 
+/* XXX */
 guint16 qq_process_get_server(PurpleConnection *gc, guint8 *data, gint data_len)
 {
 	qq_data *qd;
@@ -644,8 +696,9 @@ guint16 qq_process_get_server(PurpleConnection *gc, guint8 *data, gint data_len)
 	qd = (qq_data *) gc->proto_data;
 
 	g_return_val_if_fail (data != NULL, QQ_LOGIN_REPLY_ERR);
-
-	/* qq_show_packet("Get Server", data, data_len); */
+#if 1
+	qq_show_packet("qq_process_get_server", data, data_len);
+#endif
 	bytes = 0;
 	bytes += qq_get16(&ret, data + bytes);
 	if (ret == 0) {
