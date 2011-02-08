@@ -157,6 +157,9 @@ static void qq_login(PurpleAccount *account)
 	purple_debug_info("QQ", "Server list has %d\n", g_list_length(qd->servers));
 
 	version_str = purple_account_get_string(account, "client_version", NULL);
+	qd->client_tag = QQ_CLIENT_1E0D;	/* defult 2010 */
+	qd->client_version = 2010;
+#if 0
 	qd->client_tag = QQ_CLIENT_115B;	/* set default as QQ2008 */
 	qd->client_version = 2008;
 	if (version_str != NULL && strlen(version_str) != 0) {
@@ -168,6 +171,7 @@ static void qq_login(PurpleAccount *account)
 			qd->client_version = 2007;
 		}
 	}
+#endif
 
 	qd->is_show_notice = purple_account_get_bool(account, "show_notice", TRUE);
 	qd->is_show_news = purple_account_get_bool(account, "show_news", TRUE);
