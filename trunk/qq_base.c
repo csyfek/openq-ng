@@ -712,7 +712,7 @@ guint16 qq_process_get_server(PurpleConnection *gc, guint8 *data, gint data_len)
 	bytes = 0;
 	if(qd->client_version >= 2009)
 	{
-		if(data_len < 77) /* at least 76 bytes */
+		if(data_len < 76) /* at least 76 bytes */
 		{
 			purple_connection_error_reason(gc,
 						       PURPLE_CONNECTION_ERROR_ENCRYPTION_ERROR,
@@ -727,11 +727,15 @@ guint16 qq_process_get_server(PurpleConnection *gc, guint8 *data, gint data_len)
 		bytes += qq_get16(&x91_token_length, data + bytes);
 		bytes += qq_getdata(x91_token, 56, data + bytes);
 		bytes += qq_get8(&need_redirect, data + bytes);
-		purple_debug_info("QQ", "2009 routine, login_time:%s, login_ip:%s", ctime((const time_t *)&login_time), inet_ntoa(login_ip));
+		purple_debug_info("QQ", "2009 routine, login_time:%s, login_ip:%s\n", ctime((const time_t *)&login_time), inet_ntoa(login_ip));
 
 		if(need_redirect == 0)
 		{
-			if(bytes == data_len) return QQ_LOGIN_REPLY_OK;
+			if(bytes == data_len)
+			{
+				purple_debug_info("QQ", "login reply ok\n");
+				return QQ_LOGIN_REPLY_OK;
+			}
 		}
 		else /* need_redirect not ZERO */
 		{
