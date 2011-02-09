@@ -691,6 +691,16 @@ guint16 qq_process_get_server(PurpleConnection *gc, guint8 *data, gint data_len)
 	qq_data *qd;
 	gint bytes;
 	guint16 ret;
+	/* 2009/2010 */
+	guint8 ret_ng;
+	time_t login_time;
+	struct in_addr login_ip;
+	guint8 x91_rcv_fixed[8];
+	guint16 x91_token_length;
+	guint8 x91_token[56] = {0};
+	guint8 need_redirect = 0;
+	guint8 *rd_dest;
+
 
 	g_return_val_if_fail (gc != NULL && gc->proto_data != NULL, QQ_LOGIN_REPLY_ERR);
 	qd = (qq_data *) gc->proto_data;
@@ -700,6 +710,54 @@ guint16 qq_process_get_server(PurpleConnection *gc, guint8 *data, gint data_len)
 	qq_show_packet("qq_process_get_server", data, data_len);
 #endif
 	bytes = 0;
+	if(qd->client_version >= 2009)
+	{
+		if(data_len < 77) /* at least 76 bytes */
+		{
+			purple_connection_error_reason(gc,
+						       PURPLE_CONNECTION_ERROR_ENCRYPTION_ERROR,
+						       _("Unable to decrypt server reply"));
+			return QQ_LOGIN_REPLY_ERR;
+		}
+
+		bytes += qq_get8(&ret_ng, data + bytes);
+		bytes += qq_getime(&login_time, data + bytes);
+		bytes += qq_getIP(&login_ip, data + bytes);
+		bytes += qq_getdata(x91_rcv_fixed, 8, data + bytes);
+		bytes += qq_get16(&x91_token_length, data + bytes);
+		bytes += qq_getdata(x91_token, 56, data + bytes);
+		bytes += qq_get8(&need_redirect, data + bytes);
+		purple_debug_info("QQ", "2009 routine, login_time:%s, login_ip:%s", ctime((const time_t *)&login_time), inet_ntoa(login_ip));
+
+		if(need_redirect == 0)
+		{
+			if(bytes == data_len) return QQ_LOGIN_REPLY_OK;
+		}
+		else /* need_redirect not ZERO */
+		{
+			if(data_len - bytes == 13) /* ok, redirect */
+			{
+				qd->redirect_len = X91_REDIRECT_LEN;
+				qd->redirect = g_realloc(qd->redirect, qd->redirect_len);
+				memset(qd->redirect, 0, X91_REDIRECT_LEN);
+				/* written from pos 1 */
+				rd_dest = qd->redirect + 1;
+				rd_dest += qq_get8(rd_dest, &need_redirect);
+				/* unknown data */
+				bytes += qq_getdata(rd_dest, 9, data + bytes);
+				bytes += qq_getIP(&qd->redirect_ip, data + bytes);
+				purple_debug_info("QQ", "2010 Get server %s\n", inet_ntoa(qd->redirect_ip));
+				return QQ_LOGIN_REPLY_REDIRECT;
+			}
+			else
+			{
+				purple_debug_info("QQ", "data_len NOT match, it's %d\n", data_len);
+				return QQ_LOGIN_REPLY_ERR;
+			}
+		}
+
+	}
+
 	bytes += qq_get16(&ret, data + bytes);
 	if (ret == 0) {
 		/* Notice: do not clear redirect_data here. It will be used in login*/
@@ -709,8 +767,8 @@ guint16 qq_process_get_server(PurpleConnection *gc, guint8 *data, gint data_len)
 
 	if (data_len < 15) {
 		purple_connection_error_reason(gc,
-				PURPLE_CONNECTION_ERROR_ENCRYPTION_ERROR,
-				_("Unable to decrypt server reply"));
+					       PURPLE_CONNECTION_ERROR_ENCRYPTION_ERROR,
+					       _("Unable to decrypt server reply"));
 		return QQ_LOGIN_REPLY_ERR;
 	}
 

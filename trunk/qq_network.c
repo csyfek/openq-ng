@@ -157,7 +157,7 @@ static gint packet_get_header_ex(UID *uid, guint8 *header_ex_fixed, guint8 *buf)
 	bytes += qq_get32(uid, buf + bytes);
 	bytes += qq_getdata(header_ex_fixed, 3, buf + bytes);
 	qq_show_packet("packet_get_header_ex", header_ex_fixed, 3);
-	purple_debug_info("QQ", "packet_get_header_ex - UID:%u, ex_fixed:%s", *uid, header_ex_fixed);
+	purple_debug_info("QQ", "packet_get_header_ex - UID:%u\n", *uid);
 	return bytes;
 }
 
